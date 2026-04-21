@@ -120,43 +120,43 @@ export default function SignupPage() {
             <span className="font-display font-bold text-ink">Belho Xper</span>
           </Link>
 
-          <h1 className="font-display text-2xl font-bold text-ink tracking-tight mb-1.5">Créer un compte</h1>
-          <p className="text-sm text-ink3 mb-8">Gratuit, sans engagement.</p>
+          <h1 className="font-display text-[2rem] font-black text-ink tracking-tight mb-1.5">Créer un compte</h1>
+          <p className="text-[14px] text-ink3 mb-8 leading-relaxed">Gratuit, sans engagement — résultat en 4 minutes.</p>
 
           {success ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-              <div className="text-3xl mb-3">📧</div>
-              <div className="font-display font-bold text-ink mb-1">Vérifiez votre email !</div>
-              <div className="text-sm text-ink3">Cliquez sur le lien envoyé à <strong>{email}</strong> pour activer votre compte.</div>
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+              <div className="text-4xl mb-3">📧</div>
+              <div className="font-display font-black text-ink mb-2">Vérifiez votre email !</div>
+              <div className="text-sm text-ink3 leading-relaxed">Cliquez sur le lien envoyé à <strong>{email}</strong> pour activer votre compte.</div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Nom complet</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Nom complet</label>
                 <input
                   type="text"
                   required
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   placeholder="Jean Dupont"
-                  className="px-3.5 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10"
+                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
+                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Email</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Email</label>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="vous@exemple.fr"
-                  className="px-3.5 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10"
+                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
+                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Mot de passe</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Mot de passe</label>
                 <input
                   type="password"
                   required
@@ -164,13 +164,13 @@ export default function SignupPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="8 caractères minimum"
-                  className="px-3.5 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10"
+                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
+                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
                 />
               </div>
 
               {error && (
-                <div className="text-red-700 text-xs py-3 px-3.5 bg-red-50 rounded-lg border border-red-200 leading-relaxed">
+                <div className="text-red-700 text-[13px] py-3.5 px-4 bg-red-50 rounded-xl border border-red-200 leading-relaxed">
                   {error}
                 </div>
               )}
@@ -178,18 +178,19 @@ export default function SignupPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-blue text-white font-bold text-sm rounded-lg
-                  shadow-[0_2px_8px_rgba(29,78,216,.3)] hover:bg-blue-dark transition-all disabled:opacity-60 mt-2"
+                className="w-full py-3.5 bg-blue text-white font-bold text-[14px] rounded-xl
+                  shadow-[0_4px_14px_rgba(29,78,216,.35)] hover:bg-blue-dark hover:-translate-y-0.5
+                  hover:shadow-[0_8px_24px_rgba(29,78,216,.42)] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? 'Création…' : 'Créer mon compte'}
               </button>
 
-              <p className="text-xs text-ink4 text-center mt-2">
+              <p className="text-[11.5px] text-ink4 text-center mt-2">
                 En créant un compte, vous acceptez nos conditions d&apos;utilisation.
               </p>
-              <p className="text-center text-sm text-ink3 mt-3">
+              <p className="text-center text-[13px] text-ink3 mt-3">
                 Déjà un compte ?{' '}
-                <Link href="/auth/login" className="text-blue font-semibold hover:underline">Se connecter</Link>
+                <Link href="/auth/login" className="text-blue font-bold hover:underline">Se connecter</Link>
               </p>
             </form>
           )}

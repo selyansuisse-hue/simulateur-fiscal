@@ -25,13 +25,20 @@ export default async function DashboardPage() {
     <>
       <PageHeader />
       <div className="min-h-screen bg-surface">
-        <div className="bg-navy border-b border-white/[0.05]">
-          <div className="max-w-6xl mx-auto px-6 py-10">
-            <div className="text-[10.5px] font-semibold tracking-widest uppercase text-blue-mid mb-2">Dashboard</div>
-            <h1 className="font-display text-3xl font-black text-white tracking-tight mb-1">
-              Bonjour {firstName} 👋
+        <div className="bg-navy border-b border-white/[0.05] relative overflow-hidden">
+          <div className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(37,99,235,.14) 0%, transparent 65%)', top: '-12rem', right: '-6rem' }} />
+          <div className="max-w-6xl mx-auto px-6 py-12 relative">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-px w-5 rounded-full bg-blue-mid" />
+              <span className="text-[10.5px] font-bold tracking-[0.18em] uppercase text-blue-mid">Dashboard</span>
+            </div>
+            <h1 className="font-display text-[2.2rem] font-black text-white tracking-tight mb-2">
+              Bonjour, {firstName}
             </h1>
-            <p className="text-sm text-white/40">Vos simulations fiscales sauvegardées.</p>
+            <p className="text-[14px] text-white/42 max-w-md leading-relaxed">
+              Retrouvez et comparez toutes vos simulations fiscales sauvegardées.
+            </p>
           </div>
         </div>
 

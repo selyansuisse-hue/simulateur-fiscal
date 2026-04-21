@@ -29,18 +29,25 @@ export default function SimulateurPage() {
 
       {/* Hero sombre compact */}
       <div className="bg-navy relative overflow-hidden border-b border-white/[0.05]">
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.18)_0%,transparent_65%)] -top-36 -right-16 pointer-events-none" />
-        <div className="max-w-[920px] mx-auto px-8 py-10 relative">
-          <div className="text-[10.5px] font-semibold tracking-widest uppercase text-blue-mid mb-3">Simulateur fiscal · 2025</div>
-          <h1 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-3 max-w-lg">
+        <div className="absolute w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.16)_0%,transparent_65%)] -top-40 -right-20 pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none opacity-20"
+          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px)', backgroundSize: '28px 28px',
+            WebkitMaskImage: 'radial-gradient(ellipse 70% 100% at 100% 50%, black 30%, transparent 100%)',
+            maskImage: 'radial-gradient(ellipse 70% 100% at 100% 50%, black 30%, transparent 100%)' }} />
+        <div className="max-w-[920px] mx-auto px-8 py-12 relative">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-px w-6 rounded-full bg-blue-mid" />
+            <span className="text-[10.5px] font-bold tracking-[0.18em] uppercase text-blue-mid">Simulateur fiscal · 2025</span>
+          </div>
+          <h1 className="font-display text-3xl sm:text-[2.6rem] font-black text-white tracking-tight leading-tight mb-3 max-w-xl">
             Quelle structure vous fait<br />
             <span className="bg-gradient-to-r from-blue-mid to-blue-light bg-clip-text text-transparent">
               vraiment économiser ?
             </span>
           </h1>
-          <div className="text-sm text-white/40 max-w-sm leading-relaxed">
-            4 étapes. Comparaison instantanée. Barème IR & cotisations SSI 2025.
-          </div>
+          <p className="text-[14px] text-white/42 max-w-md leading-relaxed">
+            4 étapes. Comparaison Micro · EI · EURL · SASU sur vos chiffres réels. Barème IR & cotisations SSI 2025.
+          </p>
         </div>
       </div>
 

@@ -111,58 +111,58 @@ export default function LoginPage() {
             <span className="font-display font-bold text-ink">Belho Xper</span>
           </Link>
 
-          <h1 className="font-display text-[1.75rem] font-bold text-ink tracking-tight mb-1.5">Connexion</h1>
-          <p className="text-sm text-ink3 mb-8">Retrouvez vos simulations sauvegardées.</p>
+          <h1 className="font-display text-[2rem] font-black text-ink tracking-tight mb-1.5">Connexion</h1>
+          <p className="text-[14px] text-ink3 mb-8 leading-relaxed">Retrouvez vos simulations sauvegardées.</p>
 
           {magicSent ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-              <div className="text-3xl mb-3">📧</div>
-              <div className="font-display font-bold text-ink mb-1">Lien envoyé !</div>
-              <div className="text-sm text-ink3">Vérifiez votre boîte mail ({email}) et cliquez sur le lien pour vous connecter.</div>
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+              <div className="text-4xl mb-3">📧</div>
+              <div className="font-display font-black text-ink mb-2">Lien envoyé !</div>
+              <div className="text-sm text-ink3 leading-relaxed">Vérifiez votre boîte mail ({email}) et cliquez sur le lien pour vous connecter.</div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Mode toggle */}
-              <div className="flex rounded-lg border border-surface2 overflow-hidden bg-white mb-5">
+              <div className="flex rounded-xl border border-surface2 overflow-hidden bg-surface p-1 gap-1 mb-5">
                 <button type="button" onClick={() => setMode('password')}
-                  className={`flex-1 py-2.5 text-sm font-semibold transition-all ${mode === 'password' ? 'bg-ink text-white' : 'text-ink3 hover:bg-surface'}`}>
+                  className={`flex-1 py-2.5 text-[13px] font-semibold rounded-lg transition-all ${mode === 'password' ? 'bg-white text-ink shadow-card' : 'text-ink4 hover:text-ink3'}`}>
                   Mot de passe
                 </button>
                 <button type="button" onClick={() => setMode('magic')}
-                  className={`flex-1 py-2.5 text-sm font-semibold transition-all ${mode === 'magic' ? 'bg-ink text-white' : 'text-ink3 hover:bg-surface'}`}>
+                  className={`flex-1 py-2.5 text-[13px] font-semibold rounded-lg transition-all ${mode === 'magic' ? 'bg-white text-ink shadow-card' : 'text-ink4 hover:text-ink3'}`}>
                   Magic link
                 </button>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Email</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Email</label>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="vous@exemple.fr"
-                  className="px-3.5 py-3 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
+                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
+                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
                 />
               </div>
 
               {mode === 'password' && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Mot de passe</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Mot de passe</label>
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="px-3.5 py-3 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
+                    className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
                       focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
                   />
                 </div>
               )}
 
               {error && (
-                <div className="text-red-700 text-xs py-3 px-3.5 bg-red-50 rounded-lg border border-red-200 leading-relaxed">
+                <div className="text-red-700 text-[13px] py-3.5 px-4 bg-red-50 rounded-xl border border-red-200 leading-relaxed">
                   {error}
                 </div>
               )}
@@ -170,15 +170,16 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-blue text-white font-bold text-sm rounded-lg
-                  shadow-[0_2px_8px_rgba(29,78,216,.3)] hover:bg-blue-dark transition-all disabled:opacity-60 mt-2"
+                className="w-full py-3.5 bg-blue text-white font-bold text-[14px] rounded-xl
+                  shadow-[0_4px_14px_rgba(29,78,216,.35)] hover:bg-blue-dark hover:-translate-y-0.5
+                  hover:shadow-[0_8px_24px_rgba(29,78,216,.42)] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? 'Connexion…' : mode === 'magic' ? 'Envoyer le magic link' : 'Se connecter'}
               </button>
 
-              <p className="text-center text-sm text-ink3 mt-4">
+              <p className="text-center text-[13px] text-ink3 mt-4">
                 Pas encore de compte ?{' '}
-                <Link href="/auth/signup" className="text-blue font-semibold hover:underline">Créer un compte</Link>
+                <Link href="/auth/signup" className="text-blue font-bold hover:underline">Créer un compte</Link>
               </p>
             </form>
           )}

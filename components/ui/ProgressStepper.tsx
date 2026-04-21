@@ -8,7 +8,7 @@ export function ProgressStepper() {
 
   return (
     <div className="bg-navy-2 border-b border-white/[0.06]">
-      <div className="max-w-[920px] mx-auto px-6 py-4">
+      <div className="max-w-[920px] mx-auto px-6 py-5">
         <div className="flex items-start">
           {STEPS.map((label, i) => {
             const isActive = i === step
@@ -18,42 +18,61 @@ export function ProgressStepper() {
 
             return (
               <div key={i} className={`flex items-start ${isLast ? '' : 'flex-1'}`}>
-                {/* Circle + label */}
                 <button
                   onClick={() => canClick && setStep(i)}
                   disabled={!canClick}
-                  className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
+                  className="flex flex-col items-center gap-2 flex-shrink-0 group"
                   style={{ cursor: canClick ? 'pointer' : 'default' }}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold transition-all duration-200
-                    ${isActive
-                      ? 'text-white shadow-[0_0_0_3px_rgba(59,130,246,.25)]'
-                      : isDone
-                        ? 'text-white'
-                        : 'text-white/30'}`}
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold transition-all duration-200 ${
+                      isActive
+                        ? 'shadow-[0_0_0_4px_rgba(59,130,246,.22),0_4px_14px_rgba(59,130,246,.35)]'
+                        : isDone
+                          ? 'shadow-[0_0_0_3px_rgba(29,78,216,.15)]'
+                          : ''
+                    }`}
                     style={{
-                      background: isActive ? '#3B82F6' : isDone ? '#1D4ED8' : 'rgba(255,255,255,.07)',
-                      border: isActive ? 'none' : isDone ? 'none' : '1px solid rgba(255,255,255,.12)',
+                      background: isActive
+                        ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                        : isDone
+                          ? '#1D4ED8'
+                          : 'rgba(255,255,255,.07)',
+                      border: isActive || isDone ? 'none' : '1.5px solid rgba(255,255,255,.13)',
+                      color: isActive || isDone ? 'white' : 'rgba(255,255,255,.28)',
                     }}
                   >
                     {isDone && !isActive ? (
-                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                        <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg width="13" height="11" viewBox="0 0 13 11" fill="none">
+                        <path d="M1.5 5.5L5 9L11.5 1.5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     ) : (
                       i + 1
                     )}
                   </div>
-                  <span className={`text-[10px] font-medium leading-none transition-colors hidden sm:block
-                    ${isActive ? 'text-white' : isDone ? 'text-white/50 group-hover:text-white/70' : 'text-white/22'}`}>
+                  <span
+                    className={`text-[10.5px] font-semibold leading-none transition-colors duration-150 ${
+                      isActive
+                        ? 'text-white'
+                        : isDone
+                          ? 'text-white/55 group-hover:text-white/75'
+                          : 'text-white/22'
+                    }`}
+                  >
                     {label}
                   </span>
                 </button>
 
-                {/* Connector line to next step */}
                 {!isLast && (
-                  <div className="flex-1 h-px mt-4 mx-2 transition-colors duration-200"
-                    style={{ background: isDone && step > i ? 'rgba(59,130,246,.45)' : 'rgba(255,255,255,.10)' }} />
+                  <div
+                    className="flex-1 h-px mt-5 mx-2.5 transition-all duration-300 rounded-full"
+                    style={{
+                      background:
+                        isDone && step > i
+                          ? 'linear-gradient(90deg, rgba(29,78,216,.6) 0%, rgba(59,130,246,.4) 100%)'
+                          : 'rgba(255,255,255,.09)',
+                    }}
+                  />
                 )}
               </div>
             )
