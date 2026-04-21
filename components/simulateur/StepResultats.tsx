@@ -645,6 +645,26 @@ export function StepResultats() {
         </>
       )}
 
+      {/* ── EXPLORER CTA ── */}
+      {(() => {
+        const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}`
+        return (
+          <div className="border border-blue-border bg-blue-bg rounded-xl p-5 mt-6 flex items-start gap-4 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <div className="font-display text-[13.5px] font-bold text-ink mb-1.5">🔍 Explorez les scénarios alternatifs</div>
+              <p className="text-sm text-ink3 leading-relaxed">
+                Que se passe-t-il si votre CA augmente de 20% ? Et si vous vous mariez ? Et si vous versez au PER ?
+                Ajustez vos paramètres en temps réel dans le module interactif.
+              </p>
+            </div>
+            <a href={explorerUrl}
+              className="flex-shrink-0 px-4 py-2.5 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark transition-all whitespace-nowrap">
+              Ouvrir l&apos;explorateur →
+            </a>
+          </div>
+        )
+      })()}
+
       {/* ── CTA CABINET ── */}
       <div className="bg-navy rounded-2xl p-8 text-center mt-6 relative overflow-hidden">
         <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.2)_0%,transparent_65%)] -top-48 -right-24 pointer-events-none" />

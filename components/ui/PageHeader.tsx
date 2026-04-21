@@ -38,6 +38,7 @@ export function PageHeader() {
         <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
           {[
             { href: '/simulateur', label: 'Simulateur' },
+            { href: '/explorer', label: 'Explorer' },
             ...(user ? [
               { href: '/dashboard', label: 'Dashboard' },
               { href: '/simulations', label: 'Mes simulations' },
