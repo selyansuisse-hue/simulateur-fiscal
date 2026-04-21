@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useSimulateur } from '@/hooks/useSimulateur'
 import { fmt, fmtM } from '@/lib/utils'
 import { swot, leviers, plan } from '@/lib/fiscal/structures'
-import { tmiRate } from '@/lib/fiscal/ir'
+import { tmiRate, calcPartsTotal } from '@/lib/fiscal/ir'
 import { StructureResult } from '@/lib/fiscal'
 import { SimParams } from '@/lib/fiscal/types'
 import { SaveSimulationModal } from '@/components/simulateur/SaveSimulationModal'
@@ -23,9 +23,320 @@ function tmiLabel(tmi: number): string {
   return 'tranche haute'
 }
 
+// Barème IK 2025 par puissance fiscale
+const BAREME_IK: Record<number, (km: number) => number> = {
+  3: (d) => d <= 5000 ? d * 0.502 : d <= 20000 ? d * 0.3 + 1007 : d * 0.364,
+  4: (d) => d <= 5000 ? d * 0.575 : d <= 20000 ? d * 0.323 + 1262 : d * 0.387,
+  5: (d) => d <= 5000 ? d * 0.548 : d <= 20000 ? d * 0.309 + 1194 : d * 0.373,
+  6: (d) => d <= 5000 ? d * 0.574 : d <= 20000 ? d * 0.32 + 1265 : d * 0.384,
+  7: (d) => d <= 5000 ? d * 0.601 : d <= 20000 ? d * 0.34 + 1301 : d * 0.407,
+}
+
+const INP = "px-3 py-2 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all w-full"
+const SEL = INP + " cursor-pointer"
+
+/* ── Analyse contextuelle ── */
+function genAnalyse(best: StructureResult, params: SimParams, tmi: number) {
+  const ben = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
+  const parts = calcPartsTotal(params.partsBase, params.nbEnfants)
+  const partsStr = parts % 1 === 0 ? parts.toString() : parts.toFixed(1).replace('.', ',')
+  const situStr = params.partsBase === 2
+    ? `couple${params.nbEnfants > 0 ? ` avec ${params.nbEnfants} enfant${params.nbEnfants > 1 ? 's' : ''}` : ''}`
+    : 'célibataire'
+  const f = best.forme
+  let pourquoi = '', attention = ''
+
+  if (f === 'EI (réel normal)') {
+    pourquoi = `Avec un CA de ${fmt(params.ca)} et un bénéfice brut de ${fmt(ben)}, en situation de ${situStr} (${partsStr} parts), votre TMI reste à ${tmi}%. L'EI au réel vous permet de déduire toutes les charges réelles et profite de cotisations SSI calculées par composante — sans surcoût lié à l'IS.`
+    attention = `Si votre bénéfice net dépasse 60 000 €/an, le passage en société IS (EURL ou SASU) devient généralement avantageux : l'IS 15% sera inférieur à votre TMI IR (${tmi}%).`
+  } else if (f === 'EURL / SARL (IS)') {
+    pourquoi = `Avec un CA de ${fmt(params.ca)} et un bénéfice brut de ${fmt(ben)}, l'IS 15% sur les premiers 42 500 € de résultat est inférieur à votre TMI (${tmi}%). La séparation patrimoine personnel / société apporte également une protection supplémentaire.`
+    attention = `Les dividendes supérieurs à ${fmt(params.capital * 0.10)} (10% du capital de ${fmt(params.capital)}) sont soumis aux cotisations TNS ~45%. Augmenter le capital social permet d'augmenter ce seuil de distribution.`
+  } else if (f === 'SAS / SASU') {
+    pourquoi = `Avec un CA de ${fmt(params.ca)}, la SASU combine un salaire de président (cotisations assimilé salarié) et des dividendes sans cotisations sociales. C'est la seule structure en France offrant ce double avantage — particulièrement pertinent avec votre bénéfice brut de ${fmt(ben)}.`
+    attention = `En tant que président de SASU, vous n'êtes pas couvert par France Travail. Une assurance perte d'emploi (GSC ou contrat Madelin) est fortement recommandée et déductible de l'IS.`
+  } else {
+    pourquoi = `Avec un CA de ${fmt(params.ca)}, le régime micro offre la simplicité maximale : abattement forfaitaire de ${Math.round((params.abat || 0.5) * 100)}% sans comptabilité obligatoire. Vos charges réelles étant limitées, ce régime est bien adapté à votre profil.`
+    attention = `Si votre CA dépasse 77 700 € deux années consécutives, le passage au régime réel est obligatoire. Votre CA actuel représente ${Math.round(params.ca / 77700 * 100)}% du plafond — anticipez la transition dès maintenant.`
+  }
+  return { pourquoi, attention }
+}
+
+/* ── Bloc résultat réutilisable dans les modales ── */
+function ResultBlock({ rows, highlight, extra }: {
+  rows: { label: string; val: string; bold?: boolean; green?: boolean }[]
+  highlight: { label: string; val: string }
+  extra?: { label: string; val: string }
+}) {
+  return (
+    <div className="bg-surface rounded-xl p-4 space-y-2.5">
+      {rows.map(({ label, val, bold, green }) => (
+        <div key={label} className="flex justify-between text-sm border-b border-surface2 pb-2.5 last:border-0 last:pb-0">
+          <span className="text-ink3">{label}</span>
+          <span className={`${bold ? 'font-bold text-ink' : ''} ${green ? 'font-semibold text-green-700' : !bold ? 'text-ink' : ''}`}>{val}</span>
+        </div>
+      ))}
+      <div className="flex justify-between items-center border-t border-surface2 pt-2.5">
+        <span className="text-sm font-semibold text-ink">{highlight.label}</span>
+        <span className="font-display text-xl font-black text-blue">{highlight.val}</span>
+      </div>
+      {extra && (
+        <div className="flex justify-between items-center border-t border-surface2 pt-2.5">
+          <span className="text-sm text-ink3">{extra.label}</span>
+          <span className="font-bold text-ink2">{extra.val}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Mini-simulateurs dans modale ── */
+interface LevierModalProps {
+  levier: { ico: string; nom: string; desc: string; gain: number; cond: string }
+  best: StructureResult
+  params: SimParams
+  tmi: number
+  onClose: () => void
+}
+
+function LevierModal({ levier, best, params, tmi, onClose }: LevierModalProps) {
+  const isSoc = best.forme === 'EURL / SARL (IS)' || best.forme === 'SAS / SASU'
+  const isTNS = best.forme === 'EI (réel normal)' || best.forme === 'EURL / SARL (IS)'
+  const tauxIS = best.is > 0 && best.ben > 42500 ? 0.25 : 0.15
+
+  const isIK = levier.nom.includes('kilométrique')
+  const isPER = levier.nom.toLowerCase().includes('per') || levier.nom.includes('épargne')
+  const isDom = levier.nom.includes('omicili') || levier.nom.includes('iège')
+  const isPrev = levier.nom.includes('révoyance') && !levier.nom.toLowerCase().includes('per')
+
+  // IK
+  const [ikKm, setIkKm] = useState(8000)
+  const [ikCV, setIkCV] = useState(5)
+
+  // PER
+  const [perMontant, setPerMontant] = useState(3000)
+
+  // Domiciliation
+  const [domStatut, setDomStatut] = useState<'locataire' | 'proprietaire'>('locataire')
+  const [domSurfBureau, setDomSurfBureau] = useState(12)
+  const [domSurfTotale, setDomSurfTotale] = useState(60)
+  const [domLoyer, setDomLoyer] = useState(800)
+  const [domChargesAnn, setDomChargesAnn] = useState(3000)
+
+  // Prévoyance
+  const [prevPrime, setPrevPrime] = useState(2000)
+
+  // Calculs IK
+  const ikFn = BAREME_IK[ikCV] || BAREME_IK[5]
+  const ikMontant = Math.round(ikFn(ikKm))
+  const ikTauxKm = ikKm > 0 ? ikFn(ikKm) / ikKm : 0
+  let ikEconomie = 0
+  if (isSoc) {
+    ikEconomie = Math.round(ikMontant * tauxIS)
+    if (best.forme === 'SAS / SASU') ikEconomie += Math.round(ikMontant * 0.22)
+  } else {
+    ikEconomie = Math.round(ikMontant * (0.45 / 1.45 + tmi / 100))
+  }
+
+  // Calculs PER
+  const benBrut = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
+  const perPlafond = Math.round(Math.min(35194, benBrut * 0.10))
+  const perRet = Math.min(perMontant, perPlafond)
+  const perEcoIR = Math.round(perRet * tmi / 100)
+  const perEcoCotis = isTNS ? Math.round(perRet * 0.45 / 1.45) : 0
+  const perEffort = Math.max(0, perRet - perEcoIR - perEcoCotis)
+  const perCapital = Math.round(perRet * ((Math.pow(1.05, 20) - 1) / 0.05))
+
+  // Calculs Domiciliation
+  const domRatio = domSurfTotale > 0 ? domSurfBureau / domSurfTotale : 0
+  const domRef = domStatut === 'locataire' ? domLoyer * 12 : domChargesAnn
+  const domDed = Math.round(domRef * domRatio)
+  const domGain = isSoc ? Math.round(domDed * tauxIS) : Math.round(domDed * (0.45 / 1.45 + tmi / 100))
+
+  // Calculs Prévoyance
+  const prevEcoIS = isSoc ? Math.round(prevPrime * tauxIS) : 0
+  const prevEcoIR = isTNS ? Math.round(prevPrime * 0.45 / 1.45) : Math.round(prevPrime * tmi / 100)
+  const prevCout = Math.max(0, prevPrime - prevEcoIS - prevEcoIR)
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-surface2">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{levier.ico}</span>
+            <div>
+              <h3 className="font-display text-lg font-bold text-ink">{levier.nom}</h3>
+              <p className="text-xs text-ink3 mt-0.5">Simulateur interactif</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-full bg-surface hover:bg-surface2 flex items-center justify-center text-xl text-ink3 hover:text-ink transition-colors flex-shrink-0">
+            ×
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* ── IK ── */}
+          {isIK && <>
+            <p className="text-sm text-ink2 leading-relaxed">
+              Les IK permettent de déduire l&apos;usage professionnel de votre véhicule personnel selon le barème fiscal 2025, sans justifier les frais réels.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Km professionnels / an</label>
+                <input type="number" value={ikKm} min={0} max={50000} step={500}
+                  onChange={e => setIkKm(Math.max(0, parseInt(e.target.value) || 0))}
+                  className={INP} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Puissance fiscale</label>
+                <select value={ikCV} onChange={e => setIkCV(parseInt(e.target.value))} className={SEL}>
+                  {[3, 4, 5, 6, 7].map(cv => (
+                    <option key={cv} value={cv}>{cv}{cv === 7 ? ' CV et +' : ' CV'}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <ResultBlock
+              rows={[
+                { label: `Taux barème ${ikCV}CV (${ikKm.toLocaleString('fr-FR')} km)`, val: `${ikTauxKm.toFixed(3).replace('.', ',')} €/km` },
+                { label: 'Montant déductible / an', val: fmt(ikMontant), bold: true },
+              ]}
+              highlight={{ label: 'Économie fiscale estimée', val: `+${fmt(ikEconomie)}/an` }}
+            />
+            <p className="text-[11.5px] text-ink4">{levier.cond}</p>
+          </>}
+
+          {/* ── PER ── */}
+          {isPER && <>
+            <p className="text-sm text-ink2 leading-relaxed">
+              Le PER permet de déduire vos versements de votre revenu imposable.
+              {isTNS && ' Pour les TNS, les versements réduisent également les cotisations — c\'est un double levier unique.'}
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Versement annuel PER (€)</label>
+              <input type="number" value={perMontant} min={0} max={Math.max(perPlafond, perMontant)} step={500}
+                onChange={e => setPerMontant(Math.max(0, parseInt(e.target.value) || 0))}
+                className={INP} />
+              <p className="text-[11px] text-ink4">Votre plafond estimé : {fmt(perPlafond)}/an (10% du bénéfice)</p>
+            </div>
+            <ResultBlock
+              rows={[
+                { label: 'Versement retenu (≤ plafond)', val: fmt(perRet) },
+                { label: `Économie IR (TMI ${tmi}%)`, val: `−${fmt(perEcoIR)}`, green: true },
+                ...(perEcoCotis > 0 ? [{ label: 'Économie cotisations TNS', val: `−${fmt(perEcoCotis)}`, green: true }] : []),
+              ]}
+              highlight={{ label: 'Effort réel après économies', val: fmt(perEffort) }}
+              extra={{ label: 'Capital projeté à 20 ans (5%/an net)', val: fmt(perCapital) }}
+            />
+          </>}
+
+          {/* ── Domiciliation ── */}
+          {isDom && <>
+            <p className="text-sm text-ink2 leading-relaxed">
+              Si vous travaillez depuis votre domicile, vous pouvez déduire une quote-part des charges au prorata de la surface professionnelle. La pièce doit être dédiée exclusivement à l&apos;activité.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5 col-span-2">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Statut du logement</label>
+                <select value={domStatut} onChange={e => setDomStatut(e.target.value as 'locataire' | 'proprietaire')} className={SEL}>
+                  <option value="locataire">Locataire</option>
+                  <option value="proprietaire">Propriétaire</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Surface bureau (m²)</label>
+                <input type="number" value={domSurfBureau} min={1} max={domSurfTotale} step={1}
+                  onChange={e => setDomSurfBureau(Math.max(1, parseInt(e.target.value) || 1))} className={INP} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Surface totale (m²)</label>
+                <input type="number" value={domSurfTotale} min={domSurfBureau} max={300} step={1}
+                  onChange={e => setDomSurfTotale(Math.max(domSurfBureau, parseInt(e.target.value) || 1))} className={INP} />
+              </div>
+              {domStatut === 'locataire'
+                ? <div className="flex flex-col gap-1.5 col-span-2">
+                    <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Loyer mensuel (€)</label>
+                    <input type="number" value={domLoyer} min={0} step={50}
+                      onChange={e => setDomLoyer(Math.max(0, parseInt(e.target.value) || 0))} className={INP} />
+                  </div>
+                : <div className="flex flex-col gap-1.5 col-span-2">
+                    <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Charges annuelles (taxe foncière, assurance…)</label>
+                    <input type="number" value={domChargesAnn} min={0} step={100}
+                      onChange={e => setDomChargesAnn(Math.max(0, parseInt(e.target.value) || 0))} className={INP} />
+                  </div>
+              }
+            </div>
+            <ResultBlock
+              rows={[
+                { label: 'Ratio surface pro/totale', val: `${Math.round(domRatio * 100)}% (${domSurfBureau}m² / ${domSurfTotale}m²)` },
+                { label: 'Charges déductibles / an', val: fmt(domDed), bold: true },
+              ]}
+              highlight={{ label: 'Gain net annuel estimé', val: `+${fmt(domGain)}/an` }}
+            />
+            <p className="text-[11.5px] text-ink4">{levier.cond}</p>
+          </>}
+
+          {/* ── Prévoyance TNS ── */}
+          {isPrev && <>
+            <p className="text-sm text-ink2 leading-relaxed">
+              Les contrats de prévoyance TNS (arrêt maladie, invalidité, décès) protègent votre revenu. Les primes sont déductibles du bénéfice IS et/ou de l&apos;IR — réduisant significativement le coût réel.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Prime annuelle (€)</label>
+                <input type="number" value={prevPrime} min={0} step={100}
+                  onChange={e => setPrevPrime(Math.max(0, parseInt(e.target.value) || 0))} className={INP} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Votre TMI</label>
+                <div className={`${INP} bg-surface font-semibold cursor-default`}>{tmi}%</div>
+              </div>
+            </div>
+            <ResultBlock
+              rows={[
+                ...(prevEcoIS > 0 ? [{ label: `Économie IS (${Math.round(tauxIS * 100)}%)`, val: `−${fmt(prevEcoIS)}`, green: true }] : []),
+                { label: isTNS ? 'Économie cotisations TNS' : `Économie IR (TMI ${tmi}%)`, val: `−${fmt(prevEcoIR)}`, green: true },
+              ]}
+              highlight={{ label: 'Coût réel après économies', val: fmt(prevCout) }}
+            />
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 leading-relaxed">
+              💡 Un contrat prévoyance TNS couvre arrêt maladie, invalidité et décès. Le niveau de couverture dépend de la prime et de l&apos;assureur.
+            </div>
+          </>}
+
+          {/* Fallback pour les autres leviers */}
+          {!isIK && !isPER && !isDom && !isPrev && (
+            <div>
+              <p className="text-sm text-ink2 leading-relaxed mb-3">{levier.desc}</p>
+              <div className="bg-surface rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-ink">Gain estimé</span>
+                  <span className="font-display text-xl font-black text-blue">+{fmt(levier.gain)}/an</span>
+                </div>
+              </div>
+              <p className="text-[11.5px] text-ink4 mt-3">{levier.cond}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 pb-6">
+          <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+            className="block w-full text-center py-3 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark transition-colors">
+            Prendre RDV pour optimiser →
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Composant principal ── */
 export function StepResultats() {
   const { results, params, prevStep } = useSimulateur()
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [activeLevierIdx, setActiveLevierIdx] = useState<number | null>(null)
 
   if (!results) return null
   const { scored, best, tmi, gain } = results
@@ -34,6 +345,17 @@ export function StepResultats() {
   const leviersArr = leviers(best, params)
   const planArr = plan(best, params)
   const totalLevierGain = leviersArr.reduce((acc, l) => acc + l.gain, 0)
+  const { pourquoi, attention } = genAnalyse(best, params, tmi)
+
+  // Grille adaptée au nombre de structures
+  const count = scored.length
+  const cardsGridClass =
+    count === 1 ? 'flex justify-center' :
+    count === 2 ? 'grid grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto gap-3' :
+    count === 3 ? 'grid grid-cols-1 sm:grid-cols-3 max-w-4xl mx-auto gap-3' :
+    'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'
+
+  const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
 
   return (
     <div className="animate-stepIn pb-28">
@@ -43,7 +365,6 @@ export function StepResultats() {
         <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.22)_0%,transparent_65%)] -top-36 -right-24 pointer-events-none" />
         <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(rgba(255,255,255,.15)_1px,transparent_1px)] bg-[length:24px_24px] [mask-image:linear-gradient(135deg,black_0%,transparent_60%)]" />
         <div className="relative">
-          {/* Recommandation label with pulse */}
           <div className="flex items-center gap-2 mb-3">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-mid opacity-75" />
@@ -82,6 +403,31 @@ export function StepResultats() {
         </div>
       </div>
 
+      {/* ── POURQUOI CETTE RECOMMANDATION ── */}
+      <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
+        Pourquoi cette recommandation ?
+        <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
+      </div>
+      <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-6 shadow-card space-y-4">
+        <div>
+          <div className="text-[10.5px] font-bold tracking-wide uppercase text-blue-mid mb-2">Ce qui explique le résultat</div>
+          <p className="text-sm text-ink2 leading-relaxed">{pourquoi}</p>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+          <div className="flex gap-2.5 text-sm text-amber-800 leading-relaxed">
+            <span className="flex-shrink-0">⚠️</span>
+            <p>{attention}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-4 pt-1 flex-wrap">
+          <p className="text-sm text-ink3">Pour valider ce choix et optimiser votre rémunération, prenez rendez-vous avec un expert Belho Xper.</p>
+          <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+            className="flex-shrink-0 px-4 py-2 bg-blue text-white font-semibold text-sm rounded-lg hover:bg-blue-dark transition-colors whitespace-nowrap">
+            Prendre RDV →
+          </a>
+        </div>
+      </div>
+
       {/* ── COMPARAISON 4 STRUCTURES ── */}
       <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
         Comparaison des structures
@@ -89,7 +435,7 @@ export function StepResultats() {
       </div>
       <p className="text-sm text-ink3 mb-4">Triées par score multicritère selon votre priorité.</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className={`${cardsGridClass} mb-6`}>
         {scored.map((r, i) => (
           <StructureCard key={r.forme} r={r} rank={i + 1} params={params} />
         ))}
@@ -142,7 +488,7 @@ export function StepResultats() {
         Protection sociale
         <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className={`${cardsGridClass} mb-4`}>
         {scored.map((r, i) => {
           const qualStyles: Record<string, { border: string; bg: string; badge: string }> = {
             bon: { border: '#bbf7d0', bg: '#f0fdf4', badge: 'text-green-700 bg-green-100' },
@@ -151,6 +497,7 @@ export function StepResultats() {
             'très faible': { border: '#fecaca', bg: '#fef2f2', badge: 'text-red-800 bg-red-100' },
           }
           const qs = qualStyles[r.prot.qual] || { border: '#e2e8f0', bg: '#f8fafc', badge: 'text-ink3 bg-surface' }
+          const isTNSStruct = r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)'
           return (
             <div key={r.forme} className="rounded-xl p-4 transition-transform hover:-translate-y-0.5"
               style={{ border: `1.5px solid ${i === 0 ? '#93c5fd' : qs.border}`, background: i === 0 ? '#eff6ff' : qs.bg,
@@ -171,11 +518,41 @@ export function StepResultats() {
                     <span className={bold ? 'font-bold text-ink' : 'font-medium text-ink2'}>{v}</span>
                   </div>
                 ))}
+                {isTNSStruct && (
+                  <div className="mt-2 pt-2 border-t border-black/[0.06]">
+                    <div className="text-[11px] text-ink3 mb-1">Mutuelle santé recommandée</div>
+                    <div className="text-[11px] font-semibold text-ink2">50 – 150 €/mois</div>
+                    <div className="text-[10.5px] text-ink4 mt-0.5">Primes déductibles du bénéfice</div>
+                  </div>
+                )}
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Note prévoyance TNS */}
+      {hasTNS && (
+        <div className="bg-blue-bg border border-blue-border rounded-xl p-4 mb-6 flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex gap-2.5 text-sm text-blue-dark">
+            <span className="flex-shrink-0">🛡</span>
+            <div>
+              <strong>Prévoyance TNS déductible</strong> — les primes de prévoyance (arrêt maladie, invalidité, décès) sont déductibles du bénéfice IS ou BIC.
+              Simulez l&apos;économie réelle via le levier Prévoyance ci-dessous.
+            </div>
+          </div>
+          {leviersArr.some(l => l.nom.includes('révoyance')) && (
+            <button
+              onClick={() => {
+                const idx = leviersArr.findIndex(l => l.nom.includes('révoyance'))
+                if (idx >= 0) setActiveLevierIdx(idx)
+              }}
+              className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold bg-blue text-white rounded-lg hover:bg-blue-dark transition-colors whitespace-nowrap">
+              Simuler l&apos;économie →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── SWOT ── */}
       <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
@@ -213,22 +590,30 @@ export function StepResultats() {
             <span className="text-sm font-medium text-white/75">Potentiel d&apos;optimisation estimé</span>
             <span className="font-display text-2xl font-black text-white">{fmt(totalLevierGain)}/an</span>
           </div>
+          <p className="text-[12px] text-ink4 mb-3">Cliquez sur une carte pour ouvrir le simulateur interactif.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
             {leviersArr.map((l, i) => (
-              <div key={i} className="bg-white rounded-xl p-4 transition-all duration-200 relative overflow-hidden"
-                style={{ borderTop: '1px solid rgba(11,22,39,.07)', borderRight: '1px solid rgba(11,22,39,.07)', borderBottom: '1px solid rgba(11,22,39,.07)', borderLeft: '4px solid #1D4ED8', boxShadow: '0 2px 8px rgba(11,22,39,.05)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.02)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(11,22,39,.12)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(11,22,39,.05)' }}
-              >
+              <button key={i} onClick={() => setActiveLevierIdx(i)}
+                className="bg-white rounded-xl p-4 text-left transition-all duration-200 relative overflow-hidden
+                  hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(11,22,39,.12)] group"
+                style={{ borderTop: '1px solid rgba(11,22,39,.07)', borderRight: '1px solid rgba(11,22,39,.07)',
+                  borderBottom: '1px solid rgba(11,22,39,.07)', borderLeft: '4px solid #1D4ED8',
+                  boxShadow: '0 2px 8px rgba(11,22,39,.05)' }}>
+                <div className="absolute top-0 right-0 bottom-0 w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-blue-mid text-xs">→</span>
+                </div>
                 <div className="text-2xl mb-2.5">{l.ico}</div>
                 <div className="font-display text-[13.5px] font-bold text-ink mb-1">{l.nom}</div>
                 <div className="text-xs text-ink3 leading-relaxed mb-2.5">{l.desc}</div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
-                  style={{ color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0' }}>
-                  ↑ {fmt(l.gain)}/an estimé
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                    style={{ color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0' }}>
+                    ↑ {fmt(l.gain)}/an estimé
+                  </div>
+                  <span className="text-[10px] text-blue-mid font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Simuler →</span>
                 </div>
                 <div className="text-[11px] text-ink4 mt-2 leading-snug">{l.cond}</div>
-              </div>
+              </button>
             ))}
           </div>
         </>
@@ -289,8 +674,18 @@ export function StepResultats() {
         </button>
       </div>
 
+      {/* Modales */}
       {showSaveModal && (
         <SaveSimulationModal onClose={() => setShowSaveModal(false)} results={results} params={params} tmi={tmi} />
+      )}
+      {activeLevierIdx !== null && (
+        <LevierModal
+          levier={leviersArr[activeLevierIdx]}
+          best={best}
+          params={params}
+          tmi={tmi}
+          onClose={() => setActiveLevierIdx(null)}
+        />
       )}
     </div>
   )
@@ -304,7 +699,6 @@ function StructureCard({ r, rank, params }: { r: StructureResult; rank: number; 
   const cardTmi = Math.round(tmiRate((cardTmiBase || 0) + params.autresRev, params.partsBase, params.nbEnfants) * 100)
   const cardIR = r.ir
 
-  // Proportional bars
   const revBrut = r.charges + r.ir + r.is + Math.max(0, r.netAnnuel)
   const pct = (n: number) => revBrut > 0 ? Math.min(100, Math.round(n / revBrut * 100)) : 0
 
@@ -324,7 +718,6 @@ function StructureCard({ r, rank, params }: { r: StructureResult; rank: number; 
           ? '0 0 0 3px rgba(29,78,216,.08), 0 8px 28px rgba(11,22,39,.10)'
           : '0 2px 8px rgba(11,22,39,.05)',
       }}>
-      {/* Rank + badge */}
       <div className="flex items-center justify-between h-6 mb-2.5">
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rankColor }} />
@@ -346,7 +739,6 @@ function StructureCard({ r, rank, params }: { r: StructureResult; rank: number; 
       </div>
       <div className="text-[12px] text-ink4 mb-3">{fmt(r.netAnnuel / 12)}/mois</div>
 
-      {/* Cost breakdown with mini bars */}
       <div className="border-t border-surface2 pt-3 flex flex-col flex-1 gap-0">
         {costRows.map(({ k, v, p }) => (
           <div key={k} className="flex items-center justify-between text-[11.5px] py-1.5 border-b border-surface2 gap-2">
@@ -363,7 +755,6 @@ function StructureCard({ r, rank, params }: { r: StructureResult; rank: number; 
         ))}
       </div>
 
-      {/* TMI + IR block */}
       <div className="mt-3 pt-2.5 border-t border-surface2">
         <div className="grid grid-cols-2 gap-2 mb-2">
           <div className="rounded-lg p-2 text-center" style={{ background: '#f8fafc' }}>

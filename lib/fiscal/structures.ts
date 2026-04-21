@@ -239,30 +239,96 @@ export function scoreMulti(res: StructureResult[], priorite: Priorite): Structur
   })
 }
 
-// Analyse SWOT par structure
+// Analyse SWOT par structure — valeurs spécifiques au profil simulé
 export function swot(r: StructureResult, p: SimParams): SwotResult {
   const s: SwotResult = { pos: [], neg: [], opp: [], rsk: [] }
   const f = r.forme
+  const ben = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+
   if (f === 'Micro-entreprise') {
-    s.pos = ['Gestion ultra-simple, aucune comptabilité obligatoire', 'Abattement forfaitaire avantageux si charges réelles faibles']
-    s.neg = ['Charges réelles non déductibles — pénalisant si frais importants', 'Protection sociale TNS minimale (IJ faibles, retraite limitée)', 'Plafond CA : 77 700 € services / 188 700 € commerce']
-    s.opp = ['Versement libératoire IR si revenu N-2 ≤ 27 478 €/part', 'Cumul ARE possible sous conditions lors de la création']
-    s.rsk = ['Dépassement plafond 2 ans → passage forcé au régime réel', 'Aucune optimisation possible si les charges réelles sont élevées']
+    const plafond = p.secteur === 'commerce' ? 188700 : 77700
+    const pctPlafond = Math.round(p.ca / plafond * 100)
+    const abatPct = Math.round((p.abat || 0.5) * 100)
+    s.pos = [
+      `Gestion ultra-simple : abattement forfaitaire ${abatPct}% — aucune comptabilité obligatoire`,
+      'Pas de charges sociales proportionnelles au résultat — cotisations sur CA uniquement',
+    ]
+    s.neg = [
+      `Vos charges réelles (${fmt(p.charges + p.amort)}) ne sont pas déductibles — régime moins favorable`,
+      'Protection sociale TNS minimale (IJ faibles, retraite très limitée)',
+      `CA actuel (${fmt(p.ca)}) = ${pctPlafond}% du plafond — risque de dépassement`,
+    ]
+    s.opp = [
+      'Versement libératoire IR si revenu fiscal N-2 ≤ 27 478 €/part',
+      'Cumul ARE possible sous conditions lors de la création',
+    ]
+    s.rsk = [
+      `Dépassement du plafond (${fmt(plafond)}) 2 ans → passage forcé au régime réel`,
+      `Aucune déduction possible des ${fmt(p.charges + p.amort)} de charges et amortissements réels`,
+    ]
   } else if (f === 'EI (réel normal)') {
-    s.pos = ['Toutes les charges réelles déductibles', 'Cotisations SSI 2025 calculées par composante — taux dégressif', 'PER/prévoyance TNS : réduction simultanée cotisations ET IR']
-    s.neg = ['Pas de séparation patrimoine pro / personnel', 'Protection sociale TNS inférieure à l\'assimilé salarié SASU', 'Pas de dividendes — tout le bénéfice est soumis aux cotisations']
-    s.opp = ['PER individuel : jusqu\'à ~37 000 €/an déductibles', 'Passage en IS recommandé si bénéfice net > 60 000 €/an']
-    s.rsk = ['Responsabilité illimitée sur le patrimoine personnel', 'Cession complexe — apport en société nécessaire']
+    const bNet = r.bNet || ben
+    const perPlafond = Math.round(Math.min(35194, bNet * 0.10))
+    s.pos = [
+      `Toutes les charges réelles déductibles : ${fmt(p.charges + p.amort)} déjà déduits`,
+      'Cotisations SSI 2025 calculées par composante — taux dégressif au-delà du PASS',
+      'PER/prévoyance TNS : réduction simultanée cotisations ET IR',
+    ]
+    s.neg = [
+      'Pas de séparation patrimoine pro / personnel — responsabilité illimitée',
+      'Protection sociale TNS inférieure à l\'assimilé salarié (SASU)',
+      `Bénéfice net (${fmt(bNet)}) entièrement soumis aux cotisations SSI`,
+    ]
+    s.opp = [
+      `PER individuel : jusqu'à ${fmt(perPlafond)}/an déductibles (votre plafond 2025)`,
+      'Passage en IS recommandé si bénéfice net dépasse 60 000 €/an',
+    ]
+    s.rsk = [
+      'Responsabilité illimitée sur le patrimoine personnel et familial',
+      'Cession d\'activité complexe — apport en société nécessaire',
+    ]
   } else if (f === 'EURL / SARL (IS)') {
-    s.pos = ['IS réduit 15% sur les premiers 42 500 € de résultat', 'PER déductible IS ET IR — double effet de levier', 'Dividendes possibles, patrimoine séparé et protégé']
-    s.neg = [`Dividendes > ${fmt(p.capital * 0.10)} (10% capital) → cotisations TNS 45%`, 'Protection sociale TNS inférieure à SASU', 'Obligations comptables — coût expert-comptable']
-    s.opp = ['Augmenter le capital pour distribuer davantage sans surcoût', 'CCA rémunéré (5,23%/an) déductible IS']
-    s.rsk = ['Cotisations TNS minimum même si faible rémunération', 'Capital trop faible → dividendes sur-cotisés TNS à 45%']
+    const seuilDiv = p.capital * 0.10
+    const isEst = Math.min(r.ben || 0, 42500) * 0.15
+    s.pos = [
+      `IS 15% sur les premiers 42 500 € de résultat — économie estimée ${fmt(isEst)} vs IR`,
+      'PER déductible IS ET IR — double effet de levier sur votre bénéfice',
+      `Dividendes possibles jusqu'à ${fmt(seuilDiv)} sans surcoût de cotisations TNS`,
+    ]
+    s.neg = [
+      `Dividendes > ${fmt(seuilDiv)} (10% du capital ${fmt(p.capital)}) → cotisations TNS ~45%`,
+      'Protection sociale TNS inférieure à SASU (IJ et retraite complémentaire)',
+      'Obligations comptables — coût expert-comptable annuel à prévoir',
+    ]
+    s.opp = [
+      `Augmenter le capital au-delà de ${fmt(p.capital)} pour distribuer davantage sans surcoût`,
+      'CCA rémunéré (5,23%/an) déductible IS — alternative aux dividendes',
+    ]
+    s.rsk = [
+      `Capital actuel ${fmt(p.capital)} trop faible → dividendes > ${fmt(seuilDiv)} sur-cotisés TNS`,
+      'Cotisations TNS minimum dues même si rémunération nulle',
+    ]
   } else {
-    s.pos = ['Dividendes sans cotisations sociales — avantage unique en France', 'Meilleure couverture maladie, AT/MP et retraite (AGIRC-ARRCO)', 'Frais remboursés sur justificatifs exonérés de charges patronales']
-    s.neg = ['Charges assimilé salarié élevées (~64% du brut vs ~45% TNS)', 'Pas de couverture chômage France Travail (président SASU)', 'Obligations comptables — coût expert-comptable']
-    s.opp = ['Dividendes : PFU 30% ou barème, option calculée automatiquement', 'GSC / assurance perte emploi déductible IS']
-    s.rsk = ['Salaire trop bas = trimestres retraite insuffisants', 'Résultat IS faible = peu ou pas de dividendes distribuables']
+    const divMontant = r.div || 0
+    const meth = r.methDiv || 'PFU 30%'
+    s.pos = [
+      `${divMontant > 0 ? fmt(divMontant) + ' de dividendes' : 'Dividendes'} sans cotisations sociales — avantage unique en France`,
+      'Meilleure couverture maladie, AT/MP et retraite complémentaire (AGIRC-ARRCO)',
+      'Frais professionnels remboursés sur justificatifs — exonérés de charges patronales',
+    ]
+    s.neg = [
+      'Charges assimilé salarié élevées (~64% du brut vs ~45% pour les TNS)',
+      'Pas de couverture chômage France Travail (président de SASU)',
+      'Obligations comptables — coût expert-comptable annuel à prévoir',
+    ]
+    s.opp = [
+      `Dividendes taxés ${meth} (option la plus favorable calculée automatiquement)`,
+      'GSC / assurance perte d\'emploi déductible IS — se substitue au chômage',
+    ]
+    s.rsk = [
+      `Salaire président trop bas → trimestres retraite insuffisants (min. ${fmt(PASS)}/an brut recommandé)`,
+      'Résultat IS faible (CA bas ou charges élevées) = peu de dividendes distribuables',
+    ]
   }
   return s
 }
