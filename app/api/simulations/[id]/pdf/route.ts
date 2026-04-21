@@ -110,7 +110,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     await browser.close()
 
     const safeName = ((sim as Record<string, unknown>).name as string).replace(/[^a-z0-9\-_ ]/gi, '_').slice(0, 60)
-    return new NextResponse(pdf, {
+    return new NextResponse(Buffer.from(pdf), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="simulation-${safeName}.pdf"`,
