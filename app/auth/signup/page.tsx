@@ -4,6 +4,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
+function getAuthError(err: unknown): string {
+  if (err instanceof Error) {
+    const msg = err.message
+    if (msg.includes('503') || msg.includes('504') || msg.toLowerCase().includes('fetch'))
+      return 'Le service est temporairement indisponible. Réessayez dans quelques instants ou contactez-nous.'
+    return msg
+  }
+  return 'Erreur inconnue — réessayez.'
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const [fullName, setFullName] = useState('')
@@ -17,7 +27,7 @@ export default function SignupPage() {
     e.preventDefault()
     if (password.length < 8) { setError('Mot de passe minimum 8 caractères.'); return }
     if (!isSupabaseConfigured()) {
-      setError('Supabase n\'est pas configuré. Ajoutez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans votre fichier .env.local (voir README).')
+      setError('Supabase n\'est pas configuré. Ajoutez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans .env.local (voir README).')
       return
     }
     setLoading(true)
@@ -34,42 +44,77 @@ export default function SignupPage() {
       })
 
       if (signUpError) {
-        setError(signUpError.message)
+        const status = (signUpError as { status?: number }).status
+        if (status === 503 || status === 504) {
+          setError('Le service est temporairement indisponible (projet Supabase peut-être en pause). Réessayez dans quelques instants.')
+        } else {
+          setError(signUpError.message)
+        }
       } else if (data.user && !data.session) {
         setSuccess(true)
       } else {
         router.push('/dashboard')
       }
-    } catch {
-      setError('Impossible de contacter Supabase. Vérifiez votre connexion et vos variables d\'environnement (.env.local).')
+    } catch (err) {
+      setError(getAuthError(err))
     }
     setLoading(false)
   }
 
+  const features = [
+    'Calculs fiscaux 2025 certifiés (barème IR, SSI par composante, IS)',
+    'Sauvegardez jusqu\'à 20 simulations',
+    'Tableau comparatif automatique des 4 structures',
+    'Export PDF de chaque rapport',
+  ]
+
   return (
-    <div className="min-h-screen bg-surface flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-navy flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.2)_0%,transparent_65%)] -top-48 -right-24 pointer-events-none" />
-        <Link href="/" className="flex items-center gap-2.5 relative z-10">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-mid to-blue flex items-center justify-center">
+    <div className="min-h-screen flex">
+      {/* Panneau gauche */}
+      <div className="hidden lg:flex lg:w-[45%] flex-col p-12 relative overflow-hidden" style={{ backgroundColor: '#050c1a' }}>
+        <div className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(37,99,235,.22) 0%, transparent 65%)', top: '-12rem', right: '-6rem' }} />
+        <div className="absolute inset-0 pointer-events-none opacity-20"
+          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.10) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5 relative z-10 mb-auto">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}>
             <span className="text-white text-sm font-black">B</span>
           </div>
           <span className="font-display font-bold text-white">Belho Xper</span>
         </Link>
-        <div className="relative z-10 space-y-5">
-          {['Calculs fiscaux 2025 certifiés (barème IR, SSI par composante, IS)', 'Sauvegardez jusqu\'à 20 simulations', 'Tableau comparatif automatique', 'Export PDF de chaque rapport'].map(f => (
+
+        {/* Titre central */}
+        <div className="relative z-10 my-auto">
+          <div className="font-display text-4xl font-black text-white tracking-tight leading-tight mb-4">
+            Votre simulateur<br />
+            <span style={{ color: '#3B82F6' }}>fiscal 2025</span>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.50)' }}>
+            Comparez 4 structures juridiques en quelques minutes et trouvez la plus avantageuse pour votre activité.
+          </p>
+        </div>
+
+        {/* Features */}
+        <div className="relative z-10 space-y-4">
+          {features.map(f => (
             <div key={f} className="flex items-start gap-3">
-              <span className="text-green-400 mt-0.5">✓</span>
-              <span className="text-white/60 text-sm">{f}</span>
+              <span className="mt-0.5 font-bold" style={{ color: '#4ade80' }}>✓</span>
+              <span className="text-sm" style={{ color: 'rgba(255,255,255,0.60)' }}>{f}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6">
+      {/* Panneau droite */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-surface">
         <div className="w-full max-w-sm">
+          {/* Logo mobile */}
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-mid to-blue flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}>
               <span className="text-white text-xs font-black">B</span>
             </div>
             <span className="font-display font-bold text-ink">Belho Xper</span>
@@ -124,7 +169,11 @@ export default function SignupPage() {
                 />
               </div>
 
-              {error && <p className="text-red-600 text-xs py-2 px-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
+              {error && (
+                <div className="text-red-700 text-xs py-3 px-3.5 bg-red-50 rounded-lg border border-red-200 leading-relaxed">
+                  {error}
+                </div>
+              )}
 
               <button
                 type="submit"

@@ -4,6 +4,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
+const FEATURES = [
+  'Calculs fiscaux 2025 certifiés (barème IR, SSI, IS)',
+  'Sauvegardez et comparez vos simulations',
+  'Tableau comparatif multi-scénarios',
+  'Export PDF de chaque rapport',
+]
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -16,7 +23,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!isSupabaseConfigured()) {
-      setError('Supabase n\'est pas configuré. Ajoutez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans votre fichier .env.local (voir README).')
+      setError('Supabase n\'est pas configuré. Ajoutez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans .env.local (voir README).')
       return
     }
     setLoading(true)
@@ -28,50 +35,83 @@ export default function LoginPage() {
           email,
           options: { emailRedirectTo: `${location.origin}/dashboard` },
         })
-        if (error) setError(error.message)
-        else setMagicSent(true)
+        if (error) {
+          const status = (error as { status?: number }).status
+          setError(status === 503 || status === 504
+            ? 'Le service est temporairement indisponible. Réessayez dans quelques instants.'
+            : error.message)
+        } else setMagicSent(true)
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) setError(error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message)
-        else router.push('/dashboard')
+        if (error) {
+          const status = (error as { status?: number }).status
+          setError(status === 503 || status === 504
+            ? 'Le service est temporairement indisponible. Réessayez dans quelques instants.'
+            : error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message)
+        } else router.push('/dashboard')
       }
-    } catch {
-      setError('Impossible de contacter Supabase. Vérifiez votre connexion et vos variables d\'environnement (.env.local).')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      setError(msg.includes('503') || msg.includes('504') || msg.toLowerCase().includes('fetch')
+        ? 'Le service est temporairement indisponible. Réessayez dans quelques instants.'
+        : 'Impossible de contacter le service. Vérifiez votre connexion internet.')
     }
     setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-surface flex">
-      {/* Panneau gauche — sombre */}
-      <div className="hidden lg:flex lg:w-1/2 bg-navy flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.2)_0%,transparent_65%)] -top-48 -right-24 pointer-events-none" />
-        <Link href="/" className="flex items-center gap-2.5 relative z-10">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-mid to-blue flex items-center justify-center">
+    <div className="min-h-screen flex">
+      {/* ── Panneau gauche ── */}
+      <div className="hidden lg:flex lg:w-[45%] flex-col p-12 relative overflow-hidden" style={{ backgroundColor: '#050c1a' }}>
+        <div className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(37,99,235,.22) 0%, transparent 65%)', top: '-12rem', right: '-6rem' }} />
+        <div className="absolute inset-0 pointer-events-none opacity-20"
+          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.10) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5 relative z-10 mb-auto">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}>
             <span className="text-white text-sm font-black">B</span>
           </div>
           <span className="font-display font-bold text-white">Belho Xper</span>
         </Link>
-        <div className="relative z-10">
-          <blockquote className="text-white/60 text-[15px] leading-relaxed italic mb-4">
-            &quot;J&apos;ai économisé 8 000 €/an en passant de l&apos;EI à la SASU. Le simulateur m&apos;a convaincu en 10 minutes.&quot;
-          </blockquote>
-          <div className="text-white/80 text-sm font-semibold">Thomas D.</div>
-          <div className="text-white/38 text-xs">Consultant freelance, Lyon</div>
+
+        {/* Central content */}
+        <div className="relative z-10 my-auto">
+          <div className="font-display text-4xl font-black text-white tracking-tight leading-tight mb-4">
+            Retrouvez<br />
+            <span style={{ color: '#3B82F6' }}>vos simulations</span>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,.50)' }}>
+            Reconnectez-vous pour accéder à votre tableau de bord et comparer vos scénarios.
+          </p>
+        </div>
+
+        {/* Features */}
+        <div className="relative z-10 space-y-4">
+          {FEATURES.map(f => (
+            <div key={f} className="flex items-start gap-3">
+              <span className="mt-0.5 font-bold flex-shrink-0" style={{ color: '#4ade80' }}>✓</span>
+              <span className="text-sm" style={{ color: 'rgba(255,255,255,.60)' }}>{f}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Panneau droite — formulaire */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      {/* ── Panneau droite ── */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-surface">
         <div className="w-full max-w-sm">
+          {/* Logo mobile */}
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-mid to-blue flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}>
               <span className="text-white text-xs font-black">B</span>
             </div>
             <span className="font-display font-bold text-ink">Belho Xper</span>
           </Link>
 
-          <h1 className="font-display text-2xl font-bold text-ink tracking-tight mb-1.5">Connexion</h1>
+          <h1 className="font-display text-[1.75rem] font-bold text-ink tracking-tight mb-1.5">Connexion</h1>
           <p className="text-sm text-ink3 mb-8">Retrouvez vos simulations sauvegardées.</p>
 
           {magicSent ? (
@@ -82,6 +122,7 @@ export default function LoginPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Mode toggle */}
               <div className="flex rounded-lg border border-surface2 overflow-hidden bg-white mb-5">
                 <button type="button" onClick={() => setMode('password')}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-all ${mode === 'password' ? 'bg-ink text-white' : 'text-ink3 hover:bg-surface'}`}>
@@ -101,8 +142,8 @@ export default function LoginPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="vous@exemple.fr"
-                  className="px-3.5 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10"
+                  className="px-3.5 py-3 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
+                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
                 />
               </div>
 
@@ -114,13 +155,17 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="px-3.5 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
-                      focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10"
+                    className="px-3.5 py-3 text-sm border-[1.5px] border-surface2 rounded-lg text-ink bg-white
+                      focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
                   />
                 </div>
               )}
 
-              {error && <p className="text-red-600 text-xs py-2 px-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
+              {error && (
+                <div className="text-red-700 text-xs py-3 px-3.5 bg-red-50 rounded-lg border border-red-200 leading-relaxed">
+                  {error}
+                </div>
+              )}
 
               <button
                 type="submit"

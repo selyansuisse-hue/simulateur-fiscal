@@ -17,8 +17,9 @@ export function StepActivite() {
       </div>
 
       <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-4 shadow-card">
-        <div className="text-[10.5px] font-bold tracking-widest uppercase text-ink4 mb-4 pb-3 border-b border-surface2">
-          Résultat d&apos;activité
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-0.5 h-5 rounded-full bg-blue" />
+          <span className="text-sm font-semibold text-ink2">Résultat d&apos;activité</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div className="flex flex-col gap-1.5">
@@ -61,20 +62,20 @@ export function StepActivite() {
                 focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Déficit reportable N-1 (€)</Label>
-            <input
-              type="number"
-              value={params.deficit}
-              min={0}
-              step={500}
-              disabled={params.situation === 'creation'}
-              onChange={e => setParam('deficit', Math.max(0, parseFloat(e.target.value) || 0))}
-              className="px-3 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink
-                focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all
-                disabled:bg-surface disabled:text-ink4"
-            />
-          </div>
+          {params.situation !== 'creation' && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Déficit reportable N-1 (€)</Label>
+              <input
+                type="number"
+                value={params.deficit}
+                min={0}
+                step={500}
+                onChange={e => setParam('deficit', Math.max(0, parseFloat(e.target.value) || 0))}
+                className="px-3 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink
+                  focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
+              />
+            </div>
+          )}
         </div>
 
         {/* Micro status */}
@@ -99,10 +100,11 @@ export function StepActivite() {
       </div>
 
       <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-4 shadow-card">
-        <div className="text-[10.5px] font-bold tracking-widest uppercase text-ink4 mb-4 pb-3 border-b border-surface2">
-          Paramètres société &amp; régime
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-0.5 h-5 rounded-full bg-blue" />
+          <span className="text-sm font-semibold text-ink2">Paramètres société &amp; régime</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="max-w-xs">
           <div className="flex flex-col gap-1.5">
             <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Capital social si société IS (€)</Label>
             <input
@@ -116,24 +118,12 @@ export function StepActivite() {
             />
             <p className="text-[11.5px] text-ink4">En EURL : dividendes &gt; 10% du capital → cotisations TNS 45%</p>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Autres revenus du foyer (€/an)</Label>
-            <input
-              type="number"
-              value={params.autresRev}
-              min={0}
-              step={1000}
-              onChange={e => setParam('autresRev', Math.max(0, parseFloat(e.target.value) || 0))}
-              className="px-3 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink
-                focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
-            />
-            <p className="text-[11.5px] text-ink4">Salaire conjoint, foncier, autres revenus imposables</p>
-          </div>
         </div>
       </div>
 
-      <div className="flex justify-between mt-6 pt-5 border-t border-surface2">
-        <button onClick={prevStep} className="px-5 py-2.5 text-sm font-semibold text-ink3 border-[1.5px] border-surface2 rounded-lg hover:bg-surface hover:text-ink2 transition-all">← Précédent</button>
+      <div className="flex justify-between items-center mt-6 pt-5 border-t border-surface2">
+        <button onClick={prevStep} className="px-5 py-2.5 text-sm font-semibold text-ink4 hover:text-ink3 transition-all">← Précédent</button>
+        <span className="text-xs text-ink4">Étape 2 sur 5</span>
         <button onClick={nextStep} className="px-6 py-2.5 bg-blue text-white font-semibold text-sm rounded-lg shadow-[0_2px_6px_rgba(29,78,216,.3)] hover:bg-blue-dark hover:-translate-y-px transition-all">Suivant →</button>
       </div>
     </div>

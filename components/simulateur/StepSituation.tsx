@@ -14,8 +14,9 @@ export function StepSituation() {
       </div>
 
       <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-4 shadow-card">
-        <div className="text-[10.5px] font-bold tracking-widest uppercase text-ink4 mb-4 pb-3 border-b border-surface2">
-          Contexte du projet
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-0.5 h-5 rounded-full bg-blue" />
+          <span className="text-sm font-semibold text-ink2">Contexte du projet</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div className="flex flex-col gap-2">
@@ -90,7 +91,8 @@ export function StepSituation() {
         </div>
       </div>
 
-      <div className="flex justify-end mt-6 pt-5 border-t border-surface2">
+      <div className="flex justify-between items-center mt-6 pt-5 border-t border-surface2">
+        <span className="text-xs text-ink4">Étape 1 sur 5</span>
         <button
           onClick={nextStep}
           className="px-6 py-2.5 bg-blue text-white font-semibold text-sm rounded-lg

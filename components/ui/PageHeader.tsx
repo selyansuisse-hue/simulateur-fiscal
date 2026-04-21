@@ -36,19 +36,19 @@ export function PageHeader() {
 
         {/* Nav links — centre */}
         <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
-          <Link href="/simulateur" className="text-sm text-white/55 hover:text-white transition-colors font-medium">
-            Simulateur
-          </Link>
-          {user && (
-            <>
-              <Link href="/dashboard" className="text-sm text-white/55 hover:text-white transition-colors font-medium">
-                Dashboard
-              </Link>
-              <Link href="/simulations" className="text-sm text-white/55 hover:text-white transition-colors font-medium">
-                Mes simulations
-              </Link>
-            </>
-          )}
+          {[
+            { href: '/simulateur', label: 'Simulateur' },
+            ...(user ? [
+              { href: '/dashboard', label: 'Dashboard' },
+              { href: '/simulations', label: 'Mes simulations' },
+            ] : []),
+          ].map(({ href, label }) => (
+            <Link key={href} href={href}
+              className="relative text-sm font-medium text-white/55 hover:text-white transition-colors duration-150 group">
+              {label}
+              <span className="absolute -bottom-0.5 left-0 right-0 h-px bg-blue-mid scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left rounded-full" />
+            </Link>
+          ))}
         </nav>
 
         {/* CTA droite */}
@@ -75,17 +75,19 @@ export function PageHeader() {
             </div>
           ) : (
             <>
-              <Link href="/auth/login" className="text-sm text-white/55 hover:text-white transition-colors font-medium hidden sm:inline">
+              <Link href="/auth/login"
+                className="text-sm text-white/55 font-medium hidden sm:inline transition-colors duration-150 hover:text-white px-2.5 py-1 rounded-md hover:bg-white/8">
                 Connexion
               </Link>
               <a
                 href="https://www.belhoxper.com/contact"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-blue text-white text-sm font-semibold rounded-lg
-                  shadow-[0_2px_6px_rgba(29,78,216,.35)] hover:bg-blue-dark transition-all"
+                className="group inline-flex items-center gap-1.5 px-4 py-2 bg-blue text-white text-sm font-semibold rounded-lg
+                  shadow-[0_2px_6px_rgba(29,78,216,.35)] hover:bg-blue-dark transition-all duration-150"
               >
                 Prendre RDV
+                <span className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">→</span>
               </a>
             </>
           )}

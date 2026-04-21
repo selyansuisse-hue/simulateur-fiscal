@@ -4,10 +4,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { fmt } from '@/lib/utils'
 
+function calcIS(r: number): number {
+  if (r <= 0) return 0
+  return r <= 42500 ? r * 0.15 : 42500 * 0.15 + (r - 42500) * 0.25
+}
+
 export function StepRemuneration() {
   const { params, setParam, nextStep, prevStep } = useSimulateur()
   const benefice = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
   const showPrevoyance = (params.situation === 'existant' || params.situation === 'changement') && params.formeActuelle === 'eurl_is'
+
+  const reserveIS = calcIS(params.reserveVoulue)
+  const reserveNet = params.reserveVoulue - reserveIS
+  const reserveTaux = params.reserveVoulue > 42500 ? 25 : 15
 
   return (
     <div className="animate-stepIn">
@@ -27,8 +36,9 @@ export function StepRemuneration() {
       </div>
 
       <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-4 shadow-card">
-        <div className="text-[10.5px] font-bold tracking-widest uppercase text-ink4 mb-4 pb-3 border-b border-surface2">
-          Objectif de rémunération
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-0.5 h-5 rounded-full bg-blue" />
+          <span className="text-sm font-semibold text-ink2">Objectif de rémunération</span>
         </div>
 
         {/* Stratégie max vs réserve */}
@@ -58,17 +68,61 @@ export function StepRemuneration() {
         </div>
 
         {params.stratActif === 'reserve' && (
-          <div className="flex flex-col gap-1.5 mb-5">
-            <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Montant à conserver en réserves (€/an)</Label>
+          <div className="flex flex-col gap-3 mb-5 p-4 bg-surface rounded-xl border border-surface2">
+            <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Montant à conserver en réserves (brut avant IS)</Label>
+
+            {/* Boutons rapides */}
+            <div className="flex flex-wrap gap-2">
+              {[10, 20, 30, 50].map(pct => {
+                const amount = Math.round(benefice * pct / 100 / 1000) * 1000
+                const isActive = params.reserveVoulue === amount
+                return (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setParam('reserveVoulue', amount)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all
+                      ${isActive
+                        ? 'bg-blue text-white border-blue shadow-[0_2px_6px_rgba(29,78,216,.3)]'
+                        : 'bg-white border-surface2 text-ink3 hover:border-blue-mid hover:text-blue'}`}
+                  >
+                    {pct}% — {fmt(amount)}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Slider */}
             <input
-              type="number"
-              value={params.reserveVoulue}
+              type="range"
               min={0}
+              max={benefice || 1}
               step={1000}
-              onChange={e => setParam('reserveVoulue', Math.max(0, parseFloat(e.target.value) || 0))}
-              className="px-3 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink
-                focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all"
+              value={params.reserveVoulue}
+              onChange={e => setParam('reserveVoulue', parseInt(e.target.value))}
+              className="w-full accent-blue h-1.5 rounded-full cursor-pointer"
             />
+
+            {/* Input + affichage IS */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <input
+                type="number"
+                value={params.reserveVoulue}
+                min={0}
+                max={benefice}
+                step={1000}
+                onChange={e => setParam('reserveVoulue', Math.min(benefice, Math.max(0, parseFloat(e.target.value) || 0)))}
+                className="px-3 py-2 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink
+                  focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all w-36"
+              />
+              {params.reserveVoulue > 0 && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className="text-ink4">→</span>
+                  <span className="font-bold text-ink">{fmt(reserveNet)}</span>
+                  <span className="text-ink4 text-xs">net après IS ({reserveTaux}%)</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -87,36 +141,12 @@ export function StepRemuneration() {
               <p className="text-[11.5px] text-ink4">Taux de prévoyance facultative Madelin / PER sur le bénéfice</p>
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">PER individuel actif ?</Label>
-            <Select value={params.perActif} onValueChange={v => setParam('perActif', v as typeof params.perActif)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="non">Non — pas de versements PER</SelectItem>
-                <SelectItem value="oui">Oui — je verse déjà sur un PER</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
-
-        {params.perActif === 'oui' && (
-          <div className="mt-4 flex flex-col gap-1.5">
-            <Label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Versement PER annuel (€)</Label>
-            <input
-              type="number"
-              value={params.perMontant}
-              min={0}
-              step={500}
-              onChange={e => setParam('perMontant', Math.max(0, parseFloat(e.target.value) || 0))}
-              className="px-3 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg bg-white text-ink
-                focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all max-w-xs"
-            />
-          </div>
-        )}
       </div>
 
-      <div className="flex justify-between mt-6 pt-5 border-t border-surface2">
-        <button onClick={prevStep} className="px-5 py-2.5 text-sm font-semibold text-ink3 border-[1.5px] border-surface2 rounded-lg hover:bg-surface hover:text-ink2 transition-all">← Précédent</button>
+      <div className="flex justify-between items-center mt-6 pt-5 border-t border-surface2">
+        <button onClick={prevStep} className="px-5 py-2.5 text-sm font-semibold text-ink4 hover:text-ink3 transition-all">← Précédent</button>
+        <span className="text-xs text-ink4">Étape 3 sur 5</span>
         <button onClick={nextStep} className="px-6 py-2.5 bg-blue text-white font-semibold text-sm rounded-lg shadow-[0_2px_6px_rgba(29,78,216,.3)] hover:bg-blue-dark hover:-translate-y-px transition-all">Suivant →</button>
       </div>
     </div>
