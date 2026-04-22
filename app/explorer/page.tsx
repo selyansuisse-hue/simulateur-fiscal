@@ -4,6 +4,7 @@ import { Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip as ChartTooltip,
 } from 'chart.js'
+import type { ChartOptions, TooltipItem } from 'chart.js'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Footer } from '@/components/ui/Footer'
 import { fmt } from '@/lib/utils'
@@ -216,19 +217,22 @@ export default function ExplorerPage() {
     }],
   }
 
-  const chartOptions = {
-    indexAxis: 'y' as const,
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 220 },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx: { parsed: { x: number } }) => ` ${fmt(ctx.parsed.x)} net/an`,
+  const chartOptions: ChartOptions<'bar'> = {
+  indexAxis: 'y' as const,
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 220 },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (tooltipItem: TooltipItem<'bar'>) => {
+          const value = tooltipItem.parsed.x ?? 0
+          return `${value}`
         },
       },
     },
+  },
     scales: {
       x: {
         grid: { color: 'rgba(0,0,0,.04)' },
