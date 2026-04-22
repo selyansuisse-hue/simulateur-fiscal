@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useSimulateur } from '@/hooks/useSimulateur'
 import { fmt, fmtM } from '@/lib/utils'
 import { swot, leviers, plan } from '@/lib/fiscal/structures'
@@ -401,6 +401,31 @@ export function StepResultats() {
   const totalLevierGain = leviersArr.reduce((acc, l) => acc + l.gain, 0)
   const { pourquoi, attention } = genAnalyse(best, params, tmi)
 
+  const baseImposable = (best.baseIR ?? best.bNet ?? best.ben ?? 0) + params.autresRev
+  const tauxEffectif = Math.round(best.ir / Math.max(1, baseImposable) * 100)
+  const isAt15 = Math.round(Math.min(best.ben || 0, 42500) * 0.15)
+  const isAt25 = Math.max(0, best.is - isAt15)
+
+  const scenarioOptimise = useMemo(() => {
+    const benBrut = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
+    const perMax = Math.min(35194, benBrut * 0.10)
+    const perEconomie = Math.round(perMax * tmi / 100)
+    const ikMontant = Math.round(8000 * 0.636)
+    const ikEconomie = Math.round(ikMontant * 0.15)
+    const domEconomie = 360
+    const prevEconomie = Math.round(benBrut * 0.02 * 0.15)
+    const gainTotal = perEconomie + ikEconomie + domEconomie + prevEconomie
+    return {
+      perMax: Math.round(perMax),
+      perEconomie,
+      ikEconomie,
+      domEconomie,
+      prevEconomie,
+      gainTotal,
+      netOptimise: Math.round(best.netAnnuel + gainTotal),
+    }
+  }, [params, tmi, best.netAnnuel])
+
   // Grille adaptée au nombre de structures
   const count = scored.length
   const cardsGridClass =
@@ -419,19 +444,69 @@ export function StepResultats() {
         style={{ background: 'linear-gradient(135deg, #0d1627 0%, #0d1f3c 100%)' }}>
         <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.18)_0%,transparent_65%)] -top-36 -right-24 pointer-events-none" />
         <div className="relative">
-          <div className="text-xs font-medium text-blue-400 uppercase tracking-widest mb-3">✦ Structure recommandée</div>
-          <div className="text-lg font-semibold text-white/80 mb-1">{best.forme}</div>
-          <div className="text-5xl sm:text-6xl font-bold text-white tracking-tight mb-1">
-            {fmt(best.netAnnuel)}
+          <div className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            Structure recommandée
           </div>
-          <div className="text-base text-white/50 mb-6">
-            {fmtM(best.netAnnuel)}/mois · net après IR, cotisations et IS
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="bg-white/10 text-white/70 text-xs px-3 py-1 rounded-full">TMI {tmi}%</span>
-            <span className="bg-white/[0.07] text-white/50 text-xs px-3 py-1 rounded-full">Score {best.scoreTotal}/100</span>
+
+          <div className="flex items-start justify-between gap-6 mb-6">
+            <div>
+              <div className="text-white/60 text-sm mb-1">{best.forme}</div>
+              <div className="text-5xl sm:text-6xl font-bold text-white tracking-tight leading-none">
+                {fmt(best.netAnnuel)}
+              </div>
+              <div className="text-white/50 text-base mt-2">
+                {fmt(Math.round(best.netAnnuel / 12))}/mois après IR, cotisations et IS
+              </div>
+            </div>
             {gain > 500 && (
-              <span className="bg-emerald-500/20 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium">
+              <div className="text-right hidden sm:block flex-shrink-0">
+                <div className="text-xs text-white/40 mb-1">Gain vs moins avantageuse</div>
+                <div className="text-2xl font-bold text-emerald-400">+{fmt(gain)}</div>
+                <div className="text-xs text-emerald-400/60">par an</div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-white/10 pt-5">
+            <div className="text-xs text-white/40 uppercase tracking-wide mb-3">
+              Décomposition de votre CA de {fmt(params.ca)}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {([
+                { label: 'Revenu net', val: best.netAnnuel, color: 'bg-emerald-500', pct: params.ca > 0 ? best.netAnnuel / params.ca * 100 : 0 },
+                { label: 'Charges sociales', val: best.charges, color: 'bg-red-500', pct: params.ca > 0 ? best.charges / params.ca * 100 : 0 },
+                { label: 'IR estimé', val: best.ir, color: 'bg-orange-400', pct: params.ca > 0 ? best.ir / params.ca * 100 : 0 },
+                { label: 'IS estimé', val: best.is || 0, color: 'bg-blue-400', pct: params.ca > 0 ? (best.is || 0) / params.ca * 100 : 0 },
+              ] as const).map(item => (
+                <div key={item.label} className="bg-white/5 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                    <div className="text-xs text-white/50">{item.label}</div>
+                  </div>
+                  <div className="text-lg font-bold text-white">{fmt(Math.round(item.val))}</div>
+                  <div className="text-xs text-white/30 mt-0.5">{item.pct.toFixed(0)}% du CA</div>
+                  <div className="mt-2 h-1 bg-white/10 rounded-full">
+                    <div className={`h-1 rounded-full ${item.color} opacity-60`}
+                      style={{ width: `${Math.min(100, item.pct)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-white/10">
+            <span className={`text-xs px-3 py-1 rounded-full font-medium
+              ${tmi <= 11 ? 'bg-emerald-500/20 text-emerald-400' :
+                tmi <= 30 ? 'bg-amber-500/20 text-amber-400' :
+                'bg-red-500/20 text-red-400'}`}>
+              TMI {tmi}%
+            </span>
+            <span className="bg-white/15 text-white text-xs px-3 py-1 rounded-full">
+              Score {best.scoreTotal}/100
+            </span>
+            {gain > 500 && (
+              <span className="bg-emerald-500/15 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium">
                 +{fmt(gain)}/an vs la moins avantageuse
               </span>
             )}
@@ -464,6 +539,110 @@ export function StepResultats() {
         </div>
       </div>
 
+      {/* ── COMPRENDRE VOTRE RÉSULTAT ── */}
+      <div className="mb-8 mt-8">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-3">
+          Comprendre votre résultat
+          <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          {/* Bloc TMI */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-sm font-bold mb-3">%</div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">Votre TMI : {tmi}%</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-3">
+              La Tranche Marginale d&apos;Imposition ne s&apos;applique qu&apos;à la <strong>dernière tranche</strong> de vos revenus.
+              Votre taux effectif réel est de <strong>{tauxEffectif}%</strong>.
+            </p>
+            <div className="space-y-1">
+              {([
+                { t: '0%', label: '≤ 11 497 €', active: tmi === 0 },
+                { t: '11%', label: '11 498 – 29 315 €', active: tmi === 11 },
+                { t: '30%', label: '29 316 – 83 823 €', active: tmi === 30 },
+                { t: '41%', label: '83 824 – 180 294 €', active: tmi === 41 },
+                { t: '45%', label: '> 180 294 €', active: tmi === 45 },
+              ] as const).map(row => (
+                <div key={row.t}
+                  className={`flex justify-between text-xs px-2 py-1 rounded-lg
+                    ${row.active ? 'bg-blue-600 text-white font-bold' : 'text-slate-400'}`}>
+                  <span>{row.label}</span>
+                  <span>{row.t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bloc cotisations */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center text-orange-600 mb-3">🏥</div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">Cotisations : {fmt(best.charges)}/an</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-3">
+              {best.forme.includes('SAS')
+                ? 'En SASU, les cotisations salariales (~22%) et patronales (~42%) sont calculées sur votre salaire brut. Protection sociale complète assimilée salarié.'
+                : best.forme.includes('EURL')
+                ? 'En EURL/SARL, les cotisations TNS (SSI) sont calculées sur votre rémunération. Elles couvrent maladie, retraite et prévoyance de base.'
+                : 'En EI, les cotisations SSI sont calculées directement sur votre bénéfice net. Elles couvrent maladie, retraite et prévoyance de base.'}
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 text-xs">
+              <div className="flex justify-between mb-1">
+                <span className="text-slate-500">Taux moyen cotisations</span>
+                <span className="font-bold text-slate-700">
+                  {(best.netAnnuel + best.charges) > 0
+                    ? (best.charges / (best.netAnnuel + best.charges) * 100).toFixed(0) : '—'}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Régime</span>
+                <span className="font-medium text-slate-700">
+                  {best.forme.includes('SAS') ? '🟢 Assimilé salarié' : '🟡 TNS (SSI)'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloc IS/IR */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 text-sm font-bold mb-3">IS</div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">
+              {best.is > 0 ? "Imposition à l'IS" : "Imposition à l'IR"}
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-3">
+              {best.is > 0
+                ? "L'IS s'applique sur le bénéfice de la société après votre rémunération. Taux réduit 15% jusqu'à 42 500 €, 25% au-delà."
+                : "Votre bénéfice est imposé directement à l'IR avec le barème progressif et le quotient familial."}
+            </p>
+            {best.is > 0 ? (
+              <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">IS à 15%</span>
+                  <span className="font-bold text-slate-700">{fmt(isAt15)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">IS à 25%</span>
+                  <span className="font-bold text-slate-700">{isAt25 > 0 ? fmt(isAt25) : '—'}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                  <span className="font-medium text-slate-600">Total IS</span>
+                  <span className="font-bold text-slate-900">{fmt(best.is)}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-xl p-3 text-xs">
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-500">IR total estimé</span>
+                  <span className="font-bold text-slate-700">{fmt(best.ir)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Taux effectif</span>
+                  <span className="font-bold text-slate-700">{tauxEffectif}%</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ── COMPARAISON 4 STRUCTURES ── */}
       <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
         Comparaison des structures
@@ -475,6 +654,57 @@ export function StepResultats() {
         {scored.map((r, i) => (
           <StructureCard key={r.forme} r={r} rank={i + 1} params={params} />
         ))}
+      </div>
+
+      {/* ── SCÉNARIO OPTIMISÉ ── */}
+      <div className="rounded-2xl p-6 mb-8 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' }}>
+        <div className="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(16,185,129,.15)_0%,transparent_65%)] -top-20 -right-10 pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-start justify-between mb-5 flex-wrap gap-4">
+            <div>
+              <div className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">✦ Scénario optimisé</div>
+              <h3 className="text-xl font-bold text-white">Ce que vous pourriez atteindre</h3>
+              <p className="text-sm text-white/50 mt-1">En activant tous les leviers d&apos;optimisation disponibles</p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-xs text-white/40 mb-0.5">Revenu net optimisé</div>
+              <div className="text-3xl font-bold text-emerald-400">{fmt(scenarioOptimise.netOptimise)}</div>
+              <div className="text-xs text-emerald-400/60">+{fmt(scenarioOptimise.gainTotal)}/an supplémentaires</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            {([
+              { icon: '📊', titre: 'PER individuel', detail: `Versement max : ${fmt(scenarioOptimise.perMax)}/an`, gain: scenarioOptimise.perEconomie, desc: `Économie IR à TMI ${tmi}%` },
+              { icon: '🚗', titre: 'Indemnités kilométriques', detail: '8 000 km/an · barème 5CV', gain: scenarioOptimise.ikEconomie, desc: 'Déduction à 15%' },
+              { icon: '🏠', titre: 'Domiciliation domicile', detail: 'Part bureau déductible', gain: scenarioOptimise.domEconomie, desc: 'Déduction IS à 15%' },
+              { icon: '🛡', titre: 'Prévoyance TNS', detail: '2% du résultat', gain: scenarioOptimise.prevEconomie, desc: 'Déductible + protection' },
+            ] as const).map(lev => (
+              <div key={lev.titre} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span>{lev.icon}</span>
+                    <span className="text-sm font-semibold text-white">{lev.titre}</span>
+                  </div>
+                  <span className="text-emerald-400 font-bold text-sm flex-shrink-0">+{fmt(lev.gain)}/an</span>
+                </div>
+                <div className="text-xs text-white/40">{lev.detail}</div>
+                <div className="text-xs text-white/30 mt-0.5">{lev.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-white/10 flex-wrap gap-3">
+            <div className="text-sm text-white/50">
+              Gain potentiel estimé : <span className="font-bold text-emerald-400">+{fmt(scenarioOptimise.gainTotal)}/an</span>
+            </div>
+            <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+              className="bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-400 transition-colors whitespace-nowrap">
+              Mettre en place avec un expert →
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* ── TABLEAU RÉCAPITULATIF ── */}
@@ -750,83 +980,101 @@ export function StepResultats() {
 /* ── StructureCard ── */
 function StructureCard({ r, rank, params }: { r: StructureResult; rank: number; params: SimParams }) {
   const isBest = rank === 1
-  const rankColor = RANK_COLORS[rank - 1] || RANK_COLORS[3]
   const cardTmiBase = r.baseIR ?? r.bNet ?? r.ben
   const cardTmi = Math.round(tmiRate((cardTmiBase || 0) + params.autresRev, params.partsBase, params.nbEnfants) * 100)
   const cardIR = r.ir
-
   const revBrut = r.charges + r.ir + r.is + Math.max(0, r.netAnnuel)
-  const pct = (n: number) => revBrut > 0 ? Math.min(100, Math.round(n / revBrut * 100)) : 0
 
-  const costRows = [
-    { k: 'Cotisations', v: `−${fmt(r.charges)}`, p: pct(r.charges) },
-    ...(r.ir > 0 ? [{ k: 'IR', v: `−${fmt(cardIR)}`, p: pct(cardIR) }] : []),
-    ...(r.is > 0 ? [{ k: 'IS', v: `−${fmt(r.is)}`, p: pct(r.is) }] : []),
-    ...(r.div > 0 ? [{ k: 'Dividendes', v: `+${fmt(r.div)}`, p: 0 }] : []),
+  const rankLabels = ['★ Recommandé', '2ème choix', '3ème choix', '4ème choix']
+
+  const decompRows = [
+    {
+      label: 'Cotisations sociales',
+      val: r.charges,
+      neg: true,
+      hint: r.forme.includes('SAS') ? 'Charges salariales + patronales' : 'SSI (TNS)',
+    },
+    ...(r.ir > 0 ? [{
+      label: 'Impôt sur le revenu',
+      val: r.ir,
+      neg: true,
+      hint: `TMI ${cardTmi}% · ${params.parts} parts`,
+    }] : []),
+    ...(r.is > 0 ? [{
+      label: 'IS société',
+      val: r.is,
+      neg: true,
+      hint: 'IS 15%/25% sur résultat',
+    }] : []),
+    ...(r.div > 0 ? [{
+      label: 'Dividendes',
+      val: r.div,
+      neg: false,
+      hint: 'PFU 30%',
+    }] : []),
   ]
 
   return (
-    <div className="bg-white rounded-xl p-4 border flex flex-col transition-all duration-200 hover:-translate-y-0.5"
-      style={{
-        borderColor: isBest ? '#1D4ED8' : 'rgba(11,22,39,.08)',
-        borderWidth: isBest ? '1.5px' : '1px',
-        boxShadow: isBest
-          ? '0 0 0 3px rgba(29,78,216,.08), 0 8px 28px rgba(11,22,39,.10)'
-          : '0 2px 8px rgba(11,22,39,.05)',
-      }}>
-      <div className="flex items-center justify-between h-6 mb-2.5">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rankColor }} />
-          <span className="text-[10px] font-semibold" style={{ color: rankColor }}>{RANK_LABELS[rank - 1]}</span>
-        </div>
-        {isBest && (
-          <span className="inline-flex items-center gap-1 bg-blue text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-wide">
-            ⭐ Recommandé
+    <div className={`rounded-2xl border-2 overflow-hidden transition-all duration-200 hover:-translate-y-0.5
+      ${isBest ? 'border-blue-500 shadow-lg shadow-blue-100' : 'border-slate-100 shadow-sm'}`}>
+
+      {/* Zone 1 : Header */}
+      <div className={`px-5 pt-5 pb-3 ${isBest ? 'bg-blue-600' : 'bg-slate-50'}`}>
+        <div className="flex items-center justify-between mb-1">
+          <span className={`text-xs font-bold uppercase tracking-widest
+            ${isBest ? 'text-blue-200' : 'text-slate-400'}`}>
+            {rankLabels[rank - 1] || `${rank}ème choix`}
           </span>
-        )}
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full
+            ${isBest ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
+            {r.scoreTotal}/100
+          </span>
+        </div>
+        <div className={`text-base font-bold ${isBest ? 'text-white' : 'text-slate-900'}`}>{r.forme}</div>
+        <div className={`text-xs mt-0.5 ${isBest ? 'text-blue-200' : 'text-slate-400'}`}>{r.strat}</div>
       </div>
 
-      <div className="font-display text-[14px] font-bold text-ink mb-1">{r.forme}</div>
-      <div className="text-[11.5px] text-ink3 leading-snug min-h-[28px] mb-3">{r.strat}</div>
-
-      <div className="font-display font-black tracking-tight leading-none mb-1"
-        style={{ fontSize: '1.75rem', color: isBest ? '#1D4ED8' : '#0B1627' }}>
-        {fmt(r.netAnnuel)}
+      {/* Zone 2 : Chiffre principal */}
+      <div className="px-5 py-4 border-b border-slate-50 bg-white">
+        <div className="text-xs text-slate-400 mb-0.5">Revenu net après impôts</div>
+        <div className={`text-3xl font-bold tracking-tight ${isBest ? 'text-blue-600' : 'text-slate-900'}`}>
+          {fmt(r.netAnnuel)}
+        </div>
+        <div className="text-sm text-slate-400 mt-0.5">{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
       </div>
-      <div className="text-[12px] text-ink4 mb-3">{fmt(r.netAnnuel / 12)}/mois</div>
 
-      <div className="border-t border-surface2 pt-3 flex flex-col gap-0">
-        {costRows.map(({ k, v, p }) => (
-          <div key={k} className="flex items-center justify-between text-[11.5px] py-1.5 border-b border-surface2 gap-2">
-            <span className="text-ink3 flex-shrink-0">{k}</span>
-            <div className="flex items-center gap-2 ml-auto">
-              {p > 0 && (
-                <div className="w-12 h-1 rounded-full overflow-hidden" style={{ background: '#e2e8f0' }}>
-                  <div className="h-full rounded-full" style={{ width: `${p}%`, background: k === 'Cotisations' ? '#f87171' : '#fca5a5' }} />
-                </div>
-              )}
-              <span className={`font-semibold text-right ${k === 'Dividendes' ? 'text-green-600' : 'text-red-500'}`}>{v}</span>
+      {/* Zone 3 : Décomposition */}
+      <div className="px-5 py-4 bg-white space-y-2.5">
+        {decompRows.map(row => (
+          <div key={row.label} className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-medium text-slate-600">{row.label}</div>
+              <div className="text-[10px] text-slate-400">{row.hint}</div>
+            </div>
+            <div className={`text-sm font-bold ${row.neg ? 'text-red-500' : 'text-emerald-600'}`}>
+              {row.neg ? '−' : '+'}{fmt(Math.abs(row.val))}
             </div>
           </div>
         ))}
-      </div>
 
-      <div className="mt-3 pt-2.5 border-t border-surface2">
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <div className="rounded-lg p-2 text-center" style={{ background: '#f8fafc' }}>
-            <div className="text-[9px] uppercase tracking-wide text-ink4 mb-0.5">TMI</div>
-            <div className="font-bold text-lg leading-none" style={{ color: tmiColor(cardTmi) }}>{cardTmi}%</div>
-            <div className="text-[9px] text-ink4 mt-0.5">{tmiLabel(cardTmi)}</div>
+        <div className="mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
+          <div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wide">Tranche marginale</div>
+            <div className={`text-base font-bold
+              ${cardTmi <= 11 ? 'text-emerald-600' : cardTmi <= 30 ? 'text-amber-600' : 'text-red-600'}`}>
+              {cardTmi}%
+            </div>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: '#f8fafc' }}>
-            <div className="text-[9px] uppercase tracking-wide text-ink4 mb-0.5">IR estimé</div>
-            <div className="font-bold text-base leading-none text-ink">{fmt(cardIR)}</div>
-            <div className="text-[9px] text-ink4 mt-0.5">{fmt(cardIR / 12)}/mois</div>
+          <div className="text-right">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wide">IR total</div>
+            <div className="text-base font-bold text-slate-700">{fmt(cardIR)}</div>
           </div>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-[11px] text-ink4">Score multicritère</span>
-          <span className="text-[12px] font-semibold" style={{ color: isBest ? '#1D4ED8' : '#4A6380' }}>{r.scoreTotal}/100</span>
+          <div className="text-right">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wide">Taux effectif</div>
+            <div className="text-base font-bold text-slate-700">
+              {revBrut > 0 ? (cardIR / revBrut * 100).toFixed(1) : '0'}%
+            </div>
+          </div>
         </div>
       </div>
     </div>

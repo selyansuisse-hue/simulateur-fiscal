@@ -216,6 +216,19 @@ export default function ExplorerPage() {
     prevBestNameRef.current = bestName
   }, [results])
 
+  /* ── Scénario optimisé ── */
+  const optimise = useMemo(() => {
+    const tmiVal = tmi / 100
+    const perMax = Math.min(35194, ben * 0.10)
+    const perGain = Math.round(perMax * tmiVal)
+    const ikGain = Math.round(8000 * 0.636 * 0.15)
+    const domGain = 360
+    const prevGain = Math.round(ben * 0.02 * 0.15)
+    const total = perGain + ikGain + domGain + prevGain
+    return { perGain, ikGain, domGain, prevGain, total,
+             netOptimise: Math.round((results.best.netAnnuel || 0) + total) }
+  }, [results.best.netAnnuel, tmi, ben])
+
   /* ── "Et si..." avec impact ── */
   const quickWithImpact = useMemo(() => QUICK_DEFS.map(q => {
     const newParams = { ...params, ...q.apply(params) }
@@ -345,16 +358,14 @@ export default function ExplorerPage() {
         </div>
       </div>
 
-      {/* ── BANDEAU PRÉREMPLISSAGE ── */}
+      {/* ── PILL PRÉREMPLISSAGE ── */}
       {isPrefilledFromSim && (
-        <div className="bg-blue-bg border-b border-blue-border">
-          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
-            <span className="text-blue flex-shrink-0">📊</span>
-            <p className="text-[13px] text-blue-dark">
-              <strong>Paramètres chargés depuis votre simulation.</strong> Ajustez les sliders pour explorer d&apos;autres scénarios.
-            </p>
+        <div className="bg-white border-b border-slate-100">
+          <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+            <span className="text-xs text-slate-500">Basé sur votre simulation</span>
             <button onClick={() => setIsPrefilledFromSim(false)}
-              className="ml-auto text-blue/60 hover:text-blue text-sm transition-colors flex-shrink-0">✕</button>
+              className="ml-auto text-slate-400 hover:text-slate-600 text-sm transition-colors">×</button>
           </div>
         </div>
       )}
@@ -824,6 +835,45 @@ export default function ExplorerPage() {
                     <span className="text-base font-bold text-emerald-600">+{fmt(gainVsWorst)}/an</span>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* ── Potentiel optimisé ── */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-50"
+                style={{ background: 'linear-gradient(to right, #ecfdf5, #ffffff)' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-0.5">Potentiel optimisé</div>
+                    <div className="text-sm font-semibold text-slate-900">Avec tous les leviers activés</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-emerald-600">{fmt(optimise.netOptimise)}</div>
+                    <div className="text-xs text-emerald-600/60">+{fmt(optimise.total)}/an</div>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 py-4 grid grid-cols-2 gap-3">
+                {([
+                  { ico: '📊', label: 'PER max', val: optimise.perGain },
+                  { ico: '🚗', label: 'IK 8 000km', val: optimise.ikGain },
+                  { ico: '🏠', label: 'Domiciliation', val: optimise.domGain },
+                  { ico: '🛡', label: 'Prévoyance', val: optimise.prevGain },
+                ] as const).map(lev => (
+                  <div key={lev.label} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+                    <span className="text-base">{lev.ico}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-slate-500 truncate">{lev.label}</div>
+                      <div className="text-sm font-bold text-emerald-600">+{fmt(lev.val)}/an</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 pb-4">
+                <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+                  className="w-full block text-center bg-emerald-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-emerald-500 transition-colors">
+                  Mettre tout en place avec un expert →
+                </a>
               </div>
             </div>
 
