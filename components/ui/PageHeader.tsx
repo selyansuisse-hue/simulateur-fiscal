@@ -38,15 +38,20 @@ export function PageHeader() {
         <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
           {[
             { href: '/simulateur', label: 'Simulateur' },
-            { href: '/explorer', label: 'Explorer' },
+            { href: '/explorer', label: 'Explorer', badge: 'Bêta' },
             ...(user ? [
               { href: '/dashboard', label: 'Dashboard' },
               { href: '/simulations', label: 'Mes simulations' },
             ] : []),
-          ].map(({ href, label }) => (
+          ].map(({ href, label, badge }) => (
             <Link key={href} href={href}
-              className="relative text-sm font-medium text-white/55 hover:text-white transition-colors duration-150 group">
+              className="relative text-sm font-medium text-white/55 hover:text-white transition-colors duration-150 group flex items-center gap-1.5">
               {label}
+              {badge && (
+                <span className="text-[9px] font-bold bg-blue text-white px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none">
+                  {badge}
+                </span>
+              )}
               <span className="absolute -bottom-0.5 left-0 right-0 h-px bg-blue-mid scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left rounded-full" />
             </Link>
           ))}

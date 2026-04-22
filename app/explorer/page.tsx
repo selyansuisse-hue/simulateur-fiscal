@@ -67,17 +67,30 @@ function buildSimParams(p: ExplorerParams): SimParams {
   }
 }
 
+/* ── Calcul rapide du meilleur net pour un jeu de params ── */
+function calcBestNet(p: ExplorerParams): number {
+  const sp = buildSimParams(p)
+  const micro = calcMicro(sp)
+  const ei = calcEIReel(sp)
+  const eurl = calcEURL(sp)
+  const sasu = calcSASU(sp)
+  const all: StructureResult[] = [ei, eurl, sasu, ...(micro ? [micro] : [])]
+  const scored = scoreMulti(all, 'equilibre')
+  scored.sort((a, b) => b.scoreTotal - a.scoreTotal)
+  return scored[0]?.netAnnuel || 0
+}
+
 /* ── Questions rapides ── */
-const QUICK: { label: string; hint: string; apply: (p: ExplorerParams) => Partial<ExplorerParams> }[] = [
+const QUICK_DEFS: { label: string; hint: string; apply: (p: ExplorerParams) => Partial<ExplorerParams> }[] = [
   { label: 'CA × 2', hint: 'Doubler le chiffre d\'affaires', apply: (p) => ({ ca: p.ca * 2 }) },
   { label: 'Se marier', hint: 'Passer à 2 parts fiscales', apply: () => ({ situationFam: 'marie' as const }) },
   { label: '2 enfants', hint: 'Ajouter 2 enfants à charge', apply: () => ({ nbEnfants: 2 }) },
   { label: 'PER 3 000 €', hint: 'Verser 3 000 € au PER', apply: () => ({ perMontant: 3000 }) },
-  { label: '30% réserve', hint: 'Conserver 30% du bénéfice', apply: (p) => {
+  { label: '30% réserve', hint: 'Conserver 30% du résultat', apply: (p) => {
     const ben = p.ca - p.charges - p.amort
     return { strategie: 'reserve' as const, reserveVoulue: Math.round(Math.max(0, ben) * 0.3) }
   }},
-  { label: '+20% charges', hint: 'Augmenter les charges', apply: (p) => ({ charges: Math.round(p.charges * 1.2) }) },
+  { label: '+20% charges', hint: 'Augmenter les charges de 20%', apply: (p) => ({ charges: Math.round(p.charges * 1.2) }) },
 ]
 
 /* ── Composant SliderRow ── */
@@ -113,6 +126,7 @@ function SliderRow({ label, sub, value, min, max, step, onChange, badge }: {
 /* ── Page principale ── */
 export default function ExplorerPage() {
   const [params, setParams] = useState<ExplorerParams>(DEFAULT)
+  const [isPrefilledFromSim, setIsPrefilledFromSim] = useState(false)
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null)
   const [delta, setDelta] = useState<{ value: number; visible: boolean }>({ value: 0, visible: false })
@@ -132,15 +146,18 @@ export default function ExplorerPage() {
     if (sp.get('enfants')) upd.nbEnfants = Number(sp.get('enfants'))
     if (sp.get('sitfam')) upd.situationFam = sp.get('sitfam') as ExplorerParams['situationFam']
     if (sp.get('per')) upd.perMontant = Number(sp.get('per'))
-    if (Object.keys(upd).length > 0) setParams(prev => ({ ...prev, ...upd }))
+    if (sp.get('autresrev')) upd.autresRev = Number(sp.get('autresrev'))
+    if (sp.get('secteur')) upd.secteur = sp.get('secteur') as Secteur
+    if (Object.keys(upd).length > 0) {
+      setParams(prev => ({ ...prev, ...upd }))
+      setIsPrefilledFromSim(true)
+    }
   }, [])
 
   const set = useCallback(<K extends keyof ExplorerParams>(key: K, value: ExplorerParams[K]) => {
     setParams(prev => {
       const next = { ...prev, [key]: value }
-      // Ajuster les charges si elles dépassent le CA
       if (key === 'ca' && next.charges > Number(value) * 0.9) next.charges = Math.round(Number(value) * 0.4)
-      // Reset réserve si stratégie change
       if (key === 'strategie' && value === 'max') next.reserveVoulue = 0
       return next
     })
@@ -189,6 +206,16 @@ export default function ExplorerPage() {
   const parts = calcPartsTotal(partsBase, params.nbEnfants)
   const partsStr = parts % 1 === 0 ? parts.toFixed(0) : parts.toFixed(1).replace('.', ',')
 
+  /* ── "Et si..." avec impact calculé en temps réel ── */
+  const quickWithImpact = useMemo(() => {
+    return QUICK_DEFS.map(q => {
+      const newParams = { ...params, ...q.apply(params) }
+      const newNet = calcBestNet(newParams)
+      const diff = newNet - results.best.netAnnuel
+      return { ...q, impact: diff }
+    })
+  }, [params, results.best.netAnnuel])
+
   /* ── Graphique barres horizontales ── */
   const STRUCT_ORDER = ['EURL / SARL (IS)', 'SAS / SASU', 'EI (réel normal)', 'Micro-entreprise']
   const displayStructures = STRUCT_ORDER
@@ -218,21 +245,21 @@ export default function ExplorerPage() {
   }
 
   const chartOptions: ChartOptions<'bar'> = {
-  indexAxis: 'y' as const,
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: { duration: 220 },
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      callbacks: {
-        label: (tooltipItem: TooltipItem<'bar'>) => {
-          const value = tooltipItem.parsed.x ?? 0
-          return `${value}`
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 220 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (tooltipItem: TooltipItem<'bar'>) => {
+            const value = tooltipItem.parsed.x ?? 0
+            return fmt(value)
+          },
         },
       },
     },
-  },
     scales: {
       x: {
         grid: { color: 'rgba(0,0,0,.04)' },
@@ -279,9 +306,9 @@ export default function ExplorerPage() {
     const f = results.best.forme
     const b = results.best
     if (f === 'EI (réel normal)') {
-      return `Avec ${fmt(ben)} de bénéfice brut et ${partsStr} parts fiscales, votre TMI reste faible. L'EI au réel maximise votre revenu net sans la complexité d'une société.`
+      return `Avec ${fmt(ben)} de résultat avant rémunération et ${partsStr} parts fiscales, votre TMI reste faible. L'EI au réel maximise votre revenu net sans la complexité d'une société.`
     } else if (f === 'EURL / SARL (IS)') {
-      return `L'IS 15% sur les premiers 42 500 € de résultat est plus avantageux que votre TMI. La structure vous permet aussi de distribuer jusqu'à ${fmt(params.capital * 0.10)} en dividendes sans surcoût.`
+      return `L'IS 15% sur les premiers 42 500 € est plus avantageux que votre TMI. La structure permet de distribuer jusqu'à ${fmt(params.capital * 0.10)} en dividendes sans surcoût.`
     } else if (f === 'SAS / SASU') {
       return `Avec ${fmt(b.div || 0)} de dividendes sans cotisations sociales, la SASU est optimale. Elle offre aussi la meilleure protection sociale (AGIRC-ARRCO).`
     } else {
@@ -291,9 +318,6 @@ export default function ExplorerPage() {
 
   const worst = results.scored[results.scored.length - 1]
   const gainVsWorst = results.best.netAnnuel - (worst?.netAnnuel || 0)
-
-  /* ── URL vers simulateur avec params ── */
-  const simulateurUrl = `/simulateur`
 
   const SELECT_CLS = "w-full px-2.5 py-2 text-sm border border-surface2 rounded-lg bg-white text-ink focus:outline-none focus:border-blue-mid transition-all cursor-pointer"
 
@@ -306,43 +330,67 @@ export default function ExplorerPage() {
         <div className="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.18)_0%,transparent_65%)] -top-24 -right-10 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6 py-10 relative flex items-end justify-between gap-6 flex-wrap">
           <div>
-            <div className="text-[10.5px] font-semibold tracking-widest uppercase text-blue-mid mb-2">Module exploration</div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-px w-5 rounded-full bg-blue-mid" />
+              <span className="text-[10.5px] font-bold tracking-[0.18em] uppercase text-blue-mid">Module exploration</span>
+            </div>
             <h1 className="font-display text-3xl font-black text-white tracking-tight mb-1.5">
               Explorez tous vos scénarios
             </h1>
-            <p className="text-sm text-white/45 max-w-md">
+            <p className="text-[14px] text-white/45 max-w-md leading-relaxed">
               Ajustez vos paramètres en temps réel et voyez l&apos;impact immédiat sur chaque structure. Aucun bouton &ldquo;Calculer&rdquo;.
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
             {scenarios.length < 3 && (
               <button onClick={captureScenario}
-                className="px-4 py-2 text-sm font-semibold bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all whitespace-nowrap">
+                className="px-4 py-2 text-sm font-semibold bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all whitespace-nowrap">
                 📸 Capturer ce scénario
               </button>
             )}
-            <Link href={simulateurUrl}
-              className="px-4 py-2 text-sm font-semibold bg-blue text-white rounded-lg hover:bg-blue-dark transition-all whitespace-nowrap">
+            <Link href="/simulateur"
+              className="px-4 py-2 text-sm font-bold bg-blue text-white rounded-xl hover:bg-blue-dark transition-all whitespace-nowrap">
               Simulateur complet →
             </Link>
           </div>
         </div>
       </div>
 
-      {/* ── QUESTIONS RAPIDES ── */}
+      {/* ── BANDEAU PRÉREMPLISSAGE ── */}
+      {isPrefilledFromSim && (
+        <div className="bg-blue-bg border-b border-blue-border">
+          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
+            <span className="text-blue flex-shrink-0">📊</span>
+            <p className="text-[13px] text-blue-dark">
+              <strong>Paramètres chargés depuis votre simulation.</strong> Ajustez les sliders pour explorer d&apos;autres scénarios.
+            </p>
+            <button onClick={() => setIsPrefilledFromSim(false)}
+              className="ml-auto text-blue/60 hover:text-blue text-sm transition-colors flex-shrink-0">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── QUESTIONS RAPIDES avec impact ── */}
       <div className="bg-white border-b border-surface2">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3 flex-wrap">
           <span className="text-[11px] font-bold text-ink3 uppercase tracking-wide flex-shrink-0">Et si…</span>
-          {QUICK.map(q => (
+          {quickWithImpact.map(q => (
             <button key={q.label} title={q.hint}
               onClick={() => setParams(prev => ({ ...prev, ...q.apply(prev) }))}
-              className="px-3 py-1.5 text-[12px] font-semibold rounded-full border border-surface2 text-ink3
+              className="inline-flex flex-col items-center px-3.5 py-1.5 rounded-xl border border-surface2 text-ink3
                 hover:border-blue-mid hover:text-blue-mid hover:bg-blue-bg transition-all whitespace-nowrap">
-              {q.label}
+              <span className="text-[12px] font-semibold">{q.label}</span>
+              {Math.abs(q.impact) > 100 && (
+                <span className={`text-[10px] font-bold leading-tight ${q.impact > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {q.impact > 0 ? '+' : ''}{fmt(Math.round(q.impact))}/an
+                </span>
+              )}
             </button>
           ))}
           {(params.ca !== DEFAULT.ca || params.charges !== DEFAULT.charges || params.situationFam !== DEFAULT.situationFam) && (
-            <button onClick={() => setParams(DEFAULT)}
+            <button onClick={() => { setParams(DEFAULT); setIsPrefilledFromSim(false) }}
               className="ml-auto px-3 py-1.5 text-[11px] font-semibold text-ink4 hover:text-red-600 transition-colors whitespace-nowrap">
               ↺ Réinitialiser
             </button>
@@ -363,7 +411,6 @@ export default function ExplorerPage() {
               <span className="text-[11.5px] font-bold text-ink2 uppercase tracking-wide">Activité</span>
             </div>
 
-            {/* Secteur */}
             <div className="mb-4">
               <label className="text-[11px] font-semibold text-ink3 uppercase tracking-wide block mb-1.5">Secteur</label>
               <select value={params.secteur} onChange={e => set('secteur', e.target.value as Secteur)} className={SELECT_CLS}>
@@ -419,7 +466,7 @@ export default function ExplorerPage() {
 
             {seuil60k && (
               <div className="mt-2 bg-blue-bg border border-blue-border rounded-lg px-3 py-2 text-[11.5px] text-blue-dark">
-                ⚡ Bénéfice &gt; 60 000 € — l&apos;IS (EURL/SASU) devient généralement plus avantageux que l&apos;IR direct.
+                ⚡ Résultat avant rémunération &gt; 60 000 € — l&apos;IS (EURL/SASU) devient généralement plus avantageux que l&apos;IR direct.
               </div>
             )}
           </div>
@@ -582,7 +629,7 @@ export default function ExplorerPage() {
                       <tr key={label} className="border-b border-surface2 hover:bg-surface/50">
                         <td className="px-3 py-2 text-ink3 font-medium">{label}</td>
                         {scenarios.map(sc => (
-                          <td key={sc.id} className={`px-3 py-2 text-right font-semibold text-ink`}>{getValue(sc)}</td>
+                          <td key={sc.id} className="px-3 py-2 text-right font-semibold text-ink">{getValue(sc)}</td>
                         ))}
                         {scenarios.length === 2 && numeric && (
                           <td className="px-3 py-2 text-right font-bold">
@@ -612,11 +659,12 @@ export default function ExplorerPage() {
                 <p className="text-[11.5px] text-ink3 mt-0.5">Après IR, cotisations et IS</p>
               </div>
               {/* Delta animé */}
-              <div className={`transition-all duration-300 ${delta.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}>
+              <div className={`transition-all duration-300 ${delta.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1 pointer-events-none'}`}>
                 <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-bold ${
-                  delta.value >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  delta.value >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                 }`}>
                   {delta.value >= 0 ? '↑' : '↓'} {delta.value >= 0 ? '+' : ''}{fmt(Math.abs(delta.value))}/an
+                  <span className="font-normal opacity-60 text-[11px] ml-1">vs avant</span>
                 </span>
               </div>
             </div>
@@ -634,7 +682,6 @@ export default function ExplorerPage() {
               <Bar data={chartData} options={chartOptions} />
             </div>
 
-            {/* Légende inline */}
             <div className="flex items-center gap-4 mt-3 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-blue" />
@@ -729,15 +776,57 @@ export default function ExplorerPage() {
                 </div>
               )}
               <div className="flex gap-3 flex-wrap">
-                <Link href={simulateurUrl}
-                  className="px-4 py-2.5 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark transition-all">
+                <Link href="/simulateur"
+                  className="px-4 py-2.5 bg-blue text-white font-bold text-sm rounded-xl hover:bg-blue-dark transition-all">
                   Voir l&apos;analyse complète →
                 </Link>
                 <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                  className="px-4 py-2.5 font-semibold text-sm rounded-lg border border-white/20 text-white/70 hover:text-white hover:border-white/40 transition-all">
+                  className="px-4 py-2.5 font-semibold text-sm rounded-xl border border-white/20 text-white/70 hover:text-white hover:border-white/40 transition-all">
                   Prendre RDV
                 </a>
               </div>
+            </div>
+          </div>
+
+          {/* ── Ce que ça change concrètement ── */}
+          <div className="bg-white border border-black/[0.07] rounded-xl p-5 shadow-sm">
+            <h3 className="font-display text-[14px] font-bold text-ink mb-4 flex items-center gap-2">
+              <span>💡</span> Ce que ça change concrètement
+            </h3>
+            <div className="space-y-0">
+              {[
+                {
+                  label: 'Revenu mensuel net',
+                  value: fmt(Math.round(results.best.netAnnuel / 12)),
+                  valueClass: 'text-ink font-bold',
+                },
+                {
+                  label: 'Charges sociales annuelles',
+                  value: `−${fmt(results.best.charges)}`,
+                  valueClass: 'text-red-600 font-bold',
+                },
+                {
+                  label: 'IR estimé',
+                  value: `−${fmt(results.best.ir)}`,
+                  valueClass: 'text-ink3 font-semibold',
+                },
+                ...(results.best.is > 0 ? [{
+                  label: 'IS (impôt sur les sociétés)',
+                  value: `−${fmt(results.best.is)}`,
+                  valueClass: 'text-ink3 font-semibold',
+                }] : []),
+              ].map(({ label, value, valueClass }) => (
+                <div key={label} className="flex justify-between items-center py-2.5 border-b border-surface2 last:border-0">
+                  <span className="text-[13px] text-ink3">{label}</span>
+                  <span className={`text-[13px] ${valueClass}`}>{value}</span>
+                </div>
+              ))}
+              {gainVsWorst > 500 && (
+                <div className="flex justify-between items-center pt-3 border-t border-surface2 mt-1">
+                  <span className="text-[13px] text-ink3">Gain vs structure la moins favorable</span>
+                  <span className="text-[13px] font-bold text-emerald-600">+{fmt(gainVsWorst)}/an</span>
+                </div>
+              )}
             </div>
           </div>
 

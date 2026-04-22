@@ -47,13 +47,13 @@ function genAnalyse(best: StructureResult, params: SimParams, tmi: number) {
   let pourquoi = '', attention = ''
 
   if (f === 'EI (réel normal)') {
-    pourquoi = `Avec un CA de ${fmt(params.ca)} et un bénéfice brut de ${fmt(ben)}, en situation de ${situStr} (${partsStr} parts), votre TMI reste à ${tmi}%. L'EI au réel vous permet de déduire toutes les charges réelles et profite de cotisations SSI calculées par composante — sans surcoût lié à l'IS.`
-    attention = `Si votre bénéfice net dépasse 60 000 €/an, le passage en société IS (EURL ou SASU) devient généralement avantageux : l'IS 15% sera inférieur à votre TMI IR (${tmi}%).`
+    pourquoi = `Avec un CA de ${fmt(params.ca)} et un résultat avant rémunération de ${fmt(ben)}, en situation de ${situStr} (${partsStr} parts), votre TMI reste à ${tmi}%. L'EI au réel vous permet de déduire toutes les charges réelles et profite de cotisations SSI calculées par composante — sans surcoût lié à l'IS.`
+    attention = `Si votre résultat avant rémunération dépasse 60 000 €/an, le passage en société IS (EURL ou SASU) devient généralement avantageux : l'IS 15% sera inférieur à votre TMI IR (${tmi}%).`
   } else if (f === 'EURL / SARL (IS)') {
-    pourquoi = `Avec un CA de ${fmt(params.ca)} et un bénéfice brut de ${fmt(ben)}, l'IS 15% sur les premiers 42 500 € de résultat est inférieur à votre TMI (${tmi}%). La séparation patrimoine personnel / société apporte également une protection supplémentaire.`
+    pourquoi = `Avec un CA de ${fmt(params.ca)} et un résultat avant rémunération de ${fmt(ben)}, l'IS 15% sur les premiers 42 500 € est inférieur à votre TMI (${tmi}%). La séparation patrimoine personnel / société apporte également une protection supplémentaire.`
     attention = `Les dividendes supérieurs à ${fmt(params.capital * 0.10)} (10% du capital de ${fmt(params.capital)}) sont soumis aux cotisations TNS ~45%. Augmenter le capital social permet d'augmenter ce seuil de distribution.`
   } else if (f === 'SAS / SASU') {
-    pourquoi = `Avec un CA de ${fmt(params.ca)}, la SASU combine un salaire de président (cotisations assimilé salarié) et des dividendes sans cotisations sociales. C'est la seule structure en France offrant ce double avantage — particulièrement pertinent avec votre bénéfice brut de ${fmt(ben)}.`
+    pourquoi = `Avec un CA de ${fmt(params.ca)}, la SASU combine un salaire de président (cotisations assimilé salarié) et des dividendes sans cotisations sociales. C'est la seule structure en France offrant ce double avantage — particulièrement pertinent avec votre résultat avant rémunération de ${fmt(ben)}.`
     attention = `En tant que président de SASU, vous n'êtes pas couvert par France Travail. Une assurance perte d'emploi (GSC ou contrat Madelin) est fortement recommandée et déductible de l'IS.`
   } else {
     pourquoi = `Avec un CA de ${fmt(params.ca)}, le régime micro offre la simplicité maximale : abattement forfaitaire de ${Math.round((params.abat || 0.5) * 100)}% sans comptabilité obligatoire. Vos charges réelles étant limitées, ce régime est bien adapté à votre profil.`
@@ -124,7 +124,7 @@ function LevierModal({ levier, best, params, tmi, onClose }: LevierModalProps) {
   const [domChargesAnn, setDomChargesAnn] = useState(3000)
 
   // Prévoyance
-  const [prevPrime, setPrevPrime] = useState(2000)
+  const [prevPrime, setPrevPrime] = useState(2400)
 
   // Calculs IK
   const ikFn = BAREME_IK[ikCV] || BAREME_IK[5]
@@ -158,173 +158,227 @@ function LevierModal({ levier, best, params, tmi, onClose }: LevierModalProps) {
   const prevEcoIR = isTNS ? Math.round(prevPrime * 0.45 / 1.45) : Math.round(prevPrime * tmi / 100)
   const prevCout = Math.max(0, prevPrime - prevEcoIS - prevEcoIR)
 
+  // Économie principale selon le levier
+  const mainEconomie = isIK ? ikEconomie : isPER ? perEcoIR + perEcoCotis : isDom ? domGain : (prevEcoIS + prevEcoIR)
+
+  // Texte contextuel
+  const contextText = isIK
+    ? `Les indemnités kilométriques permettent de déduire l'usage professionnel de votre véhicule personnel selon le barème fiscal 2025, sans avoir à justifier les frais réels. Renseignez vos kilomètres professionnels et la puissance de votre véhicule.`
+    : isPER
+    ? `Le Plan d'Épargne Retraite permet de déduire vos versements de votre revenu imposable.${isTNS ? ' Pour les TNS, les versements réduisent également les cotisations — c\'est un double levier unique.' : ''} Plafond 2025 : ${fmt(perPlafond)}/an (10% du résultat avant rémunération).`
+    : isDom
+    ? `Si vous travaillez depuis votre domicile, vous pouvez déduire une quote-part des charges au prorata de la surface professionnelle. La pièce doit être dédiée exclusivement à l'activité professionnelle.`
+    : `Les contrats de prévoyance TNS (arrêt maladie, invalidité, décès) protègent votre revenu. Les primes sont déductibles du résultat IS ou BIC — le coût réel après économies fiscales est significativement réduit.`
+
+  const FINP = "px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue-mid transition-all w-full"
+  const FSEL = FINP + " cursor-pointer"
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-surface2">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{levier.ico}</span>
+
+        {/* ── Header gradient ── */}
+        <div className="rounded-t-2xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #1539B2 100%)' }}>
+          <div className="flex justify-between items-start gap-3">
             <div>
-              <h3 className="font-display text-lg font-bold text-ink">{levier.nom}</h3>
-              <p className="text-xs text-ink3 mt-0.5">Simulateur interactif</p>
+              <div className="text-[10px] font-bold tracking-widest uppercase opacity-65 mb-1.5">Levier d&apos;optimisation</div>
+              <h2 className="font-display text-xl font-black leading-tight">{levier.nom}</h2>
+              <p className="text-sm opacity-70 mt-1">Simulateur interactif — résultat en temps réel</p>
             </div>
+            <button onClick={onClose}
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/15 text-2xl leading-none transition-all flex-shrink-0 mt-0.5">
+              ×
+            </button>
           </div>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-full bg-surface hover:bg-surface2 flex items-center justify-center text-xl text-ink3 hover:text-ink transition-colors flex-shrink-0">
-            ×
-          </button>
         </div>
 
+        {/* ── Corps ── */}
         <div className="p-6 space-y-5">
-          {/* ── IK ── */}
-          {isIK && <>
-            <p className="text-sm text-ink2 leading-relaxed">
-              Les IK permettent de déduire l&apos;usage professionnel de votre véhicule personnel selon le barème fiscal 2025, sans justifier les frais réels.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Km professionnels / an</label>
-                <input type="number" value={ikKm} min={0} max={50000} step={500}
-                  onChange={e => setIkKm(Math.max(0, parseInt(e.target.value) || 0))}
-                  className={INP} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Puissance fiscale</label>
-                <select value={ikCV} onChange={e => setIkCV(parseInt(e.target.value))} className={SEL}>
-                  {[3, 4, 5, 6, 7].map(cv => (
-                    <option key={cv} value={cv}>{cv}{cv === 7 ? ' CV et +' : ' CV'}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <ResultBlock
-              rows={[
-                { label: `Taux barème ${ikCV}CV (${ikKm.toLocaleString('fr-FR')} km)`, val: `${ikTauxKm.toFixed(3).replace('.', ',')} €/km` },
-                { label: 'Montant déductible / an', val: fmt(ikMontant), bold: true },
-              ]}
-              highlight={{ label: 'Économie fiscale estimée', val: `+${fmt(ikEconomie)}/an` }}
-            />
-            <p className="text-[11.5px] text-ink4">{levier.cond}</p>
-          </>}
 
-          {/* ── PER ── */}
-          {isPER && <>
-            <p className="text-sm text-ink2 leading-relaxed">
-              Le PER permet de déduire vos versements de votre revenu imposable.
-              {isTNS && ' Pour les TNS, les versements réduisent également les cotisations — c\'est un double levier unique.'}
-            </p>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Versement annuel PER (€)</label>
-              <input type="number" value={perMontant} min={0} max={Math.max(perPlafond, perMontant)} step={500}
-                onChange={e => setPerMontant(Math.max(0, parseInt(e.target.value) || 0))}
-                className={INP} />
-              <p className="text-[11px] text-ink4">Votre plafond estimé : {fmt(perPlafond)}/an (10% du bénéfice)</p>
-            </div>
-            <ResultBlock
-              rows={[
-                { label: 'Versement retenu (≤ plafond)', val: fmt(perRet) },
-                { label: `Économie IR (TMI ${tmi}%)`, val: `−${fmt(perEcoIR)}`, green: true },
-                ...(perEcoCotis > 0 ? [{ label: 'Économie cotisations TNS', val: `−${fmt(perEcoCotis)}`, green: true }] : []),
-              ]}
-              highlight={{ label: 'Effort réel après économies', val: fmt(perEffort) }}
-              extra={{ label: 'Capital projeté à 20 ans (5%/an net)', val: fmt(perCapital) }}
-            />
-          </>}
+          {/* Contexte */}
+          <div className="bg-slate-50 rounded-xl p-4 text-[13px] text-slate-600 leading-relaxed">
+            {contextText}
+          </div>
 
-          {/* ── Domiciliation ── */}
-          {isDom && <>
-            <p className="text-sm text-ink2 leading-relaxed">
-              Si vous travaillez depuis votre domicile, vous pouvez déduire une quote-part des charges au prorata de la surface professionnelle. La pièce doit être dédiée exclusivement à l&apos;activité.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5 col-span-2">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Statut du logement</label>
-                <select value={domStatut} onChange={e => setDomStatut(e.target.value as 'locataire' | 'proprietaire')} className={SEL}>
-                  <option value="locataire">Locataire</option>
-                  <option value="proprietaire">Propriétaire</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Surface bureau (m²)</label>
-                <input type="number" value={domSurfBureau} min={1} max={domSurfTotale} step={1}
-                  onChange={e => setDomSurfBureau(Math.max(1, parseInt(e.target.value) || 1))} className={INP} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Surface totale (m²)</label>
-                <input type="number" value={domSurfTotale} min={domSurfBureau} max={300} step={1}
-                  onChange={e => setDomSurfTotale(Math.max(domSurfBureau, parseInt(e.target.value) || 1))} className={INP} />
-              </div>
-              {domStatut === 'locataire'
-                ? <div className="flex flex-col gap-1.5 col-span-2">
-                    <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Loyer mensuel (€)</label>
-                    <input type="number" value={domLoyer} min={0} step={50}
-                      onChange={e => setDomLoyer(Math.max(0, parseInt(e.target.value) || 0))} className={INP} />
-                  </div>
-                : <div className="flex flex-col gap-1.5 col-span-2">
-                    <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Charges annuelles (taxe foncière, assurance…)</label>
-                    <input type="number" value={domChargesAnn} min={0} step={100}
-                      onChange={e => setDomChargesAnn(Math.max(0, parseInt(e.target.value) || 0))} className={INP} />
-                  </div>
-              }
-            </div>
-            <ResultBlock
-              rows={[
-                { label: 'Ratio surface pro/totale', val: `${Math.round(domRatio * 100)}% (${domSurfBureau}m² / ${domSurfTotale}m²)` },
-                { label: 'Charges déductibles / an', val: fmt(domDed), bold: true },
-              ]}
-              highlight={{ label: 'Gain net annuel estimé', val: `+${fmt(domGain)}/an` }}
-            />
-            <p className="text-[11.5px] text-ink4">{levier.cond}</p>
-          </>}
-
-          {/* ── Prévoyance TNS ── */}
-          {isPrev && <>
-            <p className="text-sm text-ink2 leading-relaxed">
-              Les contrats de prévoyance TNS (arrêt maladie, invalidité, décès) protègent votre revenu. Les primes sont déductibles du bénéfice IS et/ou de l&apos;IR — réduisant significativement le coût réel.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Prime annuelle (€)</label>
-                <input type="number" value={prevPrime} min={0} step={100}
-                  onChange={e => setPrevPrime(Math.max(0, parseInt(e.target.value) || 0))} className={INP} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold tracking-wide uppercase text-ink3">Votre TMI</label>
-                <div className={`${INP} bg-surface font-semibold cursor-default`}>{tmi}%</div>
-              </div>
-            </div>
-            <ResultBlock
-              rows={[
-                ...(prevEcoIS > 0 ? [{ label: `Économie IS (${Math.round(tauxIS * 100)}%)`, val: `−${fmt(prevEcoIS)}`, green: true }] : []),
-                { label: isTNS ? 'Économie cotisations TNS' : `Économie IR (TMI ${tmi}%)`, val: `−${fmt(prevEcoIR)}`, green: true },
-              ]}
-              highlight={{ label: 'Coût réel après économies', val: fmt(prevCout) }}
-            />
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 leading-relaxed">
-              💡 Un contrat prévoyance TNS couvre arrêt maladie, invalidité et décès. Le niveau de couverture dépend de la prime et de l&apos;assureur.
-            </div>
-          </>}
-
-          {/* Fallback pour les autres leviers */}
-          {!isIK && !isPER && !isDom && !isPrev && (
-            <div>
-              <p className="text-sm text-ink2 leading-relaxed mb-3">{levier.desc}</p>
-              <div className="bg-surface rounded-xl p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-ink">Gain estimé</span>
-                  <span className="font-display text-xl font-black text-blue">+{fmt(levier.gain)}/an</span>
+          {/* ── Inputs IK ── */}
+          {isIK && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Km professionnels / an</label>
+                  <input type="number" value={ikKm} min={0} max={50000} step={500}
+                    onChange={e => setIkKm(Math.max(0, parseInt(e.target.value) || 0))}
+                    className={FINP} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Puissance fiscale</label>
+                  <select value={ikCV} onChange={e => setIkCV(parseInt(e.target.value))} className={FSEL}>
+                    {[3, 4, 5, 6, 7].map(cv => (
+                      <option key={cv} value={cv}>{cv}{cv === 7 ? ' CV et +' : ' CV'}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              <p className="text-[11.5px] text-ink4 mt-3">{levier.cond}</p>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                <div className="flex justify-between text-[13px] border-b border-slate-200 pb-2.5">
+                  <span className="text-slate-500">Taux barème {ikCV}CV — {ikKm.toLocaleString('fr-FR')} km</span>
+                  <span className="font-semibold text-slate-700">{ikTauxKm.toFixed(3).replace('.', ',')} €/km</span>
+                </div>
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-slate-500">Montant déductible / an</span>
+                  <span className="font-bold text-slate-800">{fmt(ikMontant)}</span>
+                </div>
+              </div>
             </div>
           )}
+
+          {/* ── Inputs PER ── */}
+          {isPER && (
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Versement annuel PER (€)</label>
+                <input type="number" value={perMontant} min={0} max={Math.max(perPlafond, perMontant)} step={500}
+                  onChange={e => setPerMontant(Math.max(0, parseInt(e.target.value) || 0))}
+                  className={FINP} />
+                <p className="text-[11.5px] text-slate-400">Plafond estimé : {fmt(perPlafond)}/an</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                <div className="flex justify-between text-[13px] border-b border-slate-200 pb-2.5">
+                  <span className="text-slate-500">Versement retenu (≤ plafond)</span>
+                  <span className="font-semibold text-slate-700">{fmt(perRet)}</span>
+                </div>
+                <div className="flex justify-between text-[13px] border-b border-slate-200 pb-2.5">
+                  <span className="text-slate-500">Économie IR (TMI {tmi}%)</span>
+                  <span className="font-bold text-emerald-700">−{fmt(perEcoIR)}</span>
+                </div>
+                {perEcoCotis > 0 && (
+                  <div className="flex justify-between text-[13px] border-b border-slate-200 pb-2.5">
+                    <span className="text-slate-500">Économie cotisations TNS</span>
+                    <span className="font-bold text-emerald-700">−{fmt(perEcoCotis)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-slate-500">Capital projeté 20 ans (5%/an)</span>
+                  <span className="font-semibold text-slate-700">{fmt(perCapital)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Inputs Domiciliation ── */}
+          {isDom && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Statut du logement</label>
+                  <select value={domStatut} onChange={e => setDomStatut(e.target.value as 'locataire' | 'proprietaire')} className={FSEL}>
+                    <option value="locataire">Locataire</option>
+                    <option value="proprietaire">Propriétaire</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Surface bureau (m²)</label>
+                  <input type="number" value={domSurfBureau} min={1} max={domSurfTotale} step={1}
+                    onChange={e => setDomSurfBureau(Math.max(1, parseInt(e.target.value) || 1))} className={FINP} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Surface totale (m²)</label>
+                  <input type="number" value={domSurfTotale} min={domSurfBureau} max={300} step={1}
+                    onChange={e => setDomSurfTotale(Math.max(domSurfBureau, parseInt(e.target.value) || 1))} className={FINP} />
+                </div>
+                {domStatut === 'locataire'
+                  ? <div className="flex flex-col gap-1.5 col-span-2">
+                      <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Loyer mensuel (€)</label>
+                      <input type="number" value={domLoyer} min={0} step={50}
+                        onChange={e => setDomLoyer(Math.max(0, parseInt(e.target.value) || 0))} className={FINP} />
+                    </div>
+                  : <div className="flex flex-col gap-1.5 col-span-2">
+                      <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Charges annuelles (taxe foncière, assurance…)</label>
+                      <input type="number" value={domChargesAnn} min={0} step={100}
+                        onChange={e => setDomChargesAnn(Math.max(0, parseInt(e.target.value) || 0))} className={FINP} />
+                    </div>
+                }
+              </div>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                <div className="flex justify-between text-[13px] border-b border-slate-200 pb-2.5">
+                  <span className="text-slate-500">Ratio surface pro / totale</span>
+                  <span className="font-semibold text-slate-700">{Math.round(domRatio * 100)}% ({domSurfBureau}m² / {domSurfTotale}m²)</span>
+                </div>
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-slate-500">Charges déductibles / an</span>
+                  <span className="font-bold text-slate-800">{fmt(domDed)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Inputs Prévoyance ── */}
+          {isPrev && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Prime annuelle (€)</label>
+                  <input type="number" value={prevPrime} min={0} step={100}
+                    onChange={e => setPrevPrime(Math.max(0, parseInt(e.target.value) || 0))} className={FINP} />
+                  <p className="text-[11px] text-slate-400">Recommandé : 1 800–4 800 €/an selon couverture</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold tracking-widest uppercase text-slate-500">Votre TMI</label>
+                  <div className={`${FINP} bg-slate-100 font-semibold cursor-default`}>{tmi}%</div>
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                {prevEcoIS > 0 && (
+                  <div className="flex justify-between text-[13px] border-b border-slate-200 pb-2.5">
+                    <span className="text-slate-500">Économie IS ({Math.round(tauxIS * 100)}%)</span>
+                    <span className="font-bold text-emerald-700">−{fmt(prevEcoIS)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-slate-500">{isTNS ? 'Économie cotisations TNS' : `Économie IR (TMI ${tmi}%)`}</span>
+                  <span className="font-bold text-emerald-700">−{fmt(prevEcoIR)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback */}
+          {!isIK && !isPER && !isDom && !isPrev && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-[13px] text-slate-600 leading-relaxed mb-3">{levier.desc}</p>
+              <p className="text-[12px] text-slate-400">{levier.cond}</p>
+            </div>
+          )}
+
+          {/* ── Résultat en temps réel ── */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
+            <div className="text-[10.5px] font-bold tracking-widest uppercase text-emerald-700 mb-2">Économie estimée</div>
+            <div className="font-display text-3xl font-black text-emerald-700 mb-1.5">
+              +{fmt(isIK ? ikEconomie : isPER ? perEcoIR + perEcoCotis : isDom ? domGain : prevEcoIS + prevEcoIR)}/an
+            </div>
+            <div className="text-[13px] text-emerald-600 leading-relaxed">
+              {isIK && `${fmt(ikMontant)} déductibles × taux effectif`}
+              {isPER && `Effort réel : ${fmt(perEffort)}/an — capital 20 ans : ${fmt(perCapital)}`}
+              {isDom && `${fmt(domDed)} déductibles au prorata ${Math.round(domRatio * 100)}%`}
+              {isPrev && `Coût réel après économies : ${fmt(prevCout)}/an (${fmt(Math.round(prevCout / 12))}/mois)`}
+              {!isIK && !isPER && !isDom && !isPrev && `Gain estimé sur votre situation`}
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400 text-center">
+            Estimation indicative — à valider avec votre expert-comptable
+          </p>
         </div>
 
-        <div className="px-6 pb-6">
+        {/* ── Footer ── */}
+        <div className="border-t border-slate-100 p-4 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 text-[13px] font-semibold border border-surface2 rounded-xl text-ink3 hover:bg-surface transition-all">
+            Fermer
+          </button>
           <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-            className="block w-full text-center py-3 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark transition-colors">
-            Prendre RDV pour optimiser →
+            className="flex-1 py-2.5 text-[13px] font-bold bg-blue text-white rounded-xl text-center hover:bg-blue-dark transition-all">
+            Mettre en place →
           </a>
         </div>
       </div>
@@ -351,9 +405,9 @@ export function StepResultats() {
   const count = scored.length
   const cardsGridClass =
     count === 1 ? 'flex justify-center' :
-    count === 2 ? 'grid grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto gap-3' :
-    count === 3 ? 'grid grid-cols-1 sm:grid-cols-3 max-w-4xl mx-auto gap-3' :
-    'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'
+    count === 2 ? 'grid grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto gap-3 items-start' :
+    count === 3 ? 'grid grid-cols-1 sm:grid-cols-3 max-w-4xl mx-auto gap-3 items-start' :
+    'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
 
@@ -522,7 +576,7 @@ export function StepResultats() {
                   <div className="mt-2 pt-2 border-t border-black/[0.06]">
                     <div className="text-[11px] text-ink3 mb-1">Mutuelle santé recommandée</div>
                     <div className="text-[11px] font-semibold text-ink2">50 – 150 €/mois</div>
-                    <div className="text-[10.5px] text-ink4 mt-0.5">Primes déductibles du bénéfice</div>
+                    <div className="text-[10.5px] text-ink4 mt-0.5">Primes déductibles du résultat</div>
                   </div>
                 )}
               </div>
@@ -537,7 +591,7 @@ export function StepResultats() {
           <div className="flex gap-2.5 text-sm text-blue-dark">
             <span className="flex-shrink-0">🛡</span>
             <div>
-              <strong>Prévoyance TNS déductible</strong> — les primes de prévoyance (arrêt maladie, invalidité, décès) sont déductibles du bénéfice IS ou BIC.
+              <strong>Prévoyance TNS déductible</strong> — les primes de prévoyance (arrêt maladie, invalidité, décès) sont déductibles du résultat IS ou BIC.
               Simulez l&apos;économie réelle via le levier Prévoyance ci-dessous.
             </div>
           </div>
@@ -647,7 +701,7 @@ export function StepResultats() {
 
       {/* ── EXPLORER CTA ── */}
       {(() => {
-        const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}`
+        const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}`
         return (
           <div className="border border-blue-border bg-blue-bg rounded-xl p-5 mt-6 flex items-start gap-4 flex-wrap">
             <div className="flex-1 min-w-0">
@@ -759,7 +813,7 @@ function StructureCard({ r, rank, params }: { r: StructureResult; rank: number; 
       </div>
       <div className="text-[12px] text-ink4 mb-3">{fmt(r.netAnnuel / 12)}/mois</div>
 
-      <div className="border-t border-surface2 pt-3 flex flex-col flex-1 gap-0">
+      <div className="border-t border-surface2 pt-3 flex flex-col gap-0">
         {costRows.map(({ k, v, p }) => (
           <div key={k} className="flex items-center justify-between text-[11.5px] py-1.5 border-b border-surface2 gap-2">
             <span className="text-ink3 flex-shrink-0">{k}</span>
