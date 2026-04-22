@@ -23,6 +23,7 @@ export function StepFoyer() {
   const handleCalculate = () => {
     calcul()
     nextStep()
+    localStorage.setItem('simulateurResultat', '1')
   }
 
   const revPro = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
@@ -148,9 +149,8 @@ export function StepFoyer() {
                 type="number"
                 value={params.perMontant}
                 min={0}
-                max={perPlafond}
                 step={500}
-                onChange={e => setParam('perMontant', Math.min(perPlafond, Math.max(0, parseFloat(e.target.value) || 0)))}
+                onChange={e => setParam('perMontant', Math.max(0, parseFloat(e.target.value) || 0))}
                 className={INPUT_CLS}
               />
             </div>
