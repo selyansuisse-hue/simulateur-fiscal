@@ -1,3 +1,5 @@
+export const dynamic = 'force-static'
+
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Footer } from '@/components/ui/Footer'
@@ -15,6 +17,25 @@ const TESTIMONIALS = [
   { t: 'La comparaison score multicritère m\'a fait réaliser que la SASU n\'était pas forcément meilleure pour ma situation.', n: 'Antoine R.', r: 'Développeur indépendant' },
 ]
 
+const FAQ = [
+  {
+    q: 'Le simulateur est-il vraiment gratuit ?',
+    a: 'Oui, totalement gratuit et sans inscription obligatoire. Vous obtenez vos résultats complets en 4 minutes, sans carte bancaire ni engagement.',
+  },
+  {
+    q: 'Comment sont calculées les cotisations sociales ?',
+    a: 'Nous utilisons le barème SSI 2025 par composante (maladie, retraite de base, retraite complémentaire, invalidité-décès, formation). Pas de taux forfaitaire approximatif — chaque composante est calculée sur la bonne base.',
+  },
+  {
+    q: 'Puis-je faire confiance aux résultats pour prendre une décision ?',
+    a: 'Le simulateur fournit une estimation fiable basée sur les barèmes officiels 2025. Il est conçu pour orienter votre réflexion. Pour toute décision juridique ou fiscale engageante, un rendez-vous avec un expert-comptable reste recommandé.',
+  },
+  {
+    q: 'Quelle est la différence entre EURL et SASU ?',
+    a: 'L\'EURL est soumise au régime SSI (cotisations sur rémunération + dividendes si > 10% du capital). La SASU est soumise au régime général (cotisations uniquement sur rémunération, dividendes non soumis aux cotisations). L\'impact dépend fortement de votre CA et de votre politique de rémunération — c\'est exactement ce que le simulateur calcule.',
+  },
+]
+
 export default function LandingPage() {
   return (
     <>
@@ -22,41 +43,55 @@ export default function LandingPage() {
 
       {/* ── HERO ── */}
       <section style={{ backgroundColor: '#050c1a' }} className="relative overflow-hidden">
-        <div className="absolute w-[700px] h-[700px] rounded-full pointer-events-none animate-orb"
-          style={{ background: 'radial-gradient(circle, rgba(37,99,235,.30) 0%, transparent 65%)', top: '-14rem', right: '-8rem' }} />
-        <div className="absolute w-[400px] h-[400px] rounded-full pointer-events-none animate-orb-rev"
-          style={{ background: 'radial-gradient(circle, rgba(29,78,216,.18) 0%, transparent 65%)', bottom: '-10rem', left: '-5rem' }} />
+        {/* Orbes plus grands */}
+        <div className="absolute w-[900px] h-[900px] rounded-full pointer-events-none animate-orb"
+          style={{ background: 'radial-gradient(circle, rgba(37,99,235,.35) 0%, transparent 60%)', top: '-18rem', right: '-12rem' }} />
+        <div className="absolute w-[600px] h-[600px] rounded-full pointer-events-none animate-orb-rev"
+          style={{ background: 'radial-gradient(circle, rgba(29,78,216,.22) 0%, transparent 60%)', bottom: '-14rem', left: '-8rem' }} />
+        <div className="absolute w-[400px] h-[400px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 65%)', top: '30%', left: '40%' }} />
         <div className="absolute inset-0 pointer-events-none opacity-35"
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.13) 1px, transparent 1px)', backgroundSize: '28px 28px',
             WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)',
             maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)' }} />
 
         <div className="max-w-5xl mx-auto px-6 py-28 relative">
-          <div className="flex items-center gap-2.5 mb-7">
-            <div className="h-0.5 w-8 rounded-full" style={{ background: 'linear-gradient(to right, #3B82F6, transparent)' }} />
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase" style={{ color: '#3B82F6' }}>
-              Simulateur fiscal · 2025
+
+          {/* Badge crédibilité */}
+          <div className="inline-flex items-center gap-2.5 mb-7 px-4 py-2 rounded-full border"
+            style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.12)' }}>
+            <div className="flex -space-x-1">
+              {['T', 'M', 'A'].map(l => (
+                <div key={l} className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 border border-white/20 flex items-center justify-center text-[9px] font-bold text-white">{l}</div>
+              ))}
+            </div>
+            <span className="text-[11.5px] font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              +1 200 dirigeants ont optimisé leur structure
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(52,211,153,0.15)', color: '#34D399' }}>
+              GRATUIT
             </span>
           </div>
 
           <h1 className="font-display font-black leading-[1.03] tracking-[-0.03em] mb-6 max-w-3xl"
-            style={{ fontSize: 'clamp(2.75rem, 6vw, 4.5rem)', color: '#fff' }}>
-            Quelle structure vous fait<br />
+            style={{ fontSize: 'clamp(3rem, 7vw, 5rem)', color: '#fff' }}>
+            Quelle structure<br />
             <span style={{ backgroundImage: 'linear-gradient(135deg, #3B82F6, #93C5FD)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              vraiment économiser ?
-            </span>
+              vous fait vraiment
+            </span><br />
+            économiser ?
           </h1>
 
           <p className="text-lg leading-relaxed max-w-xl mb-10" style={{ color: 'rgba(255,255,255,.70)' }}>
             4 étapes. Résultat immédiat. Barème 2025.
           </p>
 
-          {/* Stats */}
+          {/* Stat cards avec hover Tailwind */}
           <div className="flex flex-wrap gap-3 mb-10">
             {STATS.map(({ val, lbl, sub }) => (
               <div key={lbl}
                 className="flex flex-col px-5 py-3.5 rounded-xl cursor-default transition-all duration-200
-                  border border-white/10 bg-white/[0.04] hover:border-blue-mid/35 hover:bg-white/[0.07]">
+                  border border-white/10 bg-white/[0.04] hover:border-blue-500/40 hover:bg-blue-500/[0.08] hover:-translate-y-0.5">
                 <span className="font-display text-2xl font-bold text-white leading-none">{val}</span>
                 <span className="text-[11px] font-semibold mt-0.5 text-white/60">{lbl}</span>
                 <span className="text-[10px] text-white/30">{sub}</span>
@@ -68,7 +103,8 @@ export default function LandingPage() {
           <div className="flex gap-4 flex-wrap items-center mb-4">
             <Link href="/simulateur"
               className="px-8 py-4 bg-blue font-bold text-[15px] rounded-xl text-white
-                shadow-[0_4px_20px_rgba(29,78,216,.50)] hover:bg-blue-dark hover:-translate-y-0.5 transition-all duration-150">
+                hover:bg-blue-dark hover:-translate-y-0.5 transition-all duration-150"
+              style={{ boxShadow: '0 6px 30px rgba(29,78,216,.60), 0 2px 8px rgba(29,78,216,.40)' }}>
               ✦ Lancer la simulation gratuite
             </Link>
             <Link href="/auth/signup"
@@ -98,11 +134,11 @@ export default function LandingPage() {
       </section>
 
       {/* ── APERÇU DU PRODUIT ── */}
-      <section className="bg-white py-20">
+      <section className="py-20" style={{ background: 'linear-gradient(180deg, #F8FAFF 0%, #EEF2FF 100%)' }}>
         <div className="max-w-6xl mx-auto px-6">
 
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-full uppercase tracking-widest mb-4">
+            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-full uppercase tracking-widest mb-4 border border-blue-100">
               Aperçu du résultat
             </div>
             <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-3">
@@ -114,10 +150,18 @@ export default function LandingPage() {
             </p>
           </div>
 
+          {/* Séparateur */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent" />
+            <div className="text-xs font-bold text-blue-400 uppercase tracking-widest px-2">Simulation en direct</div>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent" />
+          </div>
+
           {/* Mockup principal */}
           <div className="relative mb-8">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-3xl blur-3xl -z-10" />
-            <div className="bg-gradient-to-br from-slate-900 to-[#0d1f3c] rounded-3xl p-8 shadow-2xl">
+            <div className="bg-gradient-to-br from-slate-900 to-[#0d1f3c] rounded-3xl p-8"
+              style={{ boxShadow: '0 40px 80px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.25)' }}>
 
               {/* Fausse barre navigateur */}
               <div className="flex items-center gap-2 mb-6">
@@ -181,7 +225,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             {/* Décomposition CA */}
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Décomposition de votre CA</div>
               {[
                 { label: 'Revenu net', pct: 54, color: 'bg-emerald-500', val: '54 200 €' },
@@ -205,7 +249,7 @@ export default function LandingPage() {
             </div>
 
             {/* TMI barème */}
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Votre situation fiscale</div>
               <div className="space-y-1.5">
                 {[
@@ -257,13 +301,13 @@ export default function LandingPage() {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { val: '8 400 €', label: 'Économie moyenne/an', sub: 'vs structure non optimisée' },
-              { val: '4 min', label: 'Pour obtenir vos résultats', sub: 'sans inscription requise' },
-              { val: '4', label: 'Structures comparées', sub: 'Micro · EI · EURL · SASU' },
-              { val: '100%', label: 'Calculs vérifiés', sub: 'Barème 2025 certifié' },
+              { val: '8 400 €', label: 'Économie moyenne/an', sub: 'vs structure non optimisée', color: '#34D399' },
+              { val: '4 min', label: 'Pour obtenir vos résultats', sub: 'sans inscription requise', color: '#60A5FA' },
+              { val: '4', label: 'Structures comparées', sub: 'Micro · EI · EURL · SASU', color: '#A78BFA' },
+              { val: '100%', label: 'Calculs vérifiés', sub: 'Barème 2025 certifié', color: '#FBBF24' },
             ].map(stat => (
               <div key={stat.val} className="text-center">
-                <div className="text-4xl font-bold text-white mb-1">{stat.val}</div>
+                <div className="font-display text-5xl font-black mb-1" style={{ color: stat.color }}>{stat.val}</div>
                 <div className="text-sm font-medium text-white/70 mb-0.5">{stat.label}</div>
                 <div className="text-xs text-white/30">{stat.sub}</div>
               </div>
@@ -273,7 +317,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── COMMENT ÇA MARCHE ── */}
-      <section className="bg-white py-20">
+      <section className="py-20" style={{ backgroundColor: '#FAFBFF' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-bold text-slate-900 mb-3">4 étapes. C&apos;est tout.</h2>
@@ -292,8 +336,15 @@ export default function LandingPage() {
                   <div className="hidden md:block absolute top-7 left-[60%] right-[-40%] h-px bg-slate-200 z-0" />
                 )}
                 <div className="relative z-10">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-xl mb-4 shadow-lg shadow-blue-600/20">
-                    {step.icone}
+                  {/* Icone avec badge numéro en overlay */}
+                  <div className="relative w-14 h-14 mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-xl shadow-lg shadow-blue-600/20">
+                      {step.icone}
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white z-10"
+                      style={{ background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)' }}>
+                      {i + 1}
+                    </div>
                   </div>
                   <div className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-1">Étape {step.num}</div>
                   <h3 className="text-base font-bold text-slate-900 mb-2">{step.titre}</h3>
@@ -324,15 +375,51 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {TESTIMONIALS.map(({ t, n, r }) => (
-              <div key={n} className="rounded-2xl p-6 flex flex-col bg-white/[0.05] border border-white/[0.09]">
-                <div className="flex gap-0.5 mb-3 text-sm">{'⭐'.repeat(5)}</div>
+              <div key={n}
+                className="rounded-2xl p-6 flex flex-col border border-white/[0.09]"
+                style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+                {/* Étoiles individuelles */}
+                <div className="flex gap-0.5 mb-3">
+                  {[...Array(5)].map((_, i) => (
+                    <span key={i} className="text-amber-400 text-sm">★</span>
+                  ))}
+                </div>
                 <div className="font-serif text-5xl leading-none mb-2 text-blue-mid">&ldquo;</div>
                 <p className="text-sm leading-relaxed flex-1 mb-5 text-white/65">{t}</p>
-                <div className="border-t border-white/[0.09] pt-4">
-                  <div className="text-sm font-semibold text-white">{n}</div>
-                  <div className="text-xs mt-0.5 text-white/40">— {r}</div>
+                <div className="border-t border-white/[0.09] pt-4 flex items-center gap-3">
+                  {/* Avatar avec initiales */}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {n[0]}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">{n}</div>
+                    <div className="text-xs mt-0.5 text-white/40">{r}</div>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-600 mb-3">Questions fréquentes</div>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Tout ce que vous voulez savoir</h2>
+          </div>
+          <div className="space-y-3">
+            {FAQ.map(({ q, a }) => (
+              <details key={q} className="group border border-slate-200 rounded-2xl overflow-hidden">
+                <summary className="flex items-center justify-between gap-4 px-6 py-4 cursor-pointer text-slate-900 font-semibold text-[15px] select-none hover:bg-slate-50 transition-colors">
+                  {q}
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-base font-light transition-transform duration-200 group-open:rotate-45">+</span>
+                </summary>
+                <div className="px-6 pb-5 pt-1 text-sm text-slate-500 leading-relaxed border-t border-slate-100">
+                  {a}
+                </div>
+              </details>
             ))}
           </div>
         </div>
