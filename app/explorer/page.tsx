@@ -192,7 +192,7 @@ export default function ExplorerPage() {
 
   /* ── TMI pour la structure recommandée ── */
   const tmi = Math.round(tmiRate(
-    (results.best.baseIR ?? results.best.bNet ?? results.best.ben || 0) + params.autresRev,
+    (results.best.baseIR ?? results.best.bNet ?? results.best.ben ?? 0) + params.autresRev,
     partsBase, params.nbEnfants
   ) * 100)
 
@@ -726,7 +726,7 @@ export default function ExplorerPage() {
                     const isBest = i === 0
                     const isExcluded = r.forme === 'Micro-entreprise' && microExcluded
                     const structTmi = Math.round(tmiRate(
-                      (r.baseIR ?? r.bNet ?? r.ben || 0) + params.autresRev,
+                      (r.baseIR ?? r.bNet ?? r.ben ?? 0) + params.autresRev,
                       partsBase, params.nbEnfants
                     ) * 100)
                     const tmiCls = structTmi <= 11 ? 'bg-emerald-100 text-emerald-700' : structTmi <= 30 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
