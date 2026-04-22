@@ -19,7 +19,7 @@ export function StepSituation() {
 
       <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-4 shadow-card-md">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <circle cx="7" cy="4.5" r="2.5" stroke="#2563EB" strokeWidth="1.5"/>
               <path d="M2 12.5C2 10.015 4.239 8 7 8s5 2.015 5 4.5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
@@ -33,7 +33,7 @@ export function StepSituation() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Situation</Label>
+            <Label className="text-sm font-medium text-slate-700">Situation</Label>
             <Select value={params.situation} onValueChange={v => setParam('situation', v as typeof params.situation)}>
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -44,7 +44,7 @@ export function StepSituation() {
             </Select>
           </div>
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Secteur d&apos;activité</Label>
+            <Label className="text-sm font-medium text-slate-700">Secteur d&apos;activité</Label>
             <Select value={params.secteur} onValueChange={v => setParam('secteur', v as typeof params.secteur)}>
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -60,7 +60,7 @@ export function StepSituation() {
 
         {params.situation !== 'creation' && (
           <div className="flex flex-col gap-2 mb-5">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Forme juridique actuelle</Label>
+            <Label className="text-sm font-medium text-slate-700">Forme juridique actuelle</Label>
             <Select value={params.formeActuelle} onValueChange={v => setParam('formeActuelle', v as typeof params.formeActuelle)}>
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -76,7 +76,7 @@ export function StepSituation() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Priorité principale</Label>
+            <Label className="text-sm font-medium text-slate-700">Priorité principale</Label>
             <Select value={params.priorite} onValueChange={v => setParam('priorite', v as typeof params.priorite)}>
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -90,7 +90,7 @@ export function StepSituation() {
             <p className="text-[11.5px] text-ink4 leading-relaxed">Influence le score multicritère et la recommandation finale</p>
           </div>
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Nombre d&apos;associés</Label>
+            <Label className="text-sm font-medium text-slate-700">Nombre d&apos;associés</Label>
             <Select defaultValue="1">
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>

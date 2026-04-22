@@ -415,42 +415,24 @@ export function StepResultats() {
     <div className="animate-stepIn pb-28">
 
       {/* ── HERO RÉSULTAT ── */}
-      <div className="bg-navy rounded-2xl p-9 mb-5 relative overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.22)_0%,transparent_65%)] -top-36 -right-24 pointer-events-none" />
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(rgba(255,255,255,.15)_1px,transparent_1px)] bg-[length:24px_24px] [mask-image:linear-gradient(135deg,black_0%,transparent_60%)]" />
+      <div className="rounded-3xl p-8 mb-8 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0d1627 0%, #0d1f3c 100%)' }}>
+        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.18)_0%,transparent_65%)] -top-36 -right-24 pointer-events-none" />
         <div className="relative">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-mid opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-mid" />
-            </span>
-            <div className="text-[10.5px] font-semibold tracking-widest uppercase text-blue-mid">Recommandation</div>
-          </div>
-          <div className="font-display text-base font-bold text-white/75 mb-2">{best.forme}</div>
-          <div className="font-display font-black text-white tracking-tighter leading-none mb-2"
-            style={{ fontSize: 'clamp(3rem, 8vw, 4.5rem)',
-              backgroundImage: 'linear-gradient(135deg, #3B82F6, #93C5FD)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+          <div className="text-xs font-medium text-blue-400 uppercase tracking-widest mb-3">✦ Structure recommandée</div>
+          <div className="text-lg font-semibold text-white/80 mb-1">{best.forme}</div>
+          <div className="text-5xl sm:text-6xl font-bold text-white tracking-tight mb-1">
             {fmt(best.netAnnuel)}
           </div>
-          <div className="text-sm mb-6" style={{ color: 'rgba(255,255,255,.40)' }}>
-            {fmtM(best.netAnnuel)} · net après IR &amp; cotisations
+          <div className="text-base text-white/50 mb-6">
+            {fmtM(best.netAnnuel)}/mois · net après IR, cotisations et IS
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: `rgba(${tmi <= 11 ? '34,197,94' : tmi <= 30 ? '245,158,11' : '239,68,68'},.18)`,
-                border: `1px solid rgba(${tmi <= 11 ? '34,197,94' : tmi <= 30 ? '245,158,11' : '239,68,68'},.30)`,
-                color: tmi <= 11 ? '#4ade80' : tmi <= 30 ? '#fcd34d' : '#fca5a5' }}>
-              📊 TMI {tmi}%
-            </span>
-            <span className="text-[11px] font-medium px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: 'rgba(255,255,255,.50)' }}>
-              Score {best.scoreTotal}/100
-            </span>
+          <div className="flex flex-wrap gap-2">
+            <span className="bg-white/10 text-white/70 text-xs px-3 py-1 rounded-full">TMI {tmi}%</span>
+            <span className="bg-white/[0.07] text-white/50 text-xs px-3 py-1 rounded-full">Score {best.scoreTotal}/100</span>
             {gain > 500 && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full"
-                style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.28)', color: '#86efac' }}>
-                💰 +{fmt(gain)} vs la moins favorable
+              <span className="bg-emerald-500/20 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium">
+                +{fmt(gain)}/an vs la moins avantageuse
               </span>
             )}
           </div>

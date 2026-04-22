@@ -8,7 +8,7 @@ const SELECT_CLS = `w-full px-4 py-3.5 text-sm border-[1.5px] border-surface2 ro
   focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all cursor-pointer`
 
 const INPUT_CLS = `px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl bg-white text-ink font-medium
-  focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all`
+  hover:border-slate-300 focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all`
 
 export function StepFoyer() {
   const { params, setParam, calcul, nextStep, prevStep } = useSimulateur()
@@ -43,7 +43,7 @@ export function StepFoyer() {
       {/* Situation familiale */}
       <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <circle cx="5" cy="4" r="2.5" stroke="#2563EB" strokeWidth="1.5"/>
               <circle cx="11" cy="5" r="2" stroke="#2563EB" strokeWidth="1.3"/>
@@ -59,7 +59,7 @@ export function StepFoyer() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Situation matrimoniale</Label>
+            <Label className="text-sm font-medium text-slate-700">Situation matrimoniale</Label>
             <select
               value={params.partsBase === 2 ? 'marie' : 'celibataire'}
               onChange={e => handleSituFam(e.target.value)}
@@ -71,7 +71,7 @@ export function StepFoyer() {
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Enfants à charge</Label>
+            <Label className="text-sm font-medium text-slate-700">Enfants à charge</Label>
             <select
               value={params.nbEnfants.toString()}
               onChange={e => setParam('nbEnfants', parseInt(e.target.value))}
@@ -102,7 +102,7 @@ export function StepFoyer() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Autres revenus du foyer (€/an)</Label>
+          <Label className="text-sm font-medium text-slate-700">Autres revenus du foyer (€/an)</Label>
           <input
             type="number"
             value={params.autresRev}
@@ -118,7 +118,7 @@ export function StepFoyer() {
       {/* PER */}
       <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <path d="M7.5 1.5v4M4.5 13.5h6M7.5 13.5v-4" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M3 6.5c0-2.485 2.015-4.5 4.5-4.5S12 4.015 12 6.5c0 1.5-.75 2.82-1.89 3.6L9.5 11.5h-4l-.61-1.4C3.75 9.32 3 8 3 6.5z" stroke="#2563EB" strokeWidth="1.4"/>
@@ -132,7 +132,7 @@ export function StepFoyer() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Versements PER actifs ?</Label>
+            <Label className="text-sm font-medium text-slate-700">Versements PER actifs ?</Label>
             <select
               value={params.perActif}
               onChange={e => setParam('perActif', e.target.value as 'oui' | 'non')}
@@ -144,7 +144,7 @@ export function StepFoyer() {
           </div>
           {params.perActif === 'oui' && (
             <div className="flex flex-col gap-2">
-              <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Montant annuel PER (€)</Label>
+              <Label className="text-sm font-medium text-slate-700">Montant annuel PER (€)</Label>
               <input
                 type="number"
                 value={params.perMontant}

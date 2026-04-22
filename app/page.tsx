@@ -56,8 +56,8 @@ export default function LandingPage() {
             </span>
           </h1>
 
-          <p className="text-lg leading-relaxed max-w-xl mb-10" style={{ color: 'rgba(255,255,255,.55)' }}>
-            4 étapes. Comparaison Micro · EI · EURL · SASU sur vos chiffres réels, calcul IR/IS/cotisations 2025, stratégie de rémunération optimale.
+          <p className="text-lg leading-relaxed max-w-xl mb-10" style={{ color: 'rgba(255,255,255,.70)' }}>
+            4 étapes. Résultat immédiat. Barème 2025.
           </p>
 
           {/* Stats — hover via Tailwind uniquement */}

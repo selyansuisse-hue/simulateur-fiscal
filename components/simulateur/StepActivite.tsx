@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label'
 import { MICRO_PLAFONDS } from '@/lib/fiscal'
 
 const INPUT_CLS = `px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl bg-white text-ink font-medium
-  focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4`
+  hover:border-slate-300 focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4`
 
 export function StepActivite() {
   const { params, setParam, nextStep, prevStep } = useSimulateur()
@@ -25,7 +25,7 @@ export function StepActivite() {
 
       <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <rect x="1.5" y="3.5" width="12" height="9" rx="1.5" stroke="#2563EB" strokeWidth="1.5"/>
               <path d="M5 3.5V2.5M10 3.5V2.5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
@@ -40,7 +40,7 @@ export function StepActivite() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">CA annuel HT (€)</Label>
+            <Label className="text-sm font-medium text-slate-700">CA annuel HT (€)</Label>
             <input
               type="number"
               value={params.ca}
@@ -52,7 +52,7 @@ export function StepActivite() {
             <p className="text-[11.5px] text-ink4 leading-relaxed">CA hors taxes — base identique pour toutes les structures</p>
           </div>
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Charges d&apos;exploitation (€)</Label>
+            <Label className="text-sm font-medium text-slate-700">Charges d&apos;exploitation (€)</Label>
             <input
               type="number"
               value={params.charges}
@@ -67,7 +67,7 @@ export function StepActivite() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Amortissements annuels (€)</Label>
+            <Label className="text-sm font-medium text-slate-700">Amortissements annuels (€)</Label>
             <input
               type="number"
               value={params.amort}
@@ -79,7 +79,7 @@ export function StepActivite() {
           </div>
           {params.situation !== 'creation' && (
             <div className="flex flex-col gap-2">
-              <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Déficit reportable N-1 (€)</Label>
+              <Label className="text-sm font-medium text-slate-700">Déficit reportable N-1 (€)</Label>
               <input
                 type="number"
                 value={params.deficit}
@@ -114,7 +114,7 @@ export function StepActivite() {
 
       <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <path d="M7.5 1.5v12M3.5 5.5h8M3.5 9.5h8" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
@@ -126,7 +126,7 @@ export function StepActivite() {
         </div>
         <div className="max-w-xs">
           <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Capital social si société IS (€)</Label>
+            <Label className="text-sm font-medium text-slate-700">Capital social si société IS (€)</Label>
             <input
               type="number"
               value={params.capital}

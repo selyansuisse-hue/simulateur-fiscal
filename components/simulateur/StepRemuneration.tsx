@@ -42,7 +42,7 @@ export function StepRemuneration() {
 
       <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <path d="M7.5 1.5C4.186 1.5 1.5 4.186 1.5 7.5S4.186 13.5 7.5 13.5 13.5 10.814 13.5 7.5 10.814 1.5 7.5 1.5z" stroke="#2563EB" strokeWidth="1.5"/>
               <path d="M7.5 4.5v3l2 1.5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -81,7 +81,7 @@ export function StepRemuneration() {
 
         {params.stratActif === 'reserve' && (
           <div className="flex flex-col gap-4 mb-6 p-5 bg-surface rounded-2xl border border-surface2">
-            <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Montant à conserver en réserves (brut avant IS)</Label>
+            <Label className="text-sm font-medium text-slate-700">Montant à conserver en réserves (brut avant IS)</Label>
 
             <div className="flex flex-wrap gap-2">
               {[10, 20, 30, 50].map(pct => {
@@ -138,7 +138,7 @@ export function StepRemuneration() {
         {showPrevoyance && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <Label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Niveau de prévoyance TNS</Label>
+              <Label className="text-sm font-medium text-slate-700">Niveau de prévoyance TNS</Label>
               <Select value={params.prevoy} onValueChange={v => setParam('prevoy', v as typeof params.prevoy)}>
                 <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
