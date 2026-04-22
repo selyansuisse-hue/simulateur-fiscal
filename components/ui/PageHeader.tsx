@@ -50,7 +50,7 @@ export function PageHeader() {
           <Link href="/simulateur"
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
               ${isOnSim ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
-            {hasSimulated ? (
+            {hasSimulated && pathname !== '/' ? (
               <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] flex items-center justify-center font-bold flex-shrink-0">✓</span>
             ) : (
               <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
