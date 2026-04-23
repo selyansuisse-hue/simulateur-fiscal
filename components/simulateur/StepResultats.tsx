@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import { useSimulateur } from '@/hooks/useSimulateur'
 import { fmt, fmtM } from '@/lib/utils'
-import { swot, leviers, plan } from '@/lib/fiscal/structures'
+import { leviers } from '@/lib/fiscal/structures'
 import { tmiRate, calcPartsTotal } from '@/lib/fiscal/ir'
 import { StructureResult } from '@/lib/fiscal'
 import { SimParams } from '@/lib/fiscal/types'
@@ -395,16 +395,9 @@ export function StepResultats() {
   if (!results) return null
   const { scored, best, tmi, gain } = results
 
-  const swotBest = swot(best, params)
   const leviersArr = leviers(best, params)
-  const planArr = plan(best, params)
   const totalLevierGain = leviersArr.reduce((acc, l) => acc + l.gain, 0)
   const { pourquoi, attention } = genAnalyse(best, params, tmi)
-
-  const baseImposable = (best.baseIR ?? best.bNet ?? best.ben ?? 0) + params.autresRev
-  const tauxEffectif = Math.round(best.ir / Math.max(1, baseImposable) * 100)
-  const isAt15 = Math.round(Math.min(best.ben || 0, 42500) * 0.15)
-  const isAt25 = Math.max(0, best.is - isAt15)
 
   const scenarioOptimise = useMemo(() => {
     const benBrut = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
@@ -435,6 +428,8 @@ export function StepResultats() {
     'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
+
+  const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}`
 
   return (
     <div className="animate-stepIn pb-28">
@@ -514,149 +509,55 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── POURQUOI CETTE RECOMMANDATION ── */}
-      <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
-        Pourquoi cette recommandation ?
+      {/* ── POURQUOI CE CHOIX ── */}
+      <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-4 mt-8">
+        Pourquoi ce choix ?
         <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
       </div>
-      <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-6 shadow-card space-y-4">
-        <div>
-          <div className="text-[10.5px] font-bold tracking-wide uppercase text-blue-mid mb-2">Ce qui explique le résultat</div>
-          <p className="text-sm text-ink2 leading-relaxed">{pourquoi}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        {/* Argument fiscal */}
+        <div className="rounded-2xl p-5 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #0f2a52 0%, #0d1f3c 100%)', border: '1px solid rgba(59,130,246,.2)' }}>
+          <div className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-3">Argument fiscal</div>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>{pourquoi}</p>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
-          <div className="flex gap-2.5 text-sm text-amber-800 leading-relaxed">
-            <span className="flex-shrink-0">⚠️</span>
-            <p>{attention}</p>
+        {/* Point de vigilance */}
+        <div className="rounded-2xl p-5 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #3b1515 0%, #1c0a0a 100%)', border: '1px solid rgba(239,68,68,.2)' }}>
+          <div className="text-[10px] font-bold tracking-widest uppercase text-red-400 mb-3">Point de vigilance</div>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>{attention}</p>
+        </div>
+        {/* Avantage décisif */}
+        <div className="rounded-2xl p-5 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #073d28 0%, #051a10 100%)', border: '1px solid rgba(16,185,129,.2)' }}>
+          <div className="text-[10px] font-bold tracking-widest uppercase text-emerald-400 mb-3">Avantage décisif</div>
+          <div className="font-display text-3xl font-black text-emerald-400 mb-1">
+            {fmt(Math.round(best.netAnnuel / 12))}/mois
           </div>
-        </div>
-        <div className="flex items-center justify-between gap-4 pt-1 flex-wrap">
-          <p className="text-sm text-ink3">Pour valider ce choix et optimiser votre rémunération, prenez rendez-vous avec un expert Belho Xper.</p>
-          <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-            className="flex-shrink-0 px-4 py-2 bg-blue text-white font-semibold text-sm rounded-lg hover:bg-blue-dark transition-colors whitespace-nowrap">
-            Prendre RDV →
-          </a>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+            Revenu net avec <strong className="text-white">{best.forme}</strong> — TMI {tmi}% · Score {best.scoreTotal}/100
+          </p>
+          {gain > 500 && (
+            <div className="mt-3 pt-3 text-xs text-emerald-400/70" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
+              +{fmt(gain)}/an vs la moins avantageuse
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── COMPRENDRE VOTRE RÉSULTAT ── */}
-      <div className="mb-8 mt-8">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-3">
-          Comprendre votre résultat
-          <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-          {/* Bloc TMI */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-sm font-bold mb-3">%</div>
-            <h3 className="text-sm font-semibold text-slate-900 mb-2">Votre TMI : {tmi}%</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-3">
-              La Tranche Marginale d&apos;Imposition ne s&apos;applique qu&apos;à la <strong>dernière tranche</strong> de vos revenus.
-              Votre taux effectif réel est de <strong>{tauxEffectif}%</strong>.
-            </p>
-            <div className="space-y-1">
-              {([
-                { t: '0%', label: '≤ 11 497 €', active: tmi === 0 },
-                { t: '11%', label: '11 498 – 29 315 €', active: tmi === 11 },
-                { t: '30%', label: '29 316 – 83 823 €', active: tmi === 30 },
-                { t: '41%', label: '83 824 – 180 294 €', active: tmi === 41 },
-                { t: '45%', label: '> 180 294 €', active: tmi === 45 },
-              ] as const).map(row => (
-                <div key={row.t}
-                  className={`flex justify-between text-xs px-2 py-1 rounded-lg
-                    ${row.active ? 'bg-blue-600 text-white font-bold' : 'text-slate-400'}`}>
-                  <span>{row.label}</span>
-                  <span>{row.t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bloc cotisations */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center text-orange-600 mb-3">🏥</div>
-            <h3 className="text-sm font-semibold text-slate-900 mb-2">Cotisations : {fmt(best.charges)}/an</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-3">
-              {best.forme.includes('SAS')
-                ? 'En SASU, les cotisations salariales (~22%) et patronales (~42%) sont calculées sur votre salaire brut. Protection sociale complète assimilée salarié.'
-                : best.forme.includes('EURL')
-                ? 'En EURL/SARL, les cotisations TNS (SSI) sont calculées sur votre rémunération. Elles couvrent maladie, retraite et prévoyance de base.'
-                : 'En EI, les cotisations SSI sont calculées directement sur votre bénéfice net. Elles couvrent maladie, retraite et prévoyance de base.'}
-            </p>
-            <div className="bg-slate-50 rounded-xl p-3 text-xs">
-              <div className="flex justify-between mb-1">
-                <span className="text-slate-500">Taux moyen cotisations</span>
-                <span className="font-bold text-slate-700">
-                  {(best.netAnnuel + best.charges) > 0
-                    ? (best.charges / (best.netAnnuel + best.charges) * 100).toFixed(0) : '—'}%
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Régime</span>
-                <span className="font-medium text-slate-700">
-                  {best.forme.includes('SAS') ? '🟢 Assimilé salarié' : '🟡 TNS (SSI)'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bloc IS/IR */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 text-sm font-bold mb-3">IS</div>
-            <h3 className="text-sm font-semibold text-slate-900 mb-2">
-              {best.is > 0 ? "Imposition à l'IS" : "Imposition à l'IR"}
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-3">
-              {best.is > 0
-                ? "L'IS s'applique sur le bénéfice de la société après votre rémunération. Taux réduit 15% jusqu'à 42 500 €, 25% au-delà."
-                : "Votre bénéfice est imposé directement à l'IR avec le barème progressif et le quotient familial."}
-            </p>
-            {best.is > 0 ? (
-              <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">IS à 15%</span>
-                  <span className="font-bold text-slate-700">{fmt(isAt15)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">IS à 25%</span>
-                  <span className="font-bold text-slate-700">{isAt25 > 0 ? fmt(isAt25) : '—'}</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
-                  <span className="font-medium text-slate-600">Total IS</span>
-                  <span className="font-bold text-slate-900">{fmt(best.is)}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 rounded-xl p-3 text-xs">
-                <div className="flex justify-between mb-1">
-                  <span className="text-slate-500">IR total estimé</span>
-                  <span className="font-bold text-slate-700">{fmt(best.ir)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Taux effectif</span>
-                  <span className="font-bold text-slate-700">{tauxEffectif}%</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── COMPARAISON 4 STRUCTURES ── */}
+      {/* ── COMPARAISON DES STRUCTURES ── */}
       <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
         Comparaison des structures
         <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
       </div>
       <p className="text-sm text-ink3 mb-4">Triées par score multicritère selon votre priorité.</p>
-
       <div className={`${cardsGridClass} mb-6`}>
         {scored.map((r, i) => (
           <StructureCard key={r.forme} r={r} rank={i + 1} params={params} />
         ))}
       </div>
 
-      {/* ── SCÉNARIO OPTIMISÉ ── */}
+      {/* ── CE QUE VOUS POURRIEZ ATTEINDRE ── */}
       <div className="rounded-2xl p-6 mb-8 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' }}>
         <div className="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(16,185,129,.15)_0%,transparent_65%)] -top-20 -right-10 pointer-events-none" />
@@ -707,144 +608,76 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── TABLEAU RÉCAPITULATIF ── */}
+      {/* ── PROTECTION SOCIALE — tableau compact ── */}
+      <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-4 mt-8">
+        Protection sociale
+        <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
+      </div>
       <div className="bg-white border border-black/[0.07] rounded-xl overflow-hidden mb-6 shadow-card">
-        <div className="bg-ink px-5 py-4 flex items-baseline gap-2.5">
-          <h3 className="font-display text-sm font-bold text-white">Tableau comparatif complet</h3>
-          <p className="text-xs text-white/38">Toutes les structures · revenus nets</p>
-        </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-surface border-b border-surface2">
-                {['Structure', 'Net annuel', 'Net/mois', 'Cotisations', 'IR', 'IS', 'Score'].map(h => (
-                  <th key={h} className="text-left text-[10px] font-bold tracking-wide uppercase text-ink3 px-3.5 py-3 whitespace-nowrap">{h}</th>
+                <th className="text-left text-[10px] font-bold tracking-wide uppercase text-ink3 px-4 py-3 min-w-[140px]">Critère</th>
+                {scored.map((r, i) => (
+                  <th key={r.forme} className={`text-left text-[10px] font-bold tracking-wide uppercase px-4 py-3 whitespace-nowrap
+                    ${i === 0 ? 'text-blue' : 'text-ink3'}`}>
+                    {r.forme}
+                    {i === 0 && <span className="ml-1.5 text-[8px] bg-blue text-white px-1.5 py-0.5 rounded-full">★</span>}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {scored.map((r, i) => (
-                <tr key={r.forme} className={i % 2 === 0 ? 'bg-white hover:bg-surface/50 transition-colors' : 'bg-surface/60 hover:bg-surface transition-colors'}
-                  style={i === 0 ? { background: 'rgba(29,78,216,.025)' } : {}}>
-                  <td className="px-3.5 py-3 border-b border-surface2">
-                    <span className="font-bold text-ink text-[13px]">{r.forme}</span>
-                    {i === 0 && (
-                      <span className="ml-1.5 inline-flex items-center bg-blue text-white text-[9.5px] font-bold px-2 py-0.5 rounded-full tracking-wide">
-                        ⭐ Recommandé
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3.5 py-3 border-b border-surface2 font-bold text-[13px] text-green-700">{fmt(r.netAnnuel)}</td>
-                  <td className="px-3.5 py-3 border-b border-surface2 text-[13px] text-ink3">{fmt(r.netAnnuel / 12)}/mois</td>
-                  <td className="px-3.5 py-3 border-b border-surface2 text-[13px] text-red-600">−{fmt(r.charges)}</td>
-                  <td className="px-3.5 py-3 border-b border-surface2 text-[13px] text-red-600">−{fmt(r.ir)}</td>
-                  <td className="px-3.5 py-3 border-b border-surface2 text-[13px] text-ink3">{r.is > 0 ? `−${fmt(r.is)}` : '—'}</td>
-                  <td className="px-3.5 py-3 border-b border-surface2">
-                    <span className={`font-bold text-[13px] ${i === 0 ? 'text-blue' : 'text-ink3'}`}>{r.scoreTotal}/100</span>
-                  </td>
+              {([
+                { label: 'IJ maladie / jour', fn: (r: StructureResult) => `${r.prot.ijJ} €` },
+                { label: 'IJ maladie / mois', fn: (r: StructureResult) => `${r.prot.ijM} €` },
+                { label: 'Trimestres / an', fn: (r: StructureResult) => String(r.prot.trims) },
+                { label: 'Retraite complémentaire', fn: (r: StructureResult) => r.prot.complement },
+                { label: 'Qualité globale', fn: (r: StructureResult) => r.prot.qual },
+              ] as const).map((row, ri) => (
+                <tr key={row.label} className={ri % 2 === 0 ? 'bg-white' : 'bg-surface/40'}>
+                  <td className="px-4 py-3 text-[12px] font-semibold text-ink3 border-b border-surface2">{row.label}</td>
+                  {scored.map((r, ci) => {
+                    const val = row.fn(r)
+                    const isQual = row.label === 'Qualité globale'
+                    const qualColor = isQual
+                      ? val === 'bon' ? 'text-green-700 font-bold'
+                        : val === 'moyen' ? 'text-amber-700 font-bold'
+                        : 'text-red-700 font-bold'
+                      : ci === 0 ? 'text-blue font-bold' : 'text-ink'
+                    return (
+                      <td key={r.forme} className={`px-4 py-3 text-[12px] border-b border-surface2 ${qualColor}`}>
+                        {val}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* ── PROTECTION SOCIALE ── */}
-      <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
-        Protection sociale
-        <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
-      </div>
-      <div className={`${cardsGridClass} mb-4`}>
-        {scored.map((r, i) => {
-          const qualStyles: Record<string, { border: string; bg: string; badge: string }> = {
-            bon: { border: '#bbf7d0', bg: '#f0fdf4', badge: 'text-green-700 bg-green-100' },
-            moyen: { border: '#fde68a', bg: '#fffbeb', badge: 'text-amber-700 bg-amber-100' },
-            faible: { border: '#fecaca', bg: '#fef2f2', badge: 'text-red-700 bg-red-100' },
-            'très faible': { border: '#fecaca', bg: '#fef2f2', badge: 'text-red-800 bg-red-100' },
-          }
-          const qs = qualStyles[r.prot.qual] || { border: '#e2e8f0', bg: '#f8fafc', badge: 'text-ink3 bg-surface' }
-          const isTNSStruct = r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)'
-          return (
-            <div key={r.forme} className="rounded-xl p-4 transition-transform hover:-translate-y-0.5"
-              style={{ border: `1.5px solid ${i === 0 ? '#93c5fd' : qs.border}`, background: i === 0 ? '#eff6ff' : qs.bg,
-                boxShadow: i === 0 ? '0 0 0 3px rgba(29,78,216,.06)' : '0 1px 4px rgba(11,22,39,.04)' }}>
-              <div className="font-display text-[13px] font-bold text-ink mb-2">{r.forme}</div>
-              <div className={`inline-block text-[9.5px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mb-3 ${qs.badge}`}>
-                {r.prot.qual}
-              </div>
-              <div className="space-y-1.5">
-                {[
-                  { l: 'IJ maladie / jour', v: `${r.prot.ijJ} €`, bold: true },
-                  { l: 'IJ maladie / mois', v: `${r.prot.ijM} €`, bold: true },
-                  { l: 'Trimestres / an', v: String(r.prot.trims), bold: false },
-                  { l: 'Retraite complémentaire', v: r.prot.complement, bold: false },
-                ].map(({ l, v, bold }) => (
-                  <div key={l} className="flex justify-between text-[11.5px] py-1 border-b border-black/[0.06]">
-                    <span className="text-ink3">{l}</span>
-                    <span className={bold ? 'font-bold text-ink' : 'font-medium text-ink2'}>{v}</span>
-                  </div>
-                ))}
-                {isTNSStruct && (
-                  <div className="mt-2 pt-2 border-t border-black/[0.06]">
-                    <div className="text-[11px] text-ink3 mb-1">Mutuelle santé recommandée</div>
-                    <div className="text-[11px] font-semibold text-ink2">50 – 150 €/mois</div>
-                    <div className="text-[10.5px] text-ink4 mt-0.5">Primes déductibles du résultat</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Note prévoyance TNS */}
-      {hasTNS && (
-        <div className="bg-blue-bg border border-blue-border rounded-xl p-4 mb-6 flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex gap-2.5 text-sm text-blue-dark">
-            <span className="flex-shrink-0">🛡</span>
-            <div>
-              <strong>Prévoyance TNS déductible</strong> — les primes de prévoyance (arrêt maladie, invalidité, décès) sont déductibles du résultat IS ou BIC.
-              Simulez l&apos;économie réelle via le levier Prévoyance ci-dessous.
-            </div>
+        {hasTNS && (
+          <div className="px-4 py-3 bg-blue-bg border-t border-blue-border flex items-start gap-2.5 flex-wrap">
+            <span className="flex-shrink-0 text-sm">🛡</span>
+            <p className="text-xs text-blue-dark leading-relaxed flex-1">
+              <strong>Prévoyance TNS déductible</strong> — les primes (arrêt maladie, invalidité, décès) sont déductibles du résultat IS ou BIC.
+              {leviersArr.some(l => l.nom.includes('révoyance')) && (
+                <button
+                  onClick={() => {
+                    const idx = leviersArr.findIndex(l => l.nom.includes('révoyance'))
+                    if (idx >= 0) setActiveLevierIdx(idx)
+                  }}
+                  className="ml-2 font-semibold underline hover:no-underline">
+                  Simuler l&apos;économie →
+                </button>
+              )}
+            </p>
           </div>
-          {leviersArr.some(l => l.nom.includes('révoyance')) && (
-            <button
-              onClick={() => {
-                const idx = leviersArr.findIndex(l => l.nom.includes('révoyance'))
-                if (idx >= 0) setActiveLevierIdx(idx)
-              }}
-              className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold bg-blue text-white rounded-lg hover:bg-blue-dark transition-colors whitespace-nowrap">
-              Simuler l&apos;économie →
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── SWOT ── */}
-      <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
-        Analyse SWOT — {best.forme}
-        <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
-      </div>
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        {[
-          { label: 'Forces', items: swotBest.pos, cls: 'bg-green-50 border-green-200', tCls: 'text-green-800', dCls: 'bg-green-500' },
-          { label: 'Faiblesses', items: swotBest.neg, cls: 'bg-red-50 border-red-200', tCls: 'text-red-800', dCls: 'bg-red-500' },
-          { label: 'Opportunités', items: swotBest.opp, cls: 'bg-blue-bg border-blue-border', tCls: 'text-blue-dark', dCls: 'bg-blue-mid' },
-          { label: 'Risques', items: swotBest.rsk, cls: 'bg-amber-50 border-amber-200', tCls: 'text-amber-800', dCls: 'bg-amber-500' },
-        ].map(({ label, items, cls, tCls, dCls }) => (
-          <div key={label} className={`rounded-xl p-4 border ${cls}`}>
-            <div className={`text-[10.5px] font-bold tracking-wide uppercase mb-3 ${tCls}`}>{label}</div>
-            {items.map((item, i) => (
-              <div key={i} className="flex gap-2 py-1.5 text-[12px] text-ink2 leading-snug">
-                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${dCls}`} />
-                {item}
-              </div>
-            ))}
-          </div>
-        ))}
+        )}
       </div>
 
-      {/* ── LEVIERS ── */}
+      {/* ── LEVIERS D'OPTIMISATION ── */}
       {leviersArr.length > 0 && (
         <>
           <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
@@ -885,71 +718,75 @@ export function StepResultats() {
         </>
       )}
 
-      {/* ── PLAN D'ACTION ── */}
-      {planArr.length > 0 && (
-        <>
-          <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-2 mt-8">
-            Plan d&apos;action — {best.forme}
-            <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
+      {/* ── EXPLORER CTA ── */}
+      <div className="border border-blue-border bg-blue-bg rounded-xl p-5 mt-6 flex items-start gap-4 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="font-display text-[13.5px] font-bold text-ink mb-1.5">🔍 Explorez les scénarios alternatifs</div>
+          <p className="text-sm text-ink3 leading-relaxed">
+            Que se passe-t-il si votre CA augmente de 20% ? Et si vous vous mariez ? Et si vous versez au PER ?
+            Ajustez vos paramètres en temps réel dans le module interactif.
+          </p>
+        </div>
+        <a href={explorerUrl}
+          className="flex-shrink-0 px-4 py-2.5 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark transition-all whitespace-nowrap">
+          Ouvrir l&apos;explorateur →
+        </a>
+      </div>
+
+      {/* ── CTA FINAL — 2 colonnes ── */}
+      <div className="rounded-2xl mt-6 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0d1627 0%, #0d1f3c 100%)' }}>
+        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.18)_0%,transparent_65%)] -top-48 -right-24 pointer-events-none" />
+        <div className="relative grid grid-cols-1 sm:grid-cols-2">
+          {/* Colonne gauche */}
+          <div className="p-8">
+            <h3 className="font-display text-2xl font-black text-white mb-2.5 tracking-tight">
+              Ces résultats vous intéressent ?
+            </h3>
+            <p className="text-sm mb-6 leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              Prenons rendez-vous pour affiner votre situation réelle et mettre en place les leviers identifiés.
+              Cabinet Belho Xper — Lyon &amp; Montluel.
+            </p>
+            <div className="flex gap-3 flex-wrap">
+              <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+                className="px-6 py-3 bg-blue text-white font-bold text-sm rounded-lg
+                  shadow-[0_4px_16px_rgba(29,78,216,.4)] hover:bg-blue-dark hover:-translate-y-0.5 transition-all">
+                Prendre RDV →
+              </a>
+              <button onClick={() => setShowSaveModal(true)}
+                className="px-6 py-3 font-semibold text-sm rounded-lg border transition-all hover:bg-white/15 hover:-translate-y-0.5"
+                style={{ background: 'rgba(255,255,255,.08)', color: '#fff', border: '1px solid rgba(255,255,255,.15)' }}>
+                💾 Enregistrer
+              </button>
+            </div>
           </div>
-          <div className="bg-white border border-black/[0.07] rounded-xl p-5 mb-6 shadow-card">
-            {planArr.map((item, i) => (
-              <div key={i} className={`flex gap-3.5 py-3.5 ${i < planArr.length - 1 ? 'border-b border-surface2' : ''}`}>
-                <div className="w-7 h-7 rounded-full bg-ink text-white flex items-center justify-center font-display text-[11px] font-bold flex-shrink-0 mt-0.5">{i + 1}</div>
-                <div>
-                  <div className="font-display text-[13.5px] font-bold text-ink mb-1">{item.t}</div>
-                  <div className="text-[12.5px] text-ink2 leading-relaxed">{item.d}</div>
-                  <span className={`inline-block mt-1.5 text-[10.5px] font-semibold px-2 py-0.5 rounded border ${
-                    item.cls === 'tg-g' ? 'bg-green-50 text-green-800 border-green-200' :
-                    item.cls === 'tg-a' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                    'bg-blue-bg text-blue-dark border-blue-border'
-                  }`}>{item.tag}</span>
+          {/* Colonne droite — récap */}
+          <div className="p-8 flex items-center" style={{ borderLeft: '1px solid rgba(255,255,255,.07)' }}>
+            <div className="w-full rounded-2xl p-5 space-y-4" style={{ background: 'rgba(255,255,255,.05)' }}>
+              <div>
+                <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {best.forme}
+                </div>
+                <div className="font-display text-3xl font-black text-emerald-400">{fmt(best.netAnnuel)}</div>
+                <div className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {fmt(Math.round(best.netAnnuel / 12))}/mois
                 </div>
               </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* ── EXPLORER CTA ── */}
-      {(() => {
-        const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}`
-        return (
-          <div className="border border-blue-border bg-blue-bg rounded-xl p-5 mt-6 flex items-start gap-4 flex-wrap">
-            <div className="flex-1 min-w-0">
-              <div className="font-display text-[13.5px] font-bold text-ink mb-1.5">🔍 Explorez les scénarios alternatifs</div>
-              <p className="text-sm text-ink3 leading-relaxed">
-                Que se passe-t-il si votre CA augmente de 20% ? Et si vous vous mariez ? Et si vous versez au PER ?
-                Ajustez vos paramètres en temps réel dans le module interactif.
-              </p>
+              {gain > 500 && (
+                <div className="pt-4 space-y-0.5" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
+                  <div className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    Gain vs moins avantageuse
+                  </div>
+                  <div className="text-xl font-bold text-emerald-400">+{fmt(gain)}/an</div>
+                </div>
+              )}
+              <div className="pt-4 space-y-0.5" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
+                <div className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  Score multicritère
+                </div>
+                <div className="text-xl font-bold text-white">{best.scoreTotal}/100</div>
+              </div>
             </div>
-            <a href={explorerUrl}
-              className="flex-shrink-0 px-4 py-2.5 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark transition-all whitespace-nowrap">
-              Ouvrir l&apos;explorateur →
-            </a>
-          </div>
-        )
-      })()}
-
-      {/* ── CTA CABINET ── */}
-      <div className="bg-navy rounded-2xl p-8 text-center mt-6 relative overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.2)_0%,transparent_65%)] -top-48 -right-24 pointer-events-none" />
-        <div className="relative">
-          <h3 className="font-display text-2xl font-black text-white mb-2.5 tracking-tight">Ces résultats vous intéressent ?</h3>
-          <p className="text-white/42 text-sm mb-6 max-w-md mx-auto leading-relaxed">
-            Prenons rendez-vous pour affiner votre situation réelle. Cabinet Belho Xper — Lyon &amp; Montluel.
-          </p>
-          <div className="flex gap-3 justify-center flex-wrap">
-            <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-              className="px-6 py-3 bg-blue text-white font-bold text-sm rounded-lg
-                shadow-[0_4px_16px_rgba(29,78,216,.4)] hover:bg-blue-dark hover:-translate-y-0.5 transition-all">
-              Prendre RDV →
-            </a>
-            <button onClick={() => setShowSaveModal(true)}
-              className="px-6 py-3 font-semibold text-sm rounded-lg border transition-all hover:bg-white/15 hover:-translate-y-0.5"
-              style={{ background: 'rgba(255,255,255,.10)', color: '#fff', border: '1px solid rgba(255,255,255,.18)' }}>
-              💾 Enregistrer cette simulation
-            </button>
           </div>
         </div>
       </div>
