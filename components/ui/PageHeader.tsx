@@ -84,13 +84,12 @@ export function PageHeader() {
               Comparer
             </Link>
           ) : (
-            <Link href="/auth/signup"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white/35 hover:text-white/55 transition-all">
-              <span className="w-5 h-5 rounded-full border border-white/15 text-white/25 text-[10px] flex items-center justify-center flex-shrink-0">3</span>
-              <span className="line-through decoration-white/20">Comparer</span>
-              <span className="text-[9px] bg-white/8 text-white/40 px-1.5 py-0.5 rounded-full leading-none no-underline">
-                Connexion
-              </span>
+            <Link href="/simulations"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+                ${isOnComp ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
+              <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
+                ${isOnComp ? 'border-white/50 text-white/70' : 'border-white/25 text-white/35'}`}>3</span>
+              Comparer
             </Link>
           )}
         </nav>

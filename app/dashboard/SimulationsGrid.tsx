@@ -18,7 +18,12 @@ interface Simulation {
   gain: number
 }
 
-export function SimulationsGrid({ initialSimulations }: { initialSimulations: Simulation[] }) {
+interface SimulationsGridProps {
+  initialSimulations: Simulation[]
+  onPersistDelete?: (id: string) => Promise<void>
+}
+
+export function SimulationsGrid({ initialSimulations, onPersistDelete }: SimulationsGridProps) {
   const [sims, setSims] = useState(initialSimulations)
 
   const handleDelete = (id: string) => {
@@ -45,7 +50,7 @@ export function SimulationsGrid({ initialSimulations }: { initialSimulations: Si
       {sims.length >= 2 && <CompareTable simulations={sims} />}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sims.map(sim => (
-          <SimulationCard key={sim.id} sim={sim} onDelete={handleDelete} />
+          <SimulationCard key={sim.id} sim={sim} onDelete={handleDelete} onPersistDelete={onPersistDelete} />
         ))}
       </div>
     </>

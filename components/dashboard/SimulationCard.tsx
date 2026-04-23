@@ -19,6 +19,7 @@ interface Simulation {
 interface Props {
   sim: Simulation
   onDelete: (id: string) => void
+  onPersistDelete?: (id: string) => Promise<void>
 }
 
 const situLabel: Record<string, string> = {
@@ -32,7 +33,7 @@ const FORME_COLOR: Record<string, { dot: string; bg: string; text: string }> = {
   'Micro': { dot: '#EA580C', bg: 'rgba(234,88,12,.08)', text: '#C2410C' },
 }
 
-export function SimulationCard({ sim, onDelete }: Props) {
+export function SimulationCard({ sim, onDelete, onPersistDelete }: Props) {
   const date = new Date(sim.created_at).toLocaleDateString('fr-FR', {
     day: '2-digit', month: 'short', year: 'numeric',
   })
@@ -40,7 +41,11 @@ export function SimulationCard({ sim, onDelete }: Props) {
   const handleDelete = async () => {
     if (!confirm('Supprimer cette simulation ?')) return
     onDelete(sim.id)
-    await fetch(`/api/simulations/${sim.id}`, { method: 'DELETE' })
+    if (onPersistDelete) {
+      await onPersistDelete(sim.id)
+    } else {
+      await fetch(`/api/simulations/${sim.id}`, { method: 'DELETE' })
+    }
   }
 
   const forme = sim.best_forme

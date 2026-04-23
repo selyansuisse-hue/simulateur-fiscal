@@ -47,6 +47,8 @@ export default function SignupPage() {
         const status = (signUpError as { status?: number }).status
         if (status === 503 || status === 504) {
           setError('Le service est temporairement indisponible (projet Supabase peut-être en pause). Réessayez dans quelques instants.')
+        } else if (signUpError.message.toLowerCase().includes('already registered') || signUpError.message.toLowerCase().includes('already been registered')) {
+          setError('Un compte existe déjà avec cet email. Connectez-vous à la place.')
         } else {
           setError(signUpError.message)
         }
