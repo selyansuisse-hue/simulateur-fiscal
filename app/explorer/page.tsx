@@ -47,7 +47,7 @@ const DEFAULT: ExplorerParams = {
   secteur: 'services_bic',
 }
 
-/* ── Conversion ExplorerParams → SimParams ── */
+/* ── Conversion ── */
 function buildSimParams(p: ExplorerParams): SimParams {
   const cfg = MICRO_PLAFONDS[p.secteur]
   const abat = p.ca <= cfg.plafond ? cfg.abat : 0
@@ -67,7 +67,6 @@ function buildSimParams(p: ExplorerParams): SimParams {
   }
 }
 
-/* ── Calcul rapide du meilleur net ── */
 function calcBestNet(p: ExplorerParams): number {
   const sp = buildSimParams(p)
   const micro = calcMicro(sp)
@@ -95,35 +94,39 @@ const QUICK_DEFS: { label: string; hint: string; apply: (p: ExplorerParams) => P
   { label: '+20% charges', hint: 'Augmenter les charges de 20%', apply: (p) => ({ charges: Math.round(p.charges * 1.2) }) },
 ]
 
-/* ── SliderRow : number input libre, slider clampé ── */
+/* ── SliderRow — dark style ── */
 function SliderRow({ label, value, min, max, step, onChange, sub, badge }: {
   label: string; value: number; min: number; max: number; step: number
   onChange: (v: number) => void; sub?: string; badge?: React.ReactNode
 }) {
   const sliderVal = Math.min(value, max)
   const pct = max > min ? Math.round((sliderVal - min) / (max - min) * 100) : 0
-
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-2">
-        <label className="text-sm font-medium text-slate-700">
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'baseline' }}>
+        <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.60)', fontWeight: 500 }}>
           {label}
-          {sub && <span className="text-xs text-slate-400 ml-1.5">{sub}</span>}
+          {sub && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginLeft: '6px' }}>{sub}</span>}
         </label>
         <input
           type="number" value={value} min={min} step={step}
           onChange={e => onChange(Math.max(min, parseFloat(e.target.value) || min))}
-          className="w-28 text-right text-sm font-bold text-slate-900 border-0 bg-transparent
-                     focus:outline-none p-0 [appearance:textfield]
-                     [&::-webkit-outer-spin-button]:appearance-none
-                     [&::-webkit-inner-spin-button]:appearance-none"
+          style={{
+            width: '100px', textAlign: 'right', background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px',
+            padding: '3px 8px', color: '#fff', fontSize: '13px', fontWeight: 700,
+            outline: 'none',
+          }}
         />
       </div>
       <input
         type="range" min={min} max={max} step={step} value={sliderVal}
         onChange={e => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 rounded-full cursor-pointer"
-        style={{ background: `linear-gradient(to right, #2563EB 0%, #2563EB ${pct}%, #e2e8f0 ${pct}%, #e2e8f0 100%)` }}
+        className="w-full cursor-pointer"
+        style={{
+          height: '4px', accentColor: '#3B82F6',
+          background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${pct}%, rgba(255,255,255,0.12) ${pct}%, rgba(255,255,255,0.12) 100%)`,
+        }}
       />
       {badge}
     </div>
@@ -190,7 +193,6 @@ export default function ExplorerPage() {
   const seuil60k = ben > 60000
   const perPlafond = Math.max(Math.round(Math.min(35194, ben * 0.10)), 500)
 
-  /* ── TMI pour la structure recommandée ── */
   const tmi = Math.round(tmiRate(
     (results.best.baseIR ?? results.best.bNet ?? results.best.ben ?? 0) + params.autresRev,
     partsBase, params.nbEnfants
@@ -225,8 +227,7 @@ export default function ExplorerPage() {
     const domGain = 360
     const prevGain = Math.round(ben * 0.02 * 0.15)
     const total = perGain + ikGain + domGain + prevGain
-    return { perGain, ikGain, domGain, prevGain, total,
-             netOptimise: Math.round((results.best.netAnnuel || 0) + total) }
+    return { perGain, ikGain, domGain, prevGain, total, netOptimise: Math.round((results.best.netAnnuel || 0) + total) }
   }, [results.best.netAnnuel, tmi, ben])
 
   /* ── "Et si..." avec impact ── */
@@ -239,7 +240,7 @@ export default function ExplorerPage() {
   const worst = results.scored[results.scored.length - 1]
   const gainVsWorst = results.best.netAnnuel - (worst?.netAnnuel || 0)
 
-  /* ── Graphique ── */
+  /* ── Graphique — dark ── */
   const STRUCT_ORDER = ['EURL / SARL (IS)', 'SAS / SASU', 'EI (réel normal)', 'Micro-entreprise']
   const displayStructures = STRUCT_ORDER
     .map(name => results.scored.find(r => r.forme === name) || results.scored.find(r => r.forme.includes(name.split(' ')[0])))
@@ -255,8 +256,8 @@ export default function ExplorerPage() {
     datasets: [{
       data: displayStructures.map(r => r.forme === 'Micro-entreprise' && microExcluded ? 0 : Math.max(0, r.netAnnuel)),
       backgroundColor: displayStructures.map(r =>
-        microExcluded && r.forme === 'Micro-entreprise' ? 'rgba(148,163,184,.25)' :
-          r.forme === results.best.forme ? '#2563EB' : 'rgba(148,163,184,.45)'
+        microExcluded && r.forme === 'Micro-entreprise' ? 'rgba(255,255,255,0.05)' :
+          r.forme === results.best.forme ? '#3B82F6' : 'rgba(255,255,255,0.18)'
       ),
       borderRadius: 5,
       borderSkipped: false,
@@ -274,10 +275,15 @@ export default function ExplorerPage() {
     },
     scales: {
       x: {
-        grid: { color: 'rgba(0,0,0,.04)' },
-        ticks: { font: { size: 10 }, callback: (val) => `${Math.round(Number(val) / 1000)}k€` },
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { font: { size: 10 }, color: 'rgba(255,255,255,0.35)', callback: (val) => `${Math.round(Number(val) / 1000)}k€` },
+        border: { color: 'rgba(255,255,255,0.08)' },
       },
-      y: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#475569' } },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 11 }, color: 'rgba(255,255,255,0.50)' },
+        border: { color: 'rgba(255,255,255,0.08)' },
+      },
     },
   }
 
@@ -315,568 +321,718 @@ export default function ExplorerPage() {
     if (activeScenarioId === id) setActiveScenarioId(null)
   }
 
-  const SEL = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 transition-all cursor-pointer"
-  const INP = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 transition-all"
+  /* ── Styles dark réutilisables ── */
+  const cardStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.09)',
+    borderRadius: '16px',
+    overflow: 'hidden',
+  }
+  const cardHeaderStyle: React.CSSProperties = {
+    padding: '12px 16px 10px',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    display: 'flex', alignItems: 'center', gap: '8px',
+  }
+  const SEL: React.CSSProperties = {
+    width: '100%', fontSize: '13px',
+    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '10px', padding: '8px 12px', color: '#fff', outline: 'none', cursor: 'pointer',
+  }
+  const INP: React.CSSProperties = {
+    width: '100%', fontSize: '13px',
+    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '10px', padding: '8px 12px', color: '#fff', outline: 'none',
+  }
 
   return (
     <>
       <PageHeader />
 
-      {/* ── FLOATING DELTA BADGE ── */}
-      <div className={`fixed top-20 right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg text-white text-sm font-bold transition-all duration-300 pointer-events-none
-        ${delta.visible && Math.abs(delta.value) > 100 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}
-        ${delta.value >= 0 ? 'bg-emerald-600' : 'bg-red-600'}`}>
-        {delta.value >= 0 ? '↑ +' : '↓ '}{fmt(Math.abs(delta.value))}/an
+      {/* ══ STICKY RÉSULTATS ══ */}
+      <div style={{
+        position: 'sticky', top: '64px', zIndex: 40,
+        background: 'linear-gradient(135deg, #050c1a, #071428)',
+        borderBottom: '1px solid rgba(96,165,250,0.2)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '12px 24px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: '16px 24px', alignItems: 'center',
+          }}>
+            {/* Meilleur revenu */}
+            <div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                <span style={{ color: '#60A5FA' }}>★</span> Meilleur revenu
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#60A5FA', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                {fmt(results.best.netAnnuel)}
+              </div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmt(Math.round(results.best.netAnnuel / 12))}/mois · {results.best.forme.replace('EURL / SARL (IS)', 'EURL IS').replace('EI (réel normal)', 'EI').replace('SAS / SASU', 'SASU')}
+              </div>
+            </div>
+            {/* TMI */}
+            <div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>TMI</div>
+              <div style={{
+                fontSize: '24px', fontWeight: 900, letterSpacing: '-0.02em',
+                color: tmi <= 11 ? '#34D399' : tmi <= 30 ? '#FBBF24' : '#F87171',
+              }}>{tmi}%</div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>
+                {tmi <= 11 ? 'Tranche basse' : tmi <= 30 ? 'Tranche inter.' : 'Tranche haute'}
+              </div>
+            </div>
+            {/* Gain */}
+            <div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>Gain vs moins avantageux</div>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: '#34D399', letterSpacing: '-0.02em' }}>
+                +{fmt(gainVsWorst)}
+              </div>
+              <div style={{ fontSize: '10px', color: 'rgba(52,211,153,0.45)', marginTop: '2px' }}>par an</div>
+            </div>
+            {/* Résultat avant rémun */}
+            <div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>Résultat avant rémun.</div>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: 'rgba(255,255,255,0.80)', letterSpacing: '-0.02em' }}>
+                {fmt(ben)}
+              </div>
+            </div>
+            {/* Delta badge */}
+            {delta.visible && Math.abs(delta.value) > 100 && (
+              <div style={{
+                padding: '8px 14px', borderRadius: '12px', fontWeight: 800, fontSize: '13px',
+                background: delta.value >= 0 ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                border: `1px solid ${delta.value >= 0 ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                color: delta.value >= 0 ? '#34D399' : '#F87171',
+                whiteSpace: 'nowrap', justifySelf: 'end',
+              }}>
+                {delta.value >= 0 ? '↑ +' : '↓ '}{fmt(Math.abs(delta.value))}/an
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── HERO ── */}
-      <div className="bg-navy border-b border-white/[0.06] relative overflow-hidden">
-        <div className="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.18)_0%,transparent_65%)] -top-24 -right-10 pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-6 py-10 relative flex items-end justify-between gap-6 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px w-5 rounded-full bg-blue-mid" />
-              <span className="text-[10.5px] font-bold tracking-[0.18em] uppercase text-blue-mid">Module exploration</span>
+      {/* ══ FOND GLOBAL SOMBRE ══ */}
+      <div style={{ background: 'linear-gradient(180deg, #050c1a 0%, #060e1c 100%)', position: 'relative' }}>
+        {/* Orbe */}
+        <div style={{
+          position: 'fixed', right: '-10rem', top: '10rem',
+          width: '600px', height: '600px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.14) 0%, transparent 65%)',
+          pointerEvents: 'none', zIndex: 0,
+        }} />
+        {/* Grille de points */}
+        <div style={{
+          position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }} />
+
+        {/* ── HERO ── */}
+        <div style={{ position: 'relative', zIndex: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px 24px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ height: '1px', width: '20px', background: '#3B82F6', borderRadius: '999px' }} />
+                <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#3B82F6' }}>Module exploration</span>
+              </div>
+              <h1 style={{ fontWeight: 900, fontSize: '28px', color: '#fff', letterSpacing: '-0.03em', marginBottom: '6px', lineHeight: 1.2 }}>
+                Explorez tous vos scénarios
+              </h1>
+              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.40)', maxWidth: '400px', lineHeight: 1.6 }}>
+                Ajustez vos paramètres en temps réel. Aucun bouton «&nbsp;Calculer&nbsp;».
+              </p>
             </div>
-            <h1 className="font-display text-3xl font-black text-white tracking-tight mb-1.5">Explorez tous vos scénarios</h1>
-            <p className="text-[14px] text-white/45 max-w-md leading-relaxed">
-              Ajustez vos paramètres en temps réel. Aucun bouton «&nbsp;Calculer&nbsp;».
-            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {scenarios.length < 3 && (
+                <button onClick={captureScenario} style={{
+                  padding: '8px 16px', fontSize: '13px', fontWeight: 600,
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)',
+                  color: '#fff', borderRadius: '12px', cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>
+                  📸 Capturer ce scénario
+                </button>
+              )}
+              <Link href="/simulateur" style={{
+                padding: '8px 16px', fontSize: '13px', fontWeight: 700,
+                background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: '#fff',
+                borderRadius: '12px', textDecoration: 'none', whiteSpace: 'nowrap',
+                boxShadow: '0 4px 12px rgba(29,78,216,0.35)',
+              }}>
+                Simulateur complet →
+              </Link>
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {scenarios.length < 3 && (
-              <button onClick={captureScenario}
-                className="px-4 py-2 text-sm font-semibold bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all whitespace-nowrap">
-                📸 Capturer ce scénario
+        </div>
+
+        {/* ── PILL PRÉREMPLISSAGE ── */}
+        {isPrefilledFromSim && (
+          <div style={{ position: 'relative', zIndex: 1, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(59,130,246,0.08)' }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '8px 24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#60A5FA', flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ fontSize: '12px', color: 'rgba(96,165,250,0.8)' }}>Pré-rempli depuis votre simulation</span>
+              <button onClick={() => setIsPrefilledFromSim(false)} style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>×</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── "ET SI…" ── */}
+        <div style={{
+          position: 'relative', zIndex: 1,
+          background: 'rgba(255,255,255,0.03)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <div style={{
+            maxWidth: '1400px', margin: '0 auto', padding: '12px 24px',
+            display: 'flex', gap: '8px', alignItems: 'center', overflowX: 'auto',
+          }}>
+            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
+              Et si…
+            </span>
+            {quickWithImpact.map(q => (
+              <button key={q.label} title={q.hint}
+                onClick={() => setParams(prev => ({ ...prev, ...q.apply(prev) }))}
+                style={{
+                  flexShrink: 0, padding: '6px 14px', borderRadius: '999px', cursor: 'pointer',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(255,255,255,0.05)',
+                  transition: 'all 150ms', textAlign: 'center',
+                }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.80)' }}>{q.label}</div>
+                {Math.abs(q.impact) > 100 && (
+                  <div style={{ fontSize: '10px', fontWeight: 700, marginTop: '1px', color: q.impact > 0 ? '#34D399' : '#F87171' }}>
+                    {q.impact > 0 ? '+' : ''}{fmt(Math.round(q.impact))}/an
+                  </div>
+                )}
+              </button>
+            ))}
+            {(params.ca !== DEFAULT.ca || params.charges !== DEFAULT.charges || params.situationFam !== DEFAULT.situationFam) && (
+              <button onClick={() => { setParams(DEFAULT); setIsPrefilledFromSim(false) }}
+                style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                ↺ Réinitialiser
               </button>
             )}
-            <Link href="/simulateur"
-              className="px-4 py-2 text-sm font-bold bg-blue text-white rounded-xl hover:bg-blue-dark transition-all whitespace-nowrap">
-              Simulateur complet →
-            </Link>
           </div>
         </div>
-      </div>
 
-      {/* ── PILL PRÉREMPLISSAGE ── */}
-      {isPrefilledFromSim && (
-        <div className="bg-white border-b border-slate-100">
-          <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-            <span className="text-xs text-slate-500">Basé sur votre simulation</span>
-            <button onClick={() => setIsPrefilledFromSim(false)}
-              className="ml-auto text-slate-400 hover:text-slate-600 text-sm transition-colors">×</button>
-          </div>
-        </div>
-      )}
+        {/* ── MAIN GRID ── */}
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '1400px', margin: '0 auto', padding: '24px 16px 40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'min(400px, 100%) 1fr', gap: '24px', alignItems: 'start' }}
+            className="!grid-cols-1 lg:!grid-cols-[400px_1fr]">
 
-      {/* ── "ET SI…" ── */}
-      <div className="bg-white border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3 flex-wrap">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">Et si…</span>
-          {quickWithImpact.map(q => (
-            <button key={q.label} title={q.hint}
-              onClick={() => setParams(prev => ({ ...prev, ...q.apply(prev) }))}
-              className="inline-flex flex-col items-center px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-500
-                hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50/50 transition-all whitespace-nowrap">
-              <span className="text-[12px] font-semibold">{q.label}</span>
-              {Math.abs(q.impact) > 100 && (
-                <span className={`text-[10px] font-bold leading-tight ${q.impact > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {q.impact > 0 ? '+' : ''}{fmt(Math.round(q.impact))}/an
-                </span>
-              )}
-            </button>
-          ))}
-          {(params.ca !== DEFAULT.ca || params.charges !== DEFAULT.charges || params.situationFam !== DEFAULT.situationFam) && (
-            <button onClick={() => { setParams(DEFAULT); setIsPrefilledFromSim(false) }}
-              className="ml-auto px-3 py-1.5 text-[11px] font-semibold text-slate-400 hover:text-red-600 transition-colors whitespace-nowrap">
-              ↺ Réinitialiser
-            </button>
-          )}
-        </div>
-      </div>
+            {/* ════ PANNEAU GAUCHE — sticky ════ */}
+            <div className="lg:sticky lg:top-[156px] space-y-3">
 
-      {/* ── MAIN GRID ── */}
-      <div className="bg-slate-50/60 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 items-start">
-
-          {/* ════ PANNEAU GAUCHE ════ */}
-          <div className="lg:sticky lg:top-20 space-y-4">
-
-            {/* Card Activité */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className="px-5 pt-5 pb-3 border-b border-slate-50">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-blue-600">Activité</h3>
-              </div>
-              <div className="p-5 space-y-5">
-
-                <div>
-                  <label className="text-xs font-medium text-slate-500 uppercase tracking-wide block mb-1.5">Secteur</label>
-                  <select value={params.secteur} onChange={e => set('secteur', e.target.value as Secteur)} className={SEL}>
-                    <option value="services_bic">Services BIC — abattement 50%</option>
-                    <option value="liberal_bnc">BNC libéral — abattement 34%</option>
-                    <option value="commerce">Commerce/vente — abattement 71%</option>
-                    <option value="btp">BTP/artisanat — abattement 50%</option>
-                  </select>
+              {/* Card Activité */}
+              <div style={cardStyle}>
+                <div style={cardHeaderStyle}>
+                  <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: '#3B82F6' }} />
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Activité</span>
                 </div>
-
-                <SliderRow label="CA annuel HT" value={params.ca} min={0} max={2000000} step={10000}
-                  onChange={v => set('ca', v)}
-                  badge={
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-[10.5px] text-slate-400">0</span>
-                      {microExcluded
-                        ? <span className="text-[10.5px] font-semibold text-red-500">Micro exclue (plafond {fmt(results.microPlafond)})</span>
-                        : <span className="text-[10.5px] text-slate-400">Micro ≤ {fmt(results.microPlafond)}</span>
-                      }
-                      <span className="text-[10.5px] text-slate-400">2M€</span>
-                    </div>
-                  }
-                />
-
-                <SliderRow label="Charges d'exploitation"
-                  sub={params.ca > 0 ? `(${Math.round(params.charges / params.ca * 100)}% du CA)` : ''}
-                  value={params.charges} min={0} max={Math.max(Math.round(params.ca * 0.9), 10000)} step={5000}
-                  onChange={v => set('charges', v)} />
-
-                <SliderRow label="Amortissements" value={params.amort} min={0} max={200000} step={1000}
-                  onChange={v => set('amort', v)} />
-
-                <SliderRow label="Capital social" value={params.capital} min={1000} max={500000} step={5000}
-                  onChange={v => set('capital', v)}
-                  badge={
-                    <div className="text-[10.5px] text-slate-400 mt-1">
-                      Seuil dividendes TNS :{' '}
-                      <span className={`font-semibold ${params.capital >= 30000 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {fmt(params.capital * 0.10)}
-                      </span>
-                    </div>
-                  }
-                />
-
-                {/* Résultat calculé */}
-                <div className="bg-slate-900 rounded-xl px-4 py-3 flex justify-between items-center">
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
-                    <div className="text-xs text-slate-400 mb-0.5">Résultat avant rémunération</div>
-                    <div className="text-xl font-bold text-white">{fmt(ben)}</div>
-                  </div>
-                  {delta.visible && Math.abs(delta.value) > 100 && (
-                    <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg
-                      ${delta.value >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {delta.value >= 0 ? '↑ +' : '↓ '}{fmt(Math.abs(delta.value))}
-                    </div>
-                  )}
-                </div>
-
-                {seuil60k && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-[11.5px] text-blue-700">
-                    ⚡ Résultat &gt; 60 000 € — l&apos;IS (EURL/SASU) devient généralement plus avantageux que l&apos;IR direct.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Card Foyer */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className="px-5 pt-5 pb-3 border-b border-slate-50">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-blue-600">Foyer fiscal</h3>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Situation</label>
-                    <select value={params.situationFam}
-                      onChange={e => set('situationFam', e.target.value as ExplorerParams['situationFam'])}
-                      className={SEL}>
-                      <option value="celib">Célibataire</option>
-                      <option value="marie">Marié(e)</option>
-                      <option value="pacse">Pacsé(e)</option>
-                      <option value="veuf">Veuf/veuve</option>
+                    <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Secteur</label>
+                    <select value={params.secteur} onChange={e => set('secteur', e.target.value as Secteur)} style={SEL}>
+                      <option value="services_bic">Services BIC — abattement 50%</option>
+                      <option value="liberal_bnc">BNC libéral — abattement 34%</option>
+                      <option value="commerce">Commerce/vente — abattement 71%</option>
+                      <option value="btp">BTP/artisanat — abattement 50%</option>
                     </select>
                   </div>
+
+                  <SliderRow label="CA annuel HT" value={params.ca} min={0} max={2000000} step={10000}
+                    onChange={v => set('ca', v)}
+                    badge={
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>0</span>
+                        {microExcluded
+                          ? <span style={{ fontSize: '10px', fontWeight: 600, color: '#F87171' }}>Micro exclue ({fmt(results.microPlafond)})</span>
+                          : <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>Micro ≤ {fmt(results.microPlafond)}</span>
+                        }
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>2M€</span>
+                      </div>
+                    }
+                  />
+
+                  <SliderRow label="Charges d'exploitation"
+                    sub={params.ca > 0 ? `(${Math.round(params.charges / params.ca * 100)}% du CA)` : ''}
+                    value={params.charges} min={0} max={Math.max(Math.round(params.ca * 0.9), 10000)} step={5000}
+                    onChange={v => set('charges', v)} />
+
+                  <SliderRow label="Amortissements" value={params.amort} min={0} max={200000} step={1000}
+                    onChange={v => set('amort', v)} />
+
+                  <SliderRow label="Capital social" value={params.capital} min={1000} max={500000} step={5000}
+                    onChange={v => set('capital', v)}
+                    badge={
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '4px' }}>
+                        Seuil dividendes TNS :{' '}
+                        <span style={{ fontWeight: 600, color: params.capital >= 30000 ? '#34D399' : '#FBBF24' }}>
+                          {fmt(params.capital * 0.10)}
+                        </span>
+                      </div>
+                    }
+                  />
+
+                  {/* Résultat avant rémunération */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(37,99,235,0.2), rgba(29,78,216,0.1))',
+                    border: '1px solid rgba(96,165,250,0.25)',
+                    borderRadius: '14px', padding: '14px 16px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>
+                        Résultat avant rémunération
+                      </div>
+                      <div style={{ fontSize: '24px', fontWeight: 900, color: '#60A5FA', letterSpacing: '-0.03em' }}>{fmt(ben)}</div>
+                    </div>
+                    {seuil60k && (
+                      <div style={{
+                        fontSize: '10px', background: 'rgba(251,191,36,0.12)',
+                        border: '1px solid rgba(251,191,36,0.25)', color: '#FBBF24',
+                        padding: '4px 10px', borderRadius: '8px', fontWeight: 600,
+                      }}>⚡ Zone IS</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Foyer */}
+              <div style={cardStyle}>
+                <div style={cardHeaderStyle}>
+                  <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: '#8B5CF6' }} />
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#A78BFA', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Foyer fiscal</span>
+                </div>
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Situation</label>
+                      <select value={params.situationFam}
+                        onChange={e => set('situationFam', e.target.value as ExplorerParams['situationFam'])}
+                        style={SEL}>
+                        <option value="celib">Célibataire</option>
+                        <option value="marie">Marié(e)</option>
+                        <option value="pacse">Pacsé(e)</option>
+                        <option value="veuf">Veuf/veuve</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Enfants</label>
+                      <select value={params.nbEnfants}
+                        onChange={e => set('nbEnfants', parseInt(e.target.value))}
+                        style={SEL}>
+                        {[0, 1, 2, 3, 4, 5].map(n => (
+                          <option key={n} value={n}>{n === 0 ? 'Aucun' : `${n} enfant${n > 1 ? 's' : ''}`}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
+                    borderRadius: '10px', padding: '8px 12px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  }}>
+                    <span style={{ fontSize: '12px', color: 'rgba(167,139,250,0.8)' }}>Parts fiscales</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#A78BFA' }}>{partsStr} parts</span>
+                  </div>
+
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Enfants</label>
-                    <select value={params.nbEnfants}
-                      onChange={e => set('nbEnfants', parseInt(e.target.value))}
-                      className={SEL}>
-                      {[0, 1, 2, 3, 4, 5].map(n => (
-                        <option key={n} value={n}>{n === 0 ? 'Aucun' : `${n} enfant${n > 1 ? 's' : ''}`}</option>
-                      ))}
-                    </select>
+                    <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Autres revenus du foyer (€/an)</label>
+                    <input type="number" value={params.autresRev} min={0} step={1000}
+                      onChange={e => set('autresRev', Math.max(0, parseFloat(e.target.value) || 0))}
+                      style={INP} />
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '4px' }}>Salaire conjoint, revenus fonciers, etc.</p>
                   </div>
                 </div>
-
-                <div className="bg-blue-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs text-blue-600">Parts fiscales</span>
-                  <span className="text-sm font-bold text-blue-700">{partsStr} parts</span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-slate-500 block mb-1.5">Autres revenus du foyer (€/an)</label>
-                  <input type="number" value={params.autresRev} min={0} step={1000}
-                    onChange={e => set('autresRev', Math.max(0, parseFloat(e.target.value) || 0))}
-                    className={INP} />
-                  <p className="text-[10.5px] text-slate-400 mt-1">Salaire conjoint, revenus fonciers, etc.</p>
-                </div>
               </div>
-            </div>
 
-            {/* Card Stratégie */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className="px-5 pt-5 pb-3 border-b border-slate-50">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-blue-600">Stratégie</h3>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  {([['max', '💰 Tout percevoir'], ['reserve', '🏦 Garder en réserve']] as const).map(([val, label]) => (
-                    <button key={val} onClick={() => set('strategie', val)}
-                      className={`py-2.5 px-3 rounded-xl border text-xs font-semibold text-center transition-all
-                        ${params.strategie === val
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                          : 'border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-600'}`}>
-                      {label}
-                    </button>
-                  ))}
+              {/* Card Stratégie */}
+              <div style={cardStyle}>
+                <div style={cardHeaderStyle}>
+                  <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: '#10B981' }} />
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Stratégie</span>
                 </div>
-
-                {params.strategie === 'reserve' && (
-                  <SliderRow label="Montant en réserves" value={params.reserveVoulue}
-                    min={0} max={Math.max(ben, 1)} step={1000}
-                    onChange={v => set('reserveVoulue', v)} />
-                )}
-
-                <div>
-                  <div className="flex justify-between items-baseline mb-1.5">
-                    <label className="text-xs font-medium text-slate-500">PER annuel</label>
-                    <span className="text-xs text-slate-400">Plafond : {fmt(perPlafond)}</span>
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {([['max', '💰 Tout percevoir'], ['reserve', '🏦 Garder en réserve']] as const).map(([val, label]) => (
+                      <button key={val} onClick={() => set('strategie', val)}
+                        style={{
+                          padding: '10px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+                          cursor: 'pointer', transition: 'all 150ms', textAlign: 'center',
+                          background: params.strategie === val ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
+                          border: params.strategie === val ? '1px solid rgba(96,165,250,0.4)' : '1px solid rgba(255,255,255,0.1)',
+                          color: params.strategie === val ? '#93C5FD' : 'rgba(255,255,255,0.5)',
+                        }}>
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input type="range" min={0} max={perPlafond} step={500}
-                      value={Math.min(params.perMontant, perPlafond)}
-                      onChange={e => set('perMontant', parseInt(e.target.value))}
-                      className="flex-1 h-1.5 rounded-full cursor-pointer"
-                      style={{ background: `linear-gradient(to right, #2563EB 0%, #2563EB ${Math.round(Math.min(params.perMontant, perPlafond) / perPlafond * 100)}%, #e2e8f0 ${Math.round(Math.min(params.perMontant, perPlafond) / perPlafond * 100)}%, #e2e8f0 100%)` }}
-                    />
-                    <input type="number" value={params.perMontant} min={0} step={500}
-                      onChange={e => set('perMontant', Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-20 text-right text-xs font-bold text-slate-900 border-0 bg-transparent focus:outline-none p-0
-                                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  </div>
-                  <p className="text-[10.5px] text-slate-400 mt-1">
-                    {params.perMontant > 0
-                      ? `Économie IR estimée : ${fmt(Math.round(params.perMontant * (tmi / 100)))}`
-                      : 'Non actif'}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            {/* Scénarios sauvegardés */}
-            {scenarios.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="px-5 pt-5 pb-3 border-b border-slate-50 flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-blue-600">Scénarios sauvegardés</h3>
-                  {scenarios.length < 3 && (
-                    <button onClick={captureScenario}
-                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition-colors">
-                      + Capturer
-                    </button>
+                  {params.strategie === 'reserve' && (
+                    <SliderRow label="Montant en réserves" value={params.reserveVoulue}
+                      min={0} max={Math.max(ben, 1)} step={1000}
+                      onChange={v => set('reserveVoulue', v)} />
                   )}
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>PER annuel</label>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>Plafond : {fmt(perPlafond)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input type="range" min={0} max={perPlafond} step={500}
+                        value={Math.min(params.perMontant, perPlafond)}
+                        onChange={e => set('perMontant', parseInt(e.target.value))}
+                        className="flex-1 cursor-pointer"
+                        style={{
+                          height: '4px', accentColor: '#3B82F6', flex: 1,
+                          background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${Math.round(Math.min(params.perMontant, perPlafond) / perPlafond * 100)}%, rgba(255,255,255,0.12) ${Math.round(Math.min(params.perMontant, perPlafond) / perPlafond * 100)}%, rgba(255,255,255,0.12) 100%)`,
+                        }}
+                      />
+                      <input type="number" value={params.perMontant} min={0} step={500}
+                        onChange={e => set('perMontant', Math.max(0, parseInt(e.target.value) || 0))}
+                        style={{ width: '72px', textAlign: 'right', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '3px 6px', color: '#fff', fontSize: '12px', fontWeight: 700, outline: 'none' }}
+                      />
+                    </div>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+                      {params.perMontant > 0
+                        ? `Économie IR estimée : ${fmt(Math.round(params.perMontant * (tmi / 100)))}`
+                        : 'Non actif'}
+                    </p>
+                  </div>
                 </div>
-                <div className="p-4 space-y-2">
-                  {scenarios.map(sc => (
-                    <div key={sc.id}
-                      className={`rounded-xl border p-3 transition-all ${activeScenarioId === sc.id ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-slate-50'}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[12px] font-bold text-slate-800">{sc.name}</span>
-                        <div className="flex gap-1.5">
-                          <button onClick={() => loadScenario(sc)}
-                            className="text-[10.5px] font-semibold text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded transition-colors">
-                            ↩ Charger
-                          </button>
-                          <button onClick={() => removeScenario(sc.id)}
-                            className="text-[10.5px] font-semibold text-red-400 hover:text-red-600 px-1 py-0.5 transition-colors">✕</button>
+              </div>
+
+              {/* Scénarios sauvegardés */}
+              {scenarios.length > 0 && (
+                <div style={cardStyle}>
+                  <div style={{ ...cardHeaderStyle, justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: '#F59E0B' }} />
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#FBBF24', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Scénarios sauvegardés</span>
+                    </div>
+                    {scenarios.length < 3 && (
+                      <button onClick={captureScenario} style={{ fontSize: '11px', fontWeight: 600, color: '#FBBF24', background: 'none', border: 'none', cursor: 'pointer' }}>+ Capturer</button>
+                    )}
+                  </div>
+                  <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {scenarios.map(sc => (
+                      <div key={sc.id} style={{
+                        borderRadius: '12px', padding: '10px 12px',
+                        background: activeScenarioId === sc.id ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.03)',
+                        border: activeScenarioId === sc.id ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.07)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{sc.name}</span>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button onClick={() => loadScenario(sc)} style={{ fontSize: '10px', fontWeight: 600, color: '#FBBF24', background: 'none', border: 'none', cursor: 'pointer' }}>↩ Charger</button>
+                            <button onClick={() => removeScenario(sc.id)} style={{ fontSize: '10px', color: 'rgba(248,113,113,0.7)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+                          CA {fmt(sc.params.ca)} · {sc.best.replace('EURL / SARL (IS)', 'EURL IS').replace('SAS / SASU', 'SASU').replace('EI (réel normal)', 'EI')} · {fmt(sc.bestNet)}/an
                         </div>
                       </div>
-                      <div className="text-[11px] text-slate-400">
-                        CA {fmt(sc.params.ca)} · {sc.best.replace('EURL / SARL (IS)', 'EURL IS').replace('SAS / SASU', 'SASU').replace('EI (réel normal)', 'EI')} · {fmt(sc.bestNet)}/an
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ════ PANNEAU DROIT ════ */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              {/* Comparaison de scénarios */}
+              {scenarios.length >= 2 && (
+                <div style={{ ...cardStyle, marginBottom: 0 }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>Comparaison des scénarios</span>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase' }}></th>
+                          {scenarios.map(sc => (
+                            <th key={sc.id} style={{ textAlign: 'right', padding: '10px 12px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>{sc.name}</th>
+                          ))}
+                          {scenarios.length === 2 && <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>Écart</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: 'CA', getValue: (sc: Scenario) => fmt(sc.params.ca) },
+                          { label: 'Structure rec.', getValue: (sc: Scenario) => sc.best.replace('EURL / SARL (IS)', 'EURL IS').replace('SAS / SASU', 'SASU').replace('EI (réel normal)', 'EI') },
+                          { label: 'Net recommandé', getValue: (sc: Scenario) => fmt(sc.bestNet), numeric: true },
+                        ].map(({ label, getValue, numeric }) => (
+                          <tr key={label} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td style={{ padding: '10px 16px', color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>{label}</td>
+                            {scenarios.map(sc => (
+                              <td key={sc.id} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{getValue(sc)}</td>
+                            ))}
+                            {scenarios.length === 2 && numeric && (
+                              <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>
+                                {(() => {
+                                  const diff = scenarios[1].bestNet - scenarios[0].bestNet
+                                  return <span style={{ color: diff >= 0 ? '#34D399' : '#F87171' }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</span>
+                                })()}
+                              </td>
+                            )}
+                            {scenarios.length === 2 && !numeric && <td style={{ padding: '10px 12px' }} />}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Graphique */}
+              <div style={{ ...cardStyle, padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>Revenu net annuel</div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>Après IR, cotisations et IS</div>
+                  </div>
+                  {newBestAlert && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      padding: '6px 12px', background: '#2563EB', color: '#fff',
+                      fontSize: '11px', fontWeight: 700, borderRadius: '999px',
+                    }}>✦ {results.best.forme.replace('EURL / SARL (IS)', 'EURL IS').replace('EI (réel normal)', 'EI')}</span>
+                  )}
+                </div>
+                <div style={{ height: '180px' }}>
+                  <Bar data={chartData} options={chartOptions} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#3B82F6' }} />
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Recommandée</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(255,255,255,0.18)' }} />
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Autres structures</span>
+                  </div>
+                  {microExcluded && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', border: '1px dashed rgba(255,255,255,0.2)' }} />
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Micro non éligible</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tableau comparatif */}
+              <div style={{ ...cardStyle }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '10px', fontWeight: 800, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Comparatif détaillé
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase' }}>Structure</th>
+                      <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>NET/AN</th>
+                      <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>TMI</th>
+                      <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>SCORE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.scored.map((r, i) => {
+                      const isBest = i === 0
+                      const isExcluded = r.forme === 'Micro-entreprise' && microExcluded
+                      const structTmi = Math.round(tmiRate(
+                        (r.baseIR ?? r.bNet ?? r.ben ?? 0) + params.autresRev,
+                        partsBase, params.nbEnfants
+                      ) * 100)
+                      const tmiColor = structTmi <= 11 ? '#34D399' : structTmi <= 30 ? '#FBBF24' : '#F87171'
+                      const tmiBg = structTmi <= 11 ? 'rgba(52,211,153,0.15)' : structTmi <= 30 ? 'rgba(251,191,36,0.12)' : 'rgba(248,113,113,0.12)'
+                      return (
+                        <tr key={r.forme} style={{
+                          borderTop: '1px solid rgba(255,255,255,0.04)',
+                          background: isBest && !isExcluded ? 'rgba(96,165,250,0.06)' : 'transparent',
+                        }}>
+                          <td style={{ padding: '10px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {isBest && !isExcluded && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#60A5FA', flexShrink: 0, display: 'inline-block' }} />}
+                              <span style={{
+                                fontSize: '12px', fontWeight: isBest && !isExcluded ? 700 : 500,
+                                color: isExcluded ? 'rgba(255,255,255,0.2)' : isBest ? '#93C5FD' : 'rgba(255,255,255,0.5)',
+                                textDecoration: isExcluded ? 'line-through' : 'none',
+                              }}>
+                                {r.forme.replace('EURL / SARL (IS)', 'EURL/SARL IS').replace('EI (réel normal)', 'EI réel')}
+                              </span>
+                              {isBest && !isExcluded && <span style={{ fontSize: '9px', fontWeight: 700, background: '#2563EB', color: '#fff', padding: '1px 6px', borderRadius: '999px' }}>★</span>}
+                              {isExcluded && <span style={{ fontSize: '9px', color: '#F87171', fontWeight: 600 }}>exclue</span>}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '10px 12px', fontSize: '13px', fontWeight: 800, color: isExcluded ? 'rgba(255,255,255,0.15)' : isBest ? '#93C5FD' : 'rgba(255,255,255,0.6)' }}>
+                            {isExcluded ? '—' : fmt(r.netAnnuel)}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '10px 12px' }}>
+                            {!isExcluded && (
+                              <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', background: tmiBg, color: tmiColor }}>
+                                {structTmi}%
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '10px 12px', fontSize: '12px', fontWeight: 700, color: isBest && !isExcluded ? '#60A5FA' : 'rgba(255,255,255,0.2)' }}>
+                            {r.scoreTotal}/100
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bloc recommandation */}
+              <div style={{
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #050c1a, #071428)',
+                border: '1.5px solid rgba(96,165,250,0.2)',
+                padding: '20px',
+                boxShadow: '0 0 30px rgba(37,99,235,0.15)',
+                position: 'relative', overflow: 'hidden',
+              }}>
+                <div style={{
+                  position: 'absolute', right: '-4rem', top: '-4rem',
+                  width: '300px', height: '300px', borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 65%)',
+                  pointerEvents: 'none',
+                }} />
+                <div style={{ position: 'relative' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 800, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#60A5FA', display: 'inline-block' }} />
+                    Structure recommandée
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontSize: '17px', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>
+                        {results.best.forme.replace('EURL / SARL (IS)', 'EURL / SARL IS').replace('EI (réel normal)', 'EI réel')}
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, maxWidth: '320px' }}>{recoText}</p>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '30px', fontWeight: 900, color: '#60A5FA', letterSpacing: '-0.04em', lineHeight: 1 }}>
+                        {fmt(results.best.netAnnuel)}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>
+                        {fmt(Math.round(results.best.netAnnuel / 12))}/mois net
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ════ PANNEAU DROIT ════ */}
-          <div className="space-y-4">
-
-            {/* ── KPI grid ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 col-span-2">
-                <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Meilleur revenu net</div>
-                <div className="text-3xl font-bold text-blue-600">{fmt(results.best.netAnnuel)}</div>
-                <div className="text-sm text-slate-500 mt-0.5">
-                  {fmt(Math.round(results.best.netAnnuel / 12))}/mois ·{' '}
-                  {results.best.forme.replace('EURL / SARL (IS)', 'EURL/SARL').replace('EI (réel normal)', 'EI réel')}
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-                <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">TMI</div>
-                <div className={`text-3xl font-bold ${tmi <= 11 ? 'text-emerald-600' : tmi <= 30 ? 'text-amber-600' : 'text-red-600'}`}>
-                  {tmi}%
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  {tmi <= 11 ? 'Tranche basse' : tmi <= 30 ? 'Tranche inter.' : 'Tranche haute'}
-                </div>
-              </div>
-              <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-4">
-                <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">Gain max</div>
-                <div className="text-3xl font-bold text-emerald-700">+{fmt(gainVsWorst)}</div>
-                <div className="text-xs text-emerald-600 mt-0.5">vs moins favorable</div>
-              </div>
-            </div>
-
-            {/* ── Comparaison de scénarios ── */}
-            {scenarios.length >= 2 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-50">
-                  <h3 className="font-semibold text-slate-900">Comparaison des scénarios</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[12px]">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-slate-400 font-semibold"></th>
-                        {scenarios.map(sc => (
-                          <th key={sc.id} className="text-right px-4 py-2.5 text-xs uppercase tracking-wide text-slate-400 font-semibold">{sc.name}</th>
-                        ))}
-                        {scenarios.length === 2 && <th className="text-right px-4 py-2.5 text-xs uppercase tracking-wide text-slate-400 font-semibold">Écart</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { label: 'CA', getValue: (sc: Scenario) => fmt(sc.params.ca) },
-                        { label: 'Structure rec.', getValue: (sc: Scenario) => sc.best.replace('EURL / SARL (IS)', 'EURL IS').replace('SAS / SASU', 'SASU').replace('EI (réel normal)', 'EI') },
-                        { label: 'Net recommandé', getValue: (sc: Scenario) => fmt(sc.bestNet), numeric: true },
-                      ].map(({ label, getValue, numeric }) => (
-                        <tr key={label} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                          <td className="px-4 py-3 text-slate-500 font-medium">{label}</td>
-                          {scenarios.map(sc => (
-                            <td key={sc.id} className="px-4 py-3 text-right font-semibold text-slate-800">{getValue(sc)}</td>
-                          ))}
-                          {scenarios.length === 2 && numeric && (
-                            <td className="px-4 py-3 text-right font-bold">
-                              {(() => {
-                                const diff = scenarios[1].bestNet - scenarios[0].bestNet
-                                return <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-600'}>{diff >= 0 ? '+' : ''}{fmt(diff)}</span>
-                              })()}
-                            </td>
-                          )}
-                          {scenarios.length === 2 && !numeric && <td className="px-4 py-3" />}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* ── Graphique ── */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="font-semibold text-slate-900">Revenu net annuel</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Après IR, cotisations et IS</p>
-                </div>
-                {newBestAlert && (
-                  <span className="animate-pulse inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[12px] font-bold rounded-full">
-                    ✦ {results.best.forme.replace('EURL / SARL (IS)', 'EURL IS').replace('EI (réel normal)', 'EI')}
-                  </span>
-                )}
-              </div>
-              <div style={{ height: '200px' }}>
-                <Bar data={chartData} options={chartOptions} />
-              </div>
-              <div className="flex items-center gap-4 mt-3 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-blue-600" />
-                  <span className="text-xs text-slate-400">Recommandée</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-slate-300" />
-                  <span className="text-xs text-slate-400">Autres structures</span>
-                </div>
-                {microExcluded && (
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm border border-dashed border-slate-300" />
-                    <span className="text-xs text-slate-400">Micro non éligible</span>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Tableau comparatif ── */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-50">
-                <h3 className="font-semibold text-slate-900">Comparatif détaillé</h3>
-              </div>
-              <table className="w-full">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-400 bg-slate-50/60 border-b border-slate-100">
-                    <th className="text-left px-5 py-3">Structure</th>
-                    <th className="text-right px-4 py-3">Net/an</th>
-                    <th className="text-right px-4 py-3 hidden sm:table-cell">Net/mois</th>
-                    <th className="text-right px-4 py-3">TMI</th>
-                    <th className="text-right px-4 py-3 hidden sm:table-cell">IR</th>
-                    <th className="text-right px-4 py-3">Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.scored.map((r, i) => {
-                    const isBest = i === 0
-                    const isExcluded = r.forme === 'Micro-entreprise' && microExcluded
-                    const structTmi = Math.round(tmiRate(
-                      (r.baseIR ?? r.bNet ?? r.ben ?? 0) + params.autresRev,
-                      partsBase, params.nbEnfants
-                    ) * 100)
-                    const tmiCls = structTmi <= 11 ? 'bg-emerald-100 text-emerald-700' : structTmi <= 30 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                    return (
-                      <tr key={r.forme}
-                        className={`border-b border-slate-50 last:border-0 transition-colors
-                          ${isBest && !isExcluded ? 'bg-blue-50/60' : 'hover:bg-slate-50'}`}>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            {isBest && !isExcluded && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" />}
-                            <span className={`text-sm font-medium ${isExcluded ? 'text-slate-300 line-through' : isBest ? 'text-blue-700' : 'text-slate-700'}`}>
-                              {r.forme.replace('EURL / SARL (IS)', 'EURL/SARL IS').replace('EI (réel normal)', 'EI réel')}
-                            </span>
-                            {isBest && !isExcluded && <span className="text-[9px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full">★</span>}
-                            {isExcluded && <span className="text-[9px] text-red-400 font-semibold">exclue</span>}
-                          </div>
-                        </td>
-                        <td className={`text-right px-4 py-3.5 text-sm font-bold ${isExcluded ? 'text-slate-300' : 'text-slate-900'}`}>
-                          {isExcluded ? '—' : fmt(r.netAnnuel)}
-                        </td>
-                        <td className="text-right px-4 py-3.5 text-sm text-slate-400 hidden sm:table-cell">
-                          {isExcluded ? '—' : fmt(Math.round(r.netAnnuel / 12))}
-                        </td>
-                        <td className="text-right px-4 py-3.5">
-                          {!isExcluded && <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tmiCls}`}>{structTmi}%</span>}
-                        </td>
-                        <td className="text-right px-4 py-3.5 text-sm text-slate-400 hidden sm:table-cell">
-                          {isExcluded ? '—' : `−${fmt(r.ir)}`}
-                        </td>
-                        <td className="text-right px-4 py-3.5">
-                          <span className={`text-sm font-bold ${isBest && !isExcluded ? 'text-blue-600' : 'text-slate-300'}`}>
-                            {r.scoreTotal}/100
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ── Recommandation (dark) ── */}
-            <div className="bg-slate-900 rounded-2xl p-5 text-white relative overflow-hidden">
-              <div className="absolute w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,.25)_0%,transparent_65%)] -top-24 -right-12 pointer-events-none" />
-              <div className="relative">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1.5">✦ Structure recommandée</div>
-                    <div className="text-2xl font-bold">
-                      {results.best.forme.replace('EURL / SARL (IS)', 'EURL / SARL IS').replace('EI (réel normal)', 'EI réel')}
+                  {gainVsWorst > 500 && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)',
+                      borderRadius: '10px', padding: '8px 12px', marginBottom: '14px',
+                    }}>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#34D399' }}>
+                        +{fmt(gainVsWorst)}/an vs moins avantageuse
+                      </span>
                     </div>
-                    <p className="text-sm text-slate-300 mt-2 leading-relaxed">{recoText}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0 ml-4">
-                    <div className="text-3xl font-bold text-blue-400">{fmt(results.best.netAnnuel)}</div>
-                    <div className="text-xs text-slate-400">net / an</div>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-3">
-                  <span className="text-sm text-slate-300">+{fmt(gainVsWorst)}/an vs la moins avantageuse</span>
-                  <div className="flex gap-2">
-                    <Link href="/simulateur"
-                      className="text-sm bg-blue-600 px-4 py-2 rounded-xl font-medium hover:bg-blue-500 transition-colors whitespace-nowrap">
+                  )}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Link href="/simulateur" style={{
+                      flex: 1, padding: '10px', borderRadius: '12px', fontWeight: 700, fontSize: '12px',
+                      background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: '#fff',
+                      textDecoration: 'none', textAlign: 'center',
+                      boxShadow: '0 4px 12px rgba(29,78,216,0.4)',
+                    }}>
                       Analyse complète →
                     </Link>
-                    <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                      className="text-sm border border-white/20 px-4 py-2 rounded-xl font-medium text-white/70 hover:text-white hover:border-white/40 transition-colors whitespace-nowrap">
+                    <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer" style={{
+                      flex: 1, padding: '10px', borderRadius: '12px', fontWeight: 700, fontSize: '12px',
+                      border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)',
+                      textDecoration: 'none', textAlign: 'center',
+                    }}>
                       Prendre RDV
                     </a>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* ── Ce que ça change concrètement ── */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                💡 Ce que ça change concrètement
-              </h3>
-              <div>
-                {[
-                  { label: 'Revenu mensuel net', val: fmt(Math.round(results.best.netAnnuel / 12)), cls: 'text-slate-900 font-bold' },
-                  { label: 'Charges sociales annuelles', val: `−${fmt(results.best.charges)}`, cls: 'text-red-600 font-bold' },
-                  { label: 'IR estimé', val: `−${fmt(results.best.ir)}`, cls: 'text-slate-500 font-semibold' },
-                  ...(results.best.is > 0 ? [{ label: 'IS estimé', val: `−${fmt(results.best.is)}`, cls: 'text-slate-500 font-semibold' }] : []),
-                ].map(({ label, val, cls }) => (
-                  <div key={label} className="flex justify-between items-center py-2.5 border-b border-slate-50 last:border-0">
-                    <span className="text-sm text-slate-500">{label}</span>
-                    <span className={`text-sm ${cls}`}>{val}</span>
-                  </div>
-                ))}
-                {gainVsWorst > 500 && (
-                  <div className="flex justify-between items-center pt-3 mt-1 border-t border-slate-100">
-                    <span className="text-sm font-medium text-slate-700">Gain vs moins avantageux</span>
-                    <span className="text-base font-bold text-emerald-600">+{fmt(gainVsWorst)}/an</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Potentiel optimisé ── */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-50"
-                style={{ background: 'linear-gradient(to right, #ecfdf5, #ffffff)' }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-0.5">Potentiel optimisé</div>
-                    <div className="text-sm font-semibold text-slate-900">Avec tous les leviers activés</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-emerald-600">{fmt(optimise.netOptimise)}</div>
-                    <div className="text-xs text-emerald-600/60">+{fmt(optimise.total)}/an</div>
-                  </div>
+              {/* Ce que ça change */}
+              <div style={{ ...cardStyle, padding: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: '14px' }}>
+                  💡 Ce que ça change concrètement
+                </div>
+                <div>
+                  {[
+                    { label: 'Revenu mensuel net', val: fmt(Math.round(results.best.netAnnuel / 12)), color: '#fff', bold: true },
+                    { label: 'Charges sociales annuelles', val: `−${fmt(results.best.charges)}`, color: '#F87171', bold: true },
+                    { label: 'IR estimé', val: `−${fmt(results.best.ir)}`, color: 'rgba(255,255,255,0.5)', bold: false },
+                    ...(results.best.is > 0 ? [{ label: 'IS estimé', val: `−${fmt(results.best.is)}`, color: 'rgba(255,255,255,0.5)', bold: false }] : []),
+                  ].map(({ label, val, color, bold }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>{label}</span>
+                      <span style={{ fontSize: '13px', fontWeight: bold ? 700 : 600, color }}>{val}</span>
+                    </div>
+                  ))}
+                  {gainVsWorst > 500 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>Gain vs moins avantageux</span>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#34D399' }}>+{fmt(gainVsWorst)}/an</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="px-5 py-4 grid grid-cols-2 gap-3">
-                {([
-                  { ico: '📊', label: 'PER max', val: optimise.perGain },
-                  { ico: '🚗', label: 'IK 8 000km', val: optimise.ikGain },
-                  { ico: '🏠', label: 'Domiciliation', val: optimise.domGain },
-                  { ico: '🛡', label: 'Prévoyance', val: optimise.prevGain },
-                ] as const).map(lev => (
-                  <div key={lev.label} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
-                    <span className="text-base">{lev.ico}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-slate-500 truncate">{lev.label}</div>
-                      <div className="text-sm font-bold text-emerald-600">+{fmt(lev.val)}/an</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="px-5 pb-4">
-                <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                  className="w-full block text-center bg-emerald-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-emerald-500 transition-colors">
-                  Mettre tout en place avec un expert →
-                </a>
-              </div>
-            </div>
 
+              {/* Potentiel optimisé */}
+              <div style={{ ...cardStyle, overflow: 'hidden' }}>
+                <div style={{
+                  padding: '16px 20px',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.06))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 800, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Potentiel optimisé</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Avec tous les leviers activés</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '22px', fontWeight: 900, color: '#34D399', letterSpacing: '-0.02em' }}>{fmt(optimise.netOptimise)}</div>
+                    <div style={{ fontSize: '10px', color: 'rgba(52,211,153,0.5)' }}>+{fmt(optimise.total)}/an</div>
+                  </div>
+                </div>
+                <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {([
+                    { ico: '📊', label: 'PER max', val: optimise.perGain },
+                    { ico: '🚗', label: 'IK 8 000km', val: optimise.ikGain },
+                    { ico: '🏠', label: 'Domiciliation', val: optimise.domGain },
+                    { ico: '🛡', label: 'Prévoyance', val: optimise.prevGain },
+                  ] as const).map(lev => (
+                    <div key={lev.label} style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      background: 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '10px 12px',
+                    }}>
+                      <span style={{ fontSize: '16px' }}>{lev.ico}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lev.label}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#34D399' }}>+{fmt(lev.val)}/an</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding: '0 20px 16px' }}>
+                  <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer" style={{
+                    display: 'block', textAlign: 'center', padding: '10px',
+                    background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                    color: '#fff', fontSize: '13px', fontWeight: 700, borderRadius: '12px',
+                    textDecoration: 'none', boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
+                  }}>
+                    Mettre tout en place avec un expert →
+                  </a>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </div>
