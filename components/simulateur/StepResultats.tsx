@@ -273,17 +273,62 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── COMPARAISON DES STRUCTURES — cards dark uniformes ── */}
-      <div>
-        <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-1">
-          Comparaison des structures
-          <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
-        </div>
-        <p className="text-sm text-ink3 mb-3">Triées par score multicritère selon votre priorité.</p>
-        <div className={`grid gap-4 items-stretch ${cardsGrid}`}>
-          {scored.map((r, i) => (
-            <StructureCard key={r.forme} r={r} rank={i} params={params} gain={gain} />
-          ))}
+      {/* ── SECTION SOMBRE : COMPARAISON DES 4 STRUCTURES ── */}
+      <div className="rounded-3xl overflow-hidden relative" style={{ background: '#050c1a' }}>
+        {/* Dot grid */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }} />
+        {/* Center orb */}
+        <div style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          width: '700px', height: '700px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.10) 0%, transparent 65%)',
+          pointerEvents: 'none', zIndex: 0,
+        }} />
+
+        <div className="relative p-6 sm:p-8" style={{ zIndex: 1 }}>
+          {/* Title pill */}
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)',
+              borderRadius: '999px', padding: '4px 14px',
+              fontSize: '10px', fontWeight: 800, color: '#60A5FA',
+              textTransform: 'uppercase' as const, letterSpacing: '0.10em',
+            }}>
+              <span>✦</span> Comparaison des 4 structures
+            </div>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>Triées par score multicritère selon votre priorité</p>
+          </div>
+
+          {/* Cards grid */}
+          <div className={`grid gap-4 items-stretch ${cardsGrid}`}>
+            {scored.map((r, i) => (
+              <StructureCard key={r.forme} r={r} rank={i} params={params} gain={gain} />
+            ))}
+          </div>
+
+          {/* Analyse dynamique */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+            {buildAnalysis(scored, params, tmi, gain).map(item => (
+              <div key={item.title} className="rounded-2xl p-5" style={{
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <div className="text-2xl mb-3">{item.icon}</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: item.color }}>
+                  {item.title}
+                </div>
+                <div className="font-display text-2xl font-black mb-0.5" style={{ color: item.color }}>
+                  {item.value}
+                </div>
+                <div className="text-[10px] mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>{item.sub}</div>
+                <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -565,6 +610,43 @@ export function StepResultats() {
   )
 }
 
+/* ── buildAnalysis — 3 blocs analytiques dynamiques ── */
+function buildAnalysis(scored: StructureResult[], p: SimParams, tmi: number, gain: number) {
+  const best = scored[0]
+  const worst = scored[scored.length - 1]
+  const coutTotal = best.charges + best.ir + (best.is || 0)
+  const tauxGlobal = p.ca > 0 ? (coutTotal / p.ca * 100).toFixed(0) : '0'
+  const gainMois = Math.round(gain / 12)
+  return [
+    {
+      icon: '📊',
+      title: 'Taux de prélèvement global',
+      value: `${tauxGlobal}%`,
+      sub: `${fmt(coutTotal)}/an prélevés`,
+      desc: `Cotisations + IR + IS représentent ${tauxGlobal}% de votre CA de ${fmt(p.ca)} avec ${best.forme}. C'est le taux effectif le plus bas des 4 structures analysées.`,
+      color: '#60A5FA',
+    },
+    {
+      icon: '💶',
+      title: 'Gain de la décision',
+      value: gain > 500 ? `+${fmt(gain)}/an` : 'Structure optimale',
+      sub: gain > 500 ? `+${fmt(gainMois)}/mois` : `Score ${best.scoreTotal}/100`,
+      desc: gain > 500
+        ? `En choisissant ${best.forme} plutôt que ${worst.forme}, vous conservez ${fmt(gain)} supplémentaires par an — soit ${fmt(gainMois)} de plus par mois nets d'impôts.`
+        : `${best.forme} obtient le meilleur score multicritère sur les 4 structures analysées avec votre profil fiscal.`,
+      color: '#34D399',
+    },
+    {
+      icon: '🎯',
+      title: 'Votre TMI & quotient familial',
+      value: `${tmi}%`,
+      sub: `${p.parts} part${p.parts > 1 ? 's' : ''} fiscale${p.parts > 1 ? 's' : ''}`,
+      desc: `Avec ${p.parts} part${p.parts > 1 ? 's' : ''} fiscale${p.parts > 1 ? 's' : ''}, votre tranche marginale est à ${tmi}%. ${tmi <= 11 ? "Tranche basse — l'IR a un impact limité sur votre revenu net." : tmi <= 30 ? 'Tranche intermédiaire — le PER peut réduire votre IR de façon significative.' : 'Tranche haute — les leviers IS/PER/prévoyance sont très efficaces.'}`,
+      color: tmi <= 11 ? '#34D399' : tmi <= 30 ? '#FBBF24' : '#F87171',
+    },
+  ]
+}
+
 /* ── StructureCard — dark, hauteur uniforme ── */
 const CARD_PALETTES = [
   {
@@ -574,7 +656,16 @@ const CARD_PALETTES = [
     badgeColor: '#93C5FD',
     netColor: '#60A5FA',
     border: 'rgba(96,165,250,0.3)',
-    glow: 'rgba(96,165,250,0.15)',
+    glow: '0 0 0 2px rgba(96,165,250,0.4), 0 8px 32px rgba(0,0,0,0.25)',
+  },
+  {
+    headerBg: 'linear-gradient(135deg, #2d1b69, #1e1245)',
+    accent: '#A78BFA',
+    badgeBg: 'rgba(167,139,250,0.15)',
+    badgeColor: '#C4B5FD',
+    netColor: '#A78BFA',
+    border: 'rgba(167,139,250,0.3)',
+    glow: '0 4px 16px rgba(0,0,0,0.12)',
   },
   {
     headerBg: 'linear-gradient(135deg, #2d1f0e, #231808)',
@@ -583,7 +674,7 @@ const CARD_PALETTES = [
     badgeColor: '#FCD34D',
     netColor: '#FBBF24',
     border: 'rgba(251,191,36,0.25)',
-    glow: 'rgba(251,191,36,0.08)',
+    glow: '0 4px 16px rgba(0,0,0,0.10)',
   },
   {
     headerBg: 'linear-gradient(135deg, #1a1f2e, #141820)',
@@ -592,16 +683,7 @@ const CARD_PALETTES = [
     badgeColor: '#CBD5E1',
     netColor: '#94A3B8',
     border: 'rgba(148,163,184,0.2)',
-    glow: 'rgba(148,163,184,0.05)',
-  },
-  {
-    headerBg: 'linear-gradient(135deg, #141820, #0f1219)',
-    accent: '#64748B',
-    badgeBg: 'rgba(100,116,139,0.10)',
-    badgeColor: '#94A3B8',
-    netColor: '#64748B',
-    border: 'rgba(100,116,139,0.15)',
-    glow: 'rgba(100,116,139,0.04)',
+    glow: '0 2px 8px rgba(0,0,0,0.08)',
   },
 ]
 
@@ -619,13 +701,19 @@ function StructureCard({ r, rank, params, gain }: {
   const revBrut = Math.max(1, r.netAnnuel + r.charges + r.ir + (r.is || 0))
   const tauxEff = (r.ir / revBrut * 100).toFixed(1)
 
+  const ca = Math.max(1, params.ca)
+  const netPct = Math.min(100, r.netAnnuel / ca * 100)
+  const chargesPct = Math.min(100, r.charges / ca * 100)
+  const irPct = Math.min(100, r.ir / ca * 100)
+  const isPct = Math.min(100, (r.is || 0) / ca * 100)
+  const coutTotal = r.charges + r.ir + (r.is || 0)
+  const coutPct = (coutTotal / ca * 100).toFixed(0)
+
   return (
     <div className="rounded-2xl overflow-hidden flex flex-col"
       style={{
         border: `1px solid ${p.border}`,
-        boxShadow: isRec
-          ? `0 0 0 2px ${p.accent}40, 0 8px 32px rgba(0,0,0,0.2)`
-          : '0 2px 8px rgba(0,0,0,0.1)',
+        boxShadow: isRec ? p.glow : '0 2px 8px rgba(0,0,0,0.1)',
       }}>
 
       {/* Header */}
@@ -633,8 +721,7 @@ function StructureCard({ r, rank, params, gain }: {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             {isRec && <span className="text-sm leading-none">★</span>}
-            <span className="text-[10px] font-black uppercase tracking-widest"
-              style={{ color: p.accent }}>
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: p.accent }}>
               {isRec ? 'RECOMMANDÉ' : `${rank + 1}ème choix`}
             </span>
           </div>
@@ -647,14 +734,35 @@ function StructureCard({ r, rank, params, gain }: {
         <div className="text-xs text-white/40 truncate">{r.strat}</div>
       </div>
 
-      {/* Revenu net */}
-      <div className="px-5 py-5 border-b" style={{ borderColor: p.border + '40', background: '#0d1829' }}>
+      {/* Revenu net + barre proportionnelle */}
+      <div className="px-5 py-4 border-b" style={{ borderColor: p.border + '40', background: '#0d1829' }}>
         <div className="text-[10px] text-white/30 uppercase tracking-wide mb-1">Revenu net après impôts</div>
-        <div className="font-display text-4xl font-black tracking-tight leading-none mb-1.5"
-          style={{ color: p.netColor }}>
+        <div className="font-display text-4xl font-black tracking-tight leading-none mb-1" style={{ color: p.netColor }}>
           {fmt(r.netAnnuel)}
         </div>
-        <div className="text-sm text-white/40">{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
+        <div className="text-sm text-white/40 mb-3">{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
+
+        {/* Barre proportionnelle CA */}
+        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <div style={{ width: `${netPct}%`, background: '#34D399', transition: 'width 0.35s ease' }} />
+          <div style={{ width: `${chargesPct}%`, background: '#F87171' }} />
+          <div style={{ width: `${irPct}%`, background: '#FB923C' }} />
+          {r.is > 0 && <div style={{ width: `${isPct}%`, background: '#60A5FA' }} />}
+        </div>
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          {[
+            { color: '#34D399', label: `Net ${netPct.toFixed(0)}%` },
+            { color: '#F87171', label: `Cotis. ${chargesPct.toFixed(0)}%` },
+            { color: '#FB923C', label: `IR ${irPct.toFixed(0)}%` },
+            ...(r.is > 0 ? [{ color: '#60A5FA', label: `IS ${isPct.toFixed(0)}%` }] : []),
+          ].map(d => (
+            <div key={d.label} className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
+              <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.28)' }}>{d.label}</span>
+            </div>
+          ))}
+        </div>
+
         {isRec && gain > 500 && (
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
             style={{ background: 'rgba(52,211,153,0.12)', color: '#34D399' }}>
@@ -665,31 +773,51 @@ function StructureCard({ r, rank, params, gain }: {
 
       {/* Décomposition */}
       <div className="px-5 py-4 flex-1 space-y-2.5" style={{ background: '#0a1220' }}>
+        {/* Cotisations */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="text-xs font-medium text-white/60">Cotisations sociales</div>
-            <div className="text-[10px] text-white/30">
-              {r.forme.includes('SAS') ? 'Charges sal. + patronales' : 'SSI (TNS)'}
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#F87171' }} />
+              <div className="text-xs font-medium text-white/60">Cotisations sociales</div>
+            </div>
+            <div className="text-[10px] text-white/25 mt-0.5 ml-3">
+              {r.forme.includes('SAS') ? 'Sal. + patronales' : 'SSI (TNS)'} · {chargesPct.toFixed(0)}% CA
             </div>
           </div>
           <div className="text-sm font-bold text-red-400 flex-shrink-0">−{fmt(r.charges)}</div>
         </div>
+
+        {/* IR */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="text-xs font-medium text-white/60">Impôt sur le revenu</div>
-            <div className="text-[10px] text-white/30">TMI {cardTmi}% · {params.parts} parts</div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#FB923C' }} />
+              <div className="text-xs font-medium text-white/60">Impôt sur le revenu</div>
+            </div>
+            <div className="text-[10px] text-white/25 mt-0.5 ml-3">
+              TMI {cardTmi}% · {params.parts} parts · {irPct.toFixed(0)}% CA
+            </div>
           </div>
           <div className="text-sm font-bold text-orange-400 flex-shrink-0">−{fmt(r.ir)}</div>
         </div>
+
+        {/* IS */}
         {r.is > 0 && (
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="text-xs font-medium text-white/60">IS société</div>
-              <div className="text-[10px] text-white/30">15%/25% sur résultat</div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#60A5FA' }} />
+                <div className="text-xs font-medium text-white/60">IS société</div>
+              </div>
+              <div className="text-[10px] text-white/25 mt-0.5 ml-3">
+                15%/25% sur résultat · {isPct.toFixed(0)}% CA
+              </div>
             </div>
             <div className="text-sm font-bold text-blue-400 flex-shrink-0">−{fmt(r.is)}</div>
           </div>
         )}
+
+        {/* Dividendes */}
         {r.div > 0 && (
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -699,25 +827,40 @@ function StructureCard({ r, rank, params, gain }: {
             <div className="text-sm font-bold text-emerald-400 flex-shrink-0">+{fmt(r.div)}</div>
           </div>
         )}
+
+        {/* Coût total */}
+        <div className="pt-2.5" style={{ borderTop: `1px solid ${p.border}20` }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              Coût total (cotis. + impôts)
+            </div>
+            <div className="text-sm font-black" style={{ color: 'rgba(248,113,113,0.75)' }}>−{fmt(coutTotal)}</div>
+          </div>
+          <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.18)' }}>
+            {coutPct}% du CA de {fmt(params.ca)}
+          </div>
+        </div>
       </div>
 
       {/* Footer TMI */}
       <div className="px-5 py-3.5 grid grid-cols-3 divide-x divide-white/[0.07]"
         style={{ background: '#07101d', borderTop: `1px solid ${p.border}30` }}>
         <div className="text-center pr-3">
-          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-1">TMI</div>
-          <div className={`text-sm font-black
-            ${cardTmi <= 11 ? 'text-emerald-400' : cardTmi <= 30 ? 'text-amber-400' : 'text-red-400'}`}>
+          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">TMI</div>
+          <div className={`text-sm font-black ${cardTmi <= 11 ? 'text-emerald-400' : cardTmi <= 30 ? 'text-amber-400' : 'text-red-400'}`}>
             {cardTmi}%
           </div>
+          <div className="text-[8px] mt-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>Tranche marg.</div>
         </div>
         <div className="text-center px-3">
-          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-1">IR total</div>
+          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">IR total</div>
           <div className="text-sm font-black text-white/70">{fmt(r.ir)}</div>
+          <div className="text-[8px] mt-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>Impôt estimé</div>
         </div>
         <div className="text-center pl-3">
-          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-1">Taux eff.</div>
+          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Taux eff.</div>
           <div className="text-sm font-black text-white/70">{tauxEff}%</div>
+          <div className="text-[8px] mt-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>IR / Rev. brut</div>
         </div>
       </div>
     </div>
