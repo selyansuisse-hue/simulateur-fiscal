@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -9,11 +8,21 @@ import { LastSimulationCard } from '@/components/dashboard/LastSimulationCard'
 import { SimulationsTimeline } from '@/components/dashboard/SimulationsTimeline'
 import { ActionsSuggested } from '@/components/dashboard/ActionsSuggested'
 import { ExpertCTA } from '@/components/dashboard/ExpertCTA'
+import { DashboardGuest } from './DashboardGuest'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+
+  if (!user) {
+    return (
+      <>
+        <PageHeader />
+        <DashboardGuest />
+        <Footer />
+      </>
+    )
+  }
 
   const { data: rawSims = [] } = await supabase
     .from('simulations')
