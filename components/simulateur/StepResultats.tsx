@@ -726,7 +726,7 @@ function StructureCard({ r, rank, params, gain }: {
         <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '6px' }}>
           Revenu net après impôts
         </div>
-        <div style={{ fontSize: rank === 0 ? '48px' : '40px', fontWeight: 900, color: pal.netColor, letterSpacing: '-0.04em', lineHeight: '1', marginBottom: '4px' }}>
+        <div style={{ fontSize: rank === 0 ? '42px' : '36px', fontWeight: 900, color: pal.netColor, letterSpacing: '-0.03em', lineHeight: '1', marginBottom: '4px', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
           {fmt(r.netAnnuel)}
         </div>
         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
@@ -786,16 +786,16 @@ function StructureCard({ r, rank, params, gain }: {
       </div>
 
       {/* Footer */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: pal.footerBg }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', background: pal.footerBg }}>
         {[
           { label: 'TMI', val: `${cardTmi}%`, color: cardTmi <= 11 ? '#34D399' : cardTmi <= 30 ? '#FBBF24' : '#F87171', hint: cardTmi <= 11 ? 'Basse' : cardTmi <= 30 ? 'Interméd.' : 'Haute' },
           { label: 'IR total', val: fmt(r.ir), color: 'rgba(255,255,255,0.75)', hint: `${fmt(Math.round(r.ir / 12))}/mois` },
-          { label: 'Taux effectif', val: `${tauxEff}%`, color: 'rgba(255,255,255,0.55)', hint: 'Sur CA total' },
+          { label: 'Taux eff.', val: `${tauxEff}%`, color: 'rgba(255,255,255,0.55)', hint: 'Sur CA total' },
         ].map((f, fi) => (
-          <div key={fi} style={{ textAlign: 'center' as const, padding: '12px 8px', borderRight: fi < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '4px' }}>{f.label}</div>
-            <div style={{ fontSize: '15px', fontWeight: 900, color: f.color }}>{f.val}</div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', marginTop: '2px' }}>{f.hint}</div>
+          <div key={fi} style={{ textAlign: 'center' as const, padding: '12px 6px', borderRight: fi < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none', minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</div>
+            <div style={{ fontSize: '13px', fontWeight: 900, color: f.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.val}</div>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.hint}</div>
           </div>
         ))}
       </div>

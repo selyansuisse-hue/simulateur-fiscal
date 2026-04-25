@@ -153,10 +153,15 @@ function SliderField({ label, value, onChange, min, max, step, hint, hintColor }
 
 const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#475569' }
 const selectStyle: React.CSSProperties = {
-  width: '100%', padding: '8px 10px', borderRadius: '9px',
+  width: '100%', padding: '8px 28px 8px 10px', borderRadius: '9px',
   border: '1px solid #E2E8F0', background: '#F8FAFF',
   fontSize: '12px', fontWeight: 600, color: '#334155',
   cursor: 'pointer', outline: 'none',
+  appearance: 'none', WebkitAppearance: 'none',
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 8px center',
+  backgroundSize: '12px',
 }
 
 /* ── Page principale ── */
