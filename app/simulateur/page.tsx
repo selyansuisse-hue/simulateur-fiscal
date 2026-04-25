@@ -45,7 +45,7 @@ export default function SimulateurPage() {
               vraiment économiser ?
             </span>
           </h1>
-          <p className="text-[14px] text-white/42 max-w-md leading-relaxed">
+          <p className="text-[14px] text-white/60 max-w-md leading-relaxed">
             4 étapes. Comparaison Micro · EI · EURL · SASU sur vos chiffres réels. Barème IR & cotisations SSI 2025.
           </p>
         </div>

@@ -8,7 +8,6 @@ import { StructureResult } from '@/lib/fiscal'
 import { SimParams } from '@/lib/fiscal/types'
 import { SaveSimulationModal } from '@/components/simulateur/SaveSimulationModal'
 
-/* ── Analyse contextuelle ── */
 function genAnalyse(best: StructureResult, params: SimParams, tmi: number) {
   const ben = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
   const parts = calcPartsTotal(params.partsBase, params.nbEnfants)
@@ -35,7 +34,6 @@ function genAnalyse(best: StructureResult, params: SimParams, tmi: number) {
   return { pourquoi, attention }
 }
 
-/* ── LevierCard — mini-simulateur inline dépliable ── */
 interface LevierCardDef {
   icon: string
   titre: string
@@ -57,8 +55,6 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
   return (
     <div className="rounded-2xl overflow-hidden flex flex-col"
       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}>
-
-      {/* Header */}
       <div className="px-5 py-4 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl">{icon}</span>
@@ -71,8 +67,6 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
           <div className="font-display text-lg font-black text-emerald-400">+{fmt(gainCalcule > 0 ? gainCalcule : gainDefault)}/an</div>
         </div>
       </div>
-
-      {/* Toggle */}
       <div className="px-5 pb-4">
         <button onClick={() => setExpanded(!expanded)}
           className="text-xs font-semibold px-3 py-2 rounded-lg transition-all w-full text-center"
@@ -84,8 +78,6 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
           {expanded ? '▲ Fermer le simulateur' : '▼ Simuler mon économie'}
         </button>
       </div>
-
-      {/* Mini-simulateur */}
       {expanded && (
         <div className="px-5 pb-5 pt-4 flex-1"
           style={{ background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
@@ -121,7 +113,6 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
   )
 }
 
-/* ── Composant principal ── */
 export function StepResultats() {
   const { results, params, prevStep } = useSimulateur()
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -130,7 +121,6 @@ export function StepResultats() {
   const { scored, best, tmi, gain } = results
 
   const { pourquoi, attention } = genAnalyse(best, params, tmi)
-
   const benBrut = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
 
   const scenarioOptimise = useMemo(() => {
@@ -142,11 +132,7 @@ export function StepResultats() {
     const gainTotal = perGain + ikGain + domGain + prevGain
     return {
       perMax: Math.round(perMax),
-      perGain,
-      ikGain,
-      domGain,
-      prevGain,
-      gainTotal,
+      perGain, ikGain, domGain, prevGain, gainTotal,
       netOptimise: Math.round(best.netAnnuel + gainTotal),
     }
   }, [benBrut, tmi, best.netAnnuel])
@@ -158,7 +144,6 @@ export function StepResultats() {
     'grid-cols-1 sm:grid-cols-2'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
-
   const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}&source=simulation`
 
   return (
@@ -237,7 +222,7 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── POURQUOI CE CHOIX — 3 blocs dark ── */}
+      {/* ── POURQUOI CE CHOIX ── */}
       <div>
         <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-3">
           Pourquoi ce choix ?
@@ -273,46 +258,50 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── SECTION SOMBRE : COMPARAISON DES 4 STRUCTURES ── */}
-      <div className="rounded-3xl overflow-hidden relative" style={{ background: '#050c1a' }}>
-        {/* Dot grid */}
+      {/* ── COMPARAISON DES 4 STRUCTURES ── */}
+      <div className="rounded-3xl overflow-hidden relative" style={{
+        background: 'linear-gradient(180deg, #060e1f 0%, #050c1a 100%)',
+      }}>
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }} />
-        {/* Center orb */}
         <div style={{
-          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-          width: '700px', height: '700px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(37,99,235,0.10) 0%, transparent 65%)',
+          position: 'absolute', left: '50%', top: 0,
+          transform: 'translateX(-50%)',
+          width: '800px', height: '300px',
+          background: 'radial-gradient(ellipse, rgba(37,99,235,0.10) 0%, transparent 70%)',
           pointerEvents: 'none', zIndex: 0,
         }} />
 
-        <div className="relative p-6 sm:p-8" style={{ zIndex: 1 }}>
-          {/* Title pill */}
-          <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="relative p-6 sm:p-10" style={{ zIndex: 1 }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)',
-              borderRadius: '999px', padding: '4px 14px',
-              fontSize: '10px', fontWeight: 800, color: '#60A5FA',
-              textTransform: 'uppercase' as const, letterSpacing: '0.10em',
+              background: 'rgba(96,165,250,0.10)', border: '1px solid rgba(96,165,250,0.20)',
+              borderRadius: '999px', padding: '6px 16px', marginBottom: '14px',
             }}>
-              <span>✦</span> Comparaison des 4 structures
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#60A5FA', display: 'inline-block' }} />
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#93C5FD', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                Comparaison des 4 structures
+              </span>
             </div>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>Triées par score multicritère selon votre priorité</p>
+            <h2 style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', margin: '0 0 8px' }}>
+              Même CA · Même charges · Même foyer
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '14px', margin: 0 }}>
+              Triées par score multicritère selon votre priorité
+            </p>
           </div>
 
-          {/* Cards grid */}
           <div className={`grid gap-4 items-stretch ${cardsGrid}`}>
             {scored.map((r, i) => (
               <StructureCard key={r.forme} r={r} rank={i} params={params} gain={gain} />
             ))}
           </div>
 
-          {/* Analyse dynamique */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
             {buildAnalysis(scored, params, tmi, gain).map(item => (
               <div key={item.title} className="rounded-2xl p-5" style={{
                 background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
@@ -333,132 +322,114 @@ export function StepResultats() {
       </div>
 
       {/* ── PONT VERS L'EXPLORER ── */}
-      <div className="rounded-2xl overflow-hidden border border-slate-200"
-        style={{ background: 'linear-gradient(135deg, #EFF4FF, #EEF2FF)' }}>
-        <div className="px-6 py-5 flex items-center justify-between gap-6 flex-wrap">
-          <div>
-            <div className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">
-              🔍 Explorez les variantes
-            </div>
-            <div className="text-base font-bold text-slate-900">
-              Et si votre CA augmentait ? Et si vous vous mariez ?
-            </div>
-            <div className="text-sm text-slate-500 mt-0.5">
-              Ajustez vos paramètres en temps réel. Vos chiffres sont pré-chargés.
-            </div>
+      <div style={{
+        background: 'linear-gradient(135deg, #EFF6FF, #EEF2FF)',
+        border: '1px solid #BFDBFE',
+        borderRadius: '16px',
+        padding: '20px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '24px',
+        flexWrap: 'wrap' as const,
+      }}>
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 800, color: '#2563EB', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '4px' }}>
+            🔍 Module exploration
           </div>
-          <Link href={explorerUrl}
-            className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:-translate-y-0.5"
-            style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
-            <span>Ouvrir l&apos;explorateur</span>
-            <span>→</span>
-          </Link>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginBottom: '4px' }}>
+            Et si votre CA augmentait ? Et si vous vous mariez ?
+          </div>
+          <div style={{ fontSize: '13px', color: '#64748B' }}>
+            Vos chiffres sont pré-chargés dans l&apos;explorateur interactif.
+          </div>
+          <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' as const }}>
+            {[
+              `CA × 2 → ${fmt(params.ca * 2)}`,
+              'Se marier',
+              '2 enfants',
+              `PER max → ${fmt(Math.min(35194, Math.max(0, benBrut * 0.10)))}`,
+            ].map(preset => (
+              <span key={preset} style={{
+                fontSize: '11px', fontWeight: 600, color: '#3B82F6',
+                background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)',
+                padding: '3px 10px', borderRadius: '999px',
+              }}>
+                {preset}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="px-6 pb-4 flex flex-wrap gap-2">
-          {[
-            { label: `CA × 2 (${fmt(params.ca * 2)})`, emoji: '📈' },
-            { label: 'Se marier', emoji: '💍' },
-            { label: '2 enfants', emoji: '👨‍👩‍👧' },
-            { label: `PER ${fmt(Math.min(35194, Math.max(0, benBrut * 0.10)))}`, emoji: '📊' },
-          ].map(preset => (
-            <span key={preset.label}
-              className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full font-medium">
-              {preset.emoji} {preset.label}
-            </span>
-          ))}
-        </div>
+        <Link href={explorerUrl} style={{
+          flexShrink: 0, padding: '12px 24px', borderRadius: '12px',
+          fontWeight: 700, fontSize: '14px', color: '#fff',
+          textDecoration: 'none',
+          background: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+          boxShadow: '0 4px 14px rgba(29,78,216,0.35)',
+          whiteSpace: 'nowrap' as const,
+        }}>
+          Ouvrir l&apos;explorateur →
+        </Link>
       </div>
 
-      {/* ── SCÉNARIO OPTIMISÉ + LEVIERS UNIFIÉS ── */}
+      {/* ── SCÉNARIO OPTIMISÉ ── */}
       <div className="rounded-3xl overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #052e16, #064e23, #065f2c)' }}>
-
-        {/* Header */}
         <div className="px-8 pt-8 pb-6 border-b border-white/10">
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div>
-              <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">
-                ✦ Scénario optimisé
-              </div>
-              <h2 className="font-display text-2xl font-black text-white mb-1">
-                Ce que vous pourriez atteindre
-              </h2>
-              <p className="text-sm text-white/50">
-                En activant tous les leviers disponibles pour {best.forme}
-              </p>
+              <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">✦ Scénario optimisé</div>
+              <h2 className="font-display text-2xl font-black text-white mb-1">Ce que vous pourriez atteindre</h2>
+              <p className="text-sm text-white/50">En activant tous les leviers disponibles pour {best.forme}</p>
             </div>
             <div className="text-right flex-shrink-0">
               <div className="text-[10px] text-white/30 mb-1">Revenu net optimisé</div>
-              <div className="font-display text-4xl font-black text-emerald-400 tracking-tight">
-                {fmt(scenarioOptimise.netOptimise)}
-              </div>
-              <div className="text-sm text-emerald-400/60 mt-0.5">
-                +{fmt(scenarioOptimise.gainTotal)}/an supplémentaires
-              </div>
+              <div className="font-display text-4xl font-black text-emerald-400 tracking-tight">{fmt(scenarioOptimise.netOptimise)}</div>
+              <div className="text-sm text-emerald-400/60 mt-0.5">+{fmt(scenarioOptimise.gainTotal)}/an supplémentaires</div>
             </div>
           </div>
         </div>
-
-        {/* Les 4 leviers cliquables */}
         <div className="px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <LevierCard
-            icon="📊"
-            titre="PER individuel"
+            icon="📊" titre="PER individuel"
             detail={`Versement max : ${fmt(scenarioOptimise.perMax)}/an`}
             gainDefault={scenarioOptimise.perGain}
             explication={`À TMI ${tmi}%, chaque euro versé au PER réduit votre IR de ${tmi} centimes. C'est un double levier unique pour les TNS : économie IR + économie cotisations. Plafond 2025 : 10% du résultat, max ${fmt(35194)}/an.`}
-            inputLabel="Montant PER annuel (€)"
-            inputMax={Math.max(100, scenarioOptimise.perMax)}
-            inputDefault={scenarioOptimise.perMax}
-            calcGain={(val) => Math.round(val * tmi / 100)}
+            inputLabel="Montant PER annuel (€)" inputMax={Math.max(100, scenarioOptimise.perMax)}
+            inputDefault={scenarioOptimise.perMax} calcGain={(val) => Math.round(val * tmi / 100)}
           />
           <LevierCard
-            icon="🚗"
-            titre="Indemnités kilométriques"
+            icon="🚗" titre="Indemnités kilométriques"
             detail="Barème fiscal 2025 — déductible du résultat"
             gainDefault={scenarioOptimise.ikGain}
             explication={`Les IK sont déductibles de votre résultat (IS ou BIC) selon le barème fiscal 2025. Pour un véhicule 5CV : 0,636 €/km jusqu'à 5 000 km. Sur 8 000 km, la déduction est de ${fmt(Math.round(8000 * 0.636))}, soit une économie IS d'environ ${fmt(scenarioOptimise.ikGain)}.`}
-            inputLabel="Kilomètres professionnels / an"
-            inputMax={50000}
-            inputDefault={8000}
-            calcGain={(val) => Math.round(val * 0.636 * 0.15)}
+            inputLabel="Kilomètres professionnels / an" inputMax={50000}
+            inputDefault={8000} calcGain={(val) => Math.round(val * 0.636 * 0.15)}
           />
           <LevierCard
-            icon="🏠"
-            titre="Domiciliation domicile"
+            icon="🏠" titre="Domiciliation domicile"
             detail="Part bureau déductible au prorata surface"
             gainDefault={scenarioOptimise.domGain}
-            explication={`Si vous travaillez depuis votre domicile, une quote-part des charges (loyer, EDF, internet, assurance) est déductible au prorata de la surface bureau / surface totale. La pièce doit être dédiée à l'activité professionnelle.`}
-            inputLabel="Charges annuelles domicile (€)"
-            inputMax={30000}
-            inputDefault={12000}
-            calcGain={(val) => Math.round(val * 0.20 * 0.15)}
+            explication="Si vous travaillez depuis votre domicile, une quote-part des charges (loyer, EDF, internet, assurance) est déductible au prorata de la surface bureau / surface totale. La pièce doit être dédiée à l'activité professionnelle."
+            inputLabel="Charges annuelles domicile (€)" inputMax={30000}
+            inputDefault={12000} calcGain={(val) => Math.round(val * 0.20 * 0.15)}
           />
           <LevierCard
-            icon="🛡"
-            titre="Prévoyance TNS"
+            icon="🛡" titre="Prévoyance TNS"
             detail="Déductible du résultat IS ou BIC"
             gainDefault={scenarioOptimise.prevGain}
             explication={`Les primes de prévoyance (arrêt maladie, invalidité, décès) sont entièrement déductibles du résultat. Double avantage : protection renforcée ET économie fiscale immédiate. Pour ${fmt(Math.max(1000, Math.round(benBrut * 0.02)))}/an de prime, l'économie IS estimée est de ${fmt(scenarioOptimise.prevGain)}.`}
-            inputLabel="Prime annuelle prévoyance (€)"
-            inputMax={10000}
-            inputDefault={Math.max(1000, Math.round(benBrut * 0.02))}
-            calcGain={(val) => Math.round(val * 0.15)}
+            inputLabel="Prime annuelle prévoyance (€)" inputMax={10000}
+            inputDefault={Math.max(1000, Math.round(benBrut * 0.02))} calcGain={(val) => Math.round(val * 0.15)}
           />
         </div>
-
-        {/* Footer total + CTA */}
         <div className="px-8 pb-8">
           <div className="flex items-center justify-between pt-5 flex-wrap gap-4"
             style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             <div>
               <div className="text-sm text-white/50">Gain potentiel total estimé</div>
-              <div className="font-display text-2xl font-black text-emerald-400">
-                +{fmt(scenarioOptimise.gainTotal)}/an
-              </div>
-              <div className="text-xs text-white/30 mt-0.5">
-                Estimations indicatives · À valider avec un expert-comptable
-              </div>
+              <div className="font-display text-2xl font-black text-emerald-400">+{fmt(scenarioOptimise.gainTotal)}/an</div>
+              <div className="text-xs text-white/30 mt-0.5">Estimations indicatives · À valider avec un expert-comptable</div>
             </div>
             <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
               className="px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-0.5"
@@ -469,7 +440,7 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── PROTECTION SOCIALE — tableau compact ── */}
+      {/* ── PROTECTION SOCIALE ── */}
       <div>
         <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-3">
           Protection sociale
@@ -480,16 +451,11 @@ export function StepResultats() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-surface border-b border-surface2">
-                  <th className="text-left text-[10px] font-bold tracking-wide uppercase text-ink3 px-4 py-3 min-w-[140px]">
-                    Critère
-                  </th>
+                  <th className="text-left text-[10px] font-bold tracking-wide uppercase text-ink3 px-4 py-3 min-w-[140px]">Critère</th>
                   {scored.map((r, i) => (
-                    <th key={r.forme} className={`text-left text-[10px] font-bold tracking-wide uppercase px-4 py-3 whitespace-nowrap
-                      ${i === 0 ? 'text-blue' : 'text-ink3'}`}>
+                    <th key={r.forme} className={`text-left text-[10px] font-bold tracking-wide uppercase px-4 py-3 whitespace-nowrap ${i === 0 ? 'text-blue' : 'text-ink3'}`}>
                       {r.forme}
-                      {i === 0 && (
-                        <span className="ml-1.5 text-[8px] bg-blue text-white px-1.5 py-0.5 rounded-full">★</span>
-                      )}
+                      {i === 0 && <span className="ml-1.5 text-[8px] bg-blue text-white px-1.5 py-0.5 rounded-full">★</span>}
                     </th>
                   ))}
                 </tr>
@@ -503,21 +469,15 @@ export function StepResultats() {
                   { label: 'Qualité globale', fn: (r: StructureResult) => r.prot.qual },
                 ] as const).map((row, ri) => (
                   <tr key={row.label} className={ri % 2 === 0 ? 'bg-white' : 'bg-surface/40'}>
-                    <td className="px-4 py-3 text-[12px] font-semibold text-ink3 border-b border-surface2">
-                      {row.label}
-                    </td>
+                    <td className="px-4 py-3 text-[12px] font-semibold text-ink3 border-b border-surface2">{row.label}</td>
                     {scored.map((r, ci) => {
                       const val = row.fn(r)
                       const isQual = row.label === 'Qualité globale'
                       const qualColor = isQual
-                        ? val === 'bon' ? 'text-green-700 font-bold'
-                          : val === 'moyen' ? 'text-amber-700 font-bold'
-                          : 'text-red-700 font-bold'
+                        ? val === 'bon' ? 'text-green-700 font-bold' : val === 'moyen' ? 'text-amber-700 font-bold' : 'text-red-700 font-bold'
                         : ci === 0 ? 'text-blue font-bold' : 'text-ink'
                       return (
-                        <td key={r.forme} className={`px-4 py-3 text-[12px] border-b border-surface2 ${qualColor}`}>
-                          {val}
-                        </td>
+                        <td key={r.forme} className={`px-4 py-3 text-[12px] border-b border-surface2 ${qualColor}`}>{val}</td>
                       )
                     })}
                   </tr>
@@ -537,58 +497,82 @@ export function StepResultats() {
         </div>
       </div>
 
-      {/* ── CTA FINAL — 2 colonnes ── */}
-      <div className="rounded-2xl relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0d1627 0%, #0d1f3c 100%)' }}>
-        <div className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle,rgba(37,99,235,.18) 0%,transparent 65%)', top: '-12rem', right: '-6rem' }} />
-        <div className="relative grid grid-cols-1 sm:grid-cols-2">
-          <div className="p-8">
-            <h3 className="font-display text-2xl font-black text-white mb-2.5 tracking-tight">
-              Ces résultats vous intéressent ?
-            </h3>
-            <p className="text-sm mb-6 leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Prenons rendez-vous pour affiner votre situation réelle et mettre en place les leviers identifiés.
-              Cabinet Belho Xper — Lyon &amp; Montluel.
+      {/* ── CTA FINAL ── */}
+      <div className="rounded-3xl relative overflow-hidden" style={{
+        background: 'linear-gradient(135deg, #050c1a 0%, #071428 50%, #0a1628 100%)',
+        boxShadow: '0 0 60px rgba(37,99,235,0.15)',
+        border: '1px solid rgba(96,165,250,0.15)',
+      }}>
+        <div className="absolute pointer-events-none" style={{
+          right: '-4rem', top: '-4rem',
+          width: '400px', height: '400px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.25) 0%, transparent 65%)',
+        }} />
+        <div className="relative flex flex-wrap gap-10 p-8 sm:p-10 items-center">
+          <div style={{ flex: '1 1 300px' }}>
+            <div style={{
+              fontSize: '10px', fontWeight: 800, color: '#60A5FA',
+              textTransform: 'uppercase' as const, letterSpacing: '0.1em',
+              marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#60A5FA', display: 'inline-block' }} />
+              Cabinet Belho Xper · Lyon &amp; Montluel
+            </div>
+            <h2 style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: '1.1', margin: '0 0 12px' }}>
+              Vous voulez aller plus loin ?
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.50)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 24px', maxWidth: '440px' }}>
+              Ces résultats sont des estimations certifiées barème 2025.
+              Nos experts affinent votre stratégie et vous accompagnent dans la mise en œuvre concrète.
             </p>
-            <div className="flex gap-3 flex-wrap">
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' as const }}>
               <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                className="px-6 py-3 bg-blue text-white font-bold text-sm rounded-lg hover:bg-blue-dark hover:-translate-y-0.5 transition-all"
-                style={{ boxShadow: '0 4px 16px rgba(29,78,216,.4)' }}>
-                Prendre RDV →
+                style={{
+                  padding: '13px 28px', borderRadius: '14px', fontWeight: 700, fontSize: '14px',
+                  color: '#fff', textDecoration: 'none',
+                  background: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+                  boxShadow: '0 6px 20px rgba(29,78,216,0.45)',
+                }}>
+                Prendre RDV gratuitement →
               </a>
               <button onClick={() => setShowSaveModal(true)}
-                className="px-6 py-3 font-semibold text-sm rounded-lg border transition-all hover:bg-white/15 hover:-translate-y-0.5"
-                style={{ background: 'rgba(255,255,255,.08)', color: '#fff', border: '1px solid rgba(255,255,255,.15)' }}>
-                💾 Enregistrer
+                style={{
+                  padding: '13px 28px', borderRadius: '14px', fontWeight: 700, fontSize: '14px',
+                  color: 'rgba(255,255,255,0.70)', cursor: 'pointer',
+                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+                }}>
+                💾 Enregistrer &amp; comparer
               </button>
             </div>
           </div>
-          <div className="p-8 flex items-center" style={{ borderLeft: '1px solid rgba(255,255,255,.07)' }}>
-            <div className="w-full rounded-2xl p-5 space-y-4" style={{ background: 'rgba(255,255,255,.05)' }}>
-              <div>
-                <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                  {best.forme}
-                </div>
-                <div className="font-display text-3xl font-black text-emerald-400">{fmt(best.netAnnuel)}</div>
-                <div className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                  {fmt(Math.round(best.netAnnuel / 12))}/mois
+
+          <div style={{
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: '18px', padding: '24px', minWidth: '220px', textAlign: 'center',
+            flexShrink: 0,
+          }}>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '8px' }}>
+              Meilleur résultat simulé
+            </div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.50)', marginBottom: '4px' }}>
+              {best.forme}
+            </div>
+            <div style={{ fontSize: '42px', fontWeight: 900, color: '#60A5FA', letterSpacing: '-0.04em', lineHeight: '1', marginBottom: '6px' }}>
+              {fmt(best.netAnnuel)}
+            </div>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '16px' }}>
+              {fmt(Math.round(best.netAnnuel / 12))}/mois net
+            </div>
+            {gain > 500 && (
+              <div style={{ background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.20)', borderRadius: '10px', padding: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#34D399' }}>+{fmt(gain)}/an</div>
+                <div style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(52,211,153,0.60)', marginTop: '1px' }}>
+                  vs structure la moins avantageuse
                 </div>
               </div>
-              {gain > 500 && (
-                <div className="pt-4 space-y-0.5" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
-                  <div className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    Gain vs moins avantageuse
-                  </div>
-                  <div className="font-display text-xl font-bold text-emerald-400">+{fmt(gain)}/an</div>
-                </div>
-              )}
-              <div className="pt-4 space-y-0.5" style={{ borderTop: '1px solid rgba(255,255,255,.08)' }}>
-                <div className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                  Score multicritère
-                </div>
-                <div className="font-display text-xl font-bold text-white">{best.scoreTotal}/100</div>
-              </div>
+            )}
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.18)', marginTop: '14px', lineHeight: '1.5' }}>
+              Simulation indicative · Barème 2025 · À valider avec votre expert-comptable
             </div>
           </div>
         </div>
@@ -602,7 +586,6 @@ export function StepResultats() {
         </button>
       </div>
 
-      {/* Modales */}
       {showSaveModal && (
         <SaveSimulationModal onClose={() => setShowSaveModal(false)} results={results} params={params} tmi={tmi} />
       )}
@@ -610,7 +593,6 @@ export function StepResultats() {
   )
 }
 
-/* ── buildAnalysis — 3 blocs analytiques dynamiques ── */
 function buildAnalysis(scored: StructureResult[], p: SimParams, tmi: number, gain: number) {
   const best = scored[0]
   const worst = scored[scored.length - 1]
@@ -619,16 +601,13 @@ function buildAnalysis(scored: StructureResult[], p: SimParams, tmi: number, gai
   const gainMois = Math.round(gain / 12)
   return [
     {
-      icon: '📊',
-      title: 'Taux de prélèvement global',
-      value: `${tauxGlobal}%`,
-      sub: `${fmt(coutTotal)}/an prélevés`,
+      icon: '📊', title: 'Taux de prélèvement global',
+      value: `${tauxGlobal}%`, sub: `${fmt(coutTotal)}/an prélevés`,
       desc: `Cotisations + IR + IS représentent ${tauxGlobal}% de votre CA de ${fmt(p.ca)} avec ${best.forme}. C'est le taux effectif le plus bas des 4 structures analysées.`,
       color: '#60A5FA',
     },
     {
-      icon: '💶',
-      title: 'Gain de la décision',
+      icon: '💶', title: 'Gain de la décision',
       value: gain > 500 ? `+${fmt(gain)}/an` : 'Structure optimale',
       sub: gain > 500 ? `+${fmt(gainMois)}/mois` : `Score ${best.scoreTotal}/100`,
       desc: gain > 500
@@ -637,8 +616,7 @@ function buildAnalysis(scored: StructureResult[], p: SimParams, tmi: number, gai
       color: '#34D399',
     },
     {
-      icon: '🎯',
-      title: 'Votre TMI & quotient familial',
+      icon: '🎯', title: 'Votre TMI & quotient familial',
       value: `${tmi}%`,
       sub: `${p.parts} part${p.parts > 1 ? 's' : ''} fiscale${p.parts > 1 ? 's' : ''}`,
       desc: `Avec ${p.parts} part${p.parts > 1 ? 's' : ''} fiscale${p.parts > 1 ? 's' : ''}, votre tranche marginale est à ${tmi}%. ${tmi <= 11 ? "Tranche basse — l'IR a un impact limité sur votre revenu net." : tmi <= 30 ? 'Tranche intermédiaire — le PER peut réduire votre IR de façon significative.' : 'Tranche haute — les leviers IS/PER/prévoyance sont très efficaces.'}`,
@@ -647,43 +625,54 @@ function buildAnalysis(scored: StructureResult[], p: SimParams, tmi: number, gai
   ]
 }
 
-/* ── StructureCard — dark, hauteur uniforme ── */
 const CARD_PALETTES = [
   {
-    headerBg: 'linear-gradient(135deg, #1e3a5f, #152d4a)',
-    accent: '#60A5FA',
-    badgeBg: 'rgba(96,165,250,0.15)',
-    badgeColor: '#93C5FD',
+    cardBg: 'linear-gradient(180deg, #0d1f3c 0%, #0a1628 100%)',
+    headerBg: 'linear-gradient(135deg, rgba(37,99,235,0.4), rgba(29,78,216,0.2))',
+    border: '2px solid rgba(96,165,250,0.5)',
+    glow: '0 0 40px rgba(37,99,235,0.3), 0 0 0 2px rgba(96,165,250,0.4)',
+    rankText: '★ RECOMMANDÉ',
+    rankColor: '#93C5FD',
+    badgeBg: 'rgba(96,165,250,0.2)',
+    badgeColor: '#BFDBFE',
     netColor: '#60A5FA',
-    border: 'rgba(96,165,250,0.3)',
-    glow: '0 0 0 2px rgba(96,165,250,0.4), 0 8px 32px rgba(0,0,0,0.25)',
+    footerBg: 'rgba(37,99,235,0.08)',
   },
   {
-    headerBg: 'linear-gradient(135deg, #2d1b69, #1e1245)',
-    accent: '#A78BFA',
+    cardBg: 'linear-gradient(180deg, #130d2e 0%, #0e0920 100%)',
+    headerBg: 'linear-gradient(135deg, rgba(124,58,237,0.35), rgba(109,40,217,0.18))',
+    border: '1.5px solid rgba(167,139,250,0.35)',
+    glow: '0 0 30px rgba(124,58,237,0.2), 0 0 0 1.5px rgba(167,139,250,0.3)',
+    rankText: '2ÈME CHOIX',
+    rankColor: '#C4B5FD',
     badgeBg: 'rgba(167,139,250,0.15)',
-    badgeColor: '#C4B5FD',
+    badgeColor: '#DDD6FE',
     netColor: '#A78BFA',
-    border: 'rgba(167,139,250,0.3)',
-    glow: '0 4px 16px rgba(0,0,0,0.12)',
+    footerBg: 'rgba(124,58,237,0.06)',
   },
   {
-    headerBg: 'linear-gradient(135deg, #2d1f0e, #231808)',
-    accent: '#FBBF24',
+    cardBg: 'linear-gradient(180deg, #1a1200 0%, #120d00 100%)',
+    headerBg: 'linear-gradient(135deg, rgba(217,119,6,0.35), rgba(180,83,9,0.18))',
+    border: '1.5px solid rgba(251,191,36,0.30)',
+    glow: '0 0 30px rgba(217,119,6,0.15), 0 0 0 1.5px rgba(251,191,36,0.25)',
+    rankText: '3ÈME CHOIX',
+    rankColor: '#FCD34D',
     badgeBg: 'rgba(251,191,36,0.15)',
-    badgeColor: '#FCD34D',
+    badgeColor: '#FDE68A',
     netColor: '#FBBF24',
-    border: 'rgba(251,191,36,0.25)',
-    glow: '0 4px 16px rgba(0,0,0,0.10)',
+    footerBg: 'rgba(217,119,6,0.06)',
   },
   {
-    headerBg: 'linear-gradient(135deg, #1a1f2e, #141820)',
-    accent: '#94A3B8',
-    badgeBg: 'rgba(148,163,184,0.12)',
+    cardBg: 'linear-gradient(180deg, #0f1520 0%, #0a1018 100%)',
+    headerBg: 'linear-gradient(135deg, rgba(100,116,139,0.25), rgba(71,85,105,0.12))',
+    border: '1.5px solid rgba(148,163,184,0.20)',
+    glow: '0 0 0 1.5px rgba(148,163,184,0.18)',
+    rankText: '4ÈME CHOIX',
+    rankColor: '#94A3B8',
+    badgeBg: 'rgba(148,163,184,0.10)',
     badgeColor: '#CBD5E1',
     netColor: '#94A3B8',
-    border: 'rgba(148,163,184,0.2)',
-    glow: '0 2px 8px rgba(0,0,0,0.08)',
+    footerBg: 'rgba(100,116,139,0.04)',
   },
 ]
 
@@ -693,14 +682,11 @@ function StructureCard({ r, rank, params, gain }: {
   params: SimParams
   gain: number
 }) {
-  const isRec = rank === 0
-  const p = CARD_PALETTES[Math.min(rank, CARD_PALETTES.length - 1)]
-
+  const pal = CARD_PALETTES[Math.min(rank, CARD_PALETTES.length - 1)]
   const cardTmiBase = r.baseIR ?? r.bNet ?? r.ben
   const cardTmi = Math.round(tmiRate((cardTmiBase || 0) + params.autresRev, params.partsBase, params.nbEnfants) * 100)
   const revBrut = Math.max(1, r.netAnnuel + r.charges + r.ir + (r.is || 0))
   const tauxEff = (r.ir / revBrut * 100).toFixed(1)
-
   const ca = Math.max(1, params.ca)
   const netPct = Math.min(100, r.netAnnuel / ca * 100)
   const chargesPct = Math.min(100, r.charges / ca * 100)
@@ -710,158 +696,108 @@ function StructureCard({ r, rank, params, gain }: {
   const coutPct = (coutTotal / ca * 100).toFixed(0)
 
   return (
-    <div className="rounded-2xl overflow-hidden flex flex-col"
-      style={{
-        border: `1px solid ${p.border}`,
-        boxShadow: isRec ? p.glow : '0 2px 8px rgba(0,0,0,0.1)',
-      }}>
-
+    <div style={{
+      background: pal.cardBg,
+      borderRadius: '20px',
+      overflow: 'hidden',
+      boxShadow: pal.glow,
+      border: pal.border,
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
       {/* Header */}
-      <div className="px-5 pt-5 pb-4" style={{ background: p.headerBg }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {isRec && <span className="text-sm leading-none">★</span>}
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: p.accent }}>
-              {isRec ? 'RECOMMANDÉ' : `${rank + 1}ème choix`}
-            </span>
-          </div>
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: p.badgeBg, color: p.badgeColor }}>
+      <div style={{ padding: '18px 20px 14px', background: pal.headerBg, borderBottom: `1px solid ${pal.rankColor}20` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: pal.rankColor }}>
+            {pal.rankText}
+          </span>
+          <span style={{ fontSize: '11px', fontWeight: 700, background: pal.badgeBg, color: pal.badgeColor, padding: '3px 10px', borderRadius: '999px' }}>
             {r.scoreTotal}/100
           </span>
         </div>
-        <div className="text-base font-bold text-white mb-0.5">{r.forme}</div>
-        <div className="text-xs text-white/40 truncate">{r.strat}</div>
+        <div style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '2px' }}>{r.forme}</div>
+        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+          {r.strat}
+        </div>
       </div>
 
-      {/* Revenu net + barre proportionnelle */}
-      <div className="px-5 py-4 border-b" style={{ borderColor: p.border + '40', background: '#0d1829' }}>
-        <div className="text-[10px] text-white/30 uppercase tracking-wide mb-1">Revenu net après impôts</div>
-        <div className="font-display text-4xl font-black tracking-tight leading-none mb-1" style={{ color: p.netColor }}>
+      {/* Revenu net */}
+      <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '6px' }}>
+          Revenu net après impôts
+        </div>
+        <div style={{ fontSize: rank === 0 ? '48px' : '40px', fontWeight: 900, color: pal.netColor, letterSpacing: '-0.04em', lineHeight: '1', marginBottom: '4px' }}>
           {fmt(r.netAnnuel)}
         </div>
-        <div className="text-sm text-white/40 mb-3">{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
+        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
+        {rank === 0 && gain > 500 && (
+          <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: '10px', padding: '6px 12px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: '#34D399' }}>+{fmt(gain)}/an vs moins avantageuse</span>
+          </div>
+        )}
+      </div>
 
-        {/* Barre proportionnelle CA */}
-        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.06)' }}>
-          <div style={{ width: `${netPct}%`, background: '#34D399', transition: 'width 0.35s ease' }} />
-          <div style={{ width: `${chargesPct}%`, background: '#F87171' }} />
-          <div style={{ width: `${irPct}%`, background: '#FB923C' }} />
-          {r.is > 0 && <div style={{ width: `${isPct}%`, background: '#60A5FA' }} />}
+      {/* Barre proportionnelle */}
+      <div style={{ padding: '14px 20px 0' }}>
+        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', height: '6px', marginBottom: '4px' }}>
+          <div style={{ width: `${netPct.toFixed(0)}%`, background: pal.netColor, transition: 'width 400ms' }} />
+          <div style={{ width: `${chargesPct.toFixed(0)}%`, background: '#F87171', transition: 'width 400ms' }} />
+          <div style={{ width: `${irPct.toFixed(0)}%`, background: '#FB923C', transition: 'width 400ms' }} />
+          {r.is > 0 && <div style={{ width: `${isPct.toFixed(0)}%`, background: '#818CF8', transition: 'width 400ms' }} />}
         </div>
-        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' as const, marginBottom: '12px' }}>
           {[
-            { color: '#34D399', label: `Net ${netPct.toFixed(0)}%` },
-            { color: '#F87171', label: `Cotis. ${chargesPct.toFixed(0)}%` },
-            { color: '#FB923C', label: `IR ${irPct.toFixed(0)}%` },
-            ...(r.is > 0 ? [{ color: '#60A5FA', label: `IS ${isPct.toFixed(0)}%` }] : []),
-          ].map(d => (
-            <div key={d.label} className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
-              <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.28)' }}>{d.label}</span>
+            { dot: pal.netColor, label: 'Net' },
+            { dot: '#F87171', label: 'Cotis.' },
+            { dot: '#FB923C', label: 'IR' },
+            ...(r.is > 0 ? [{ dot: '#818CF8', label: 'IS' }] : []),
+          ].map(l => (
+            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: 'rgba(255,255,255,0.30)' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: l.dot, flexShrink: 0 }} />
+              {l.label}
             </div>
           ))}
         </div>
-
-        {isRec && gain > 500 && (
-          <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
-            style={{ background: 'rgba(52,211,153,0.12)', color: '#34D399' }}>
-            +{fmt(gain)}/an vs moins avantageuse
-          </div>
-        )}
       </div>
 
       {/* Décomposition */}
-      <div className="px-5 py-4 flex-1 space-y-2.5" style={{ background: '#0a1220' }}>
-        {/* Cotisations */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#F87171' }} />
-              <div className="text-xs font-medium text-white/60">Cotisations sociales</div>
-            </div>
-            <div className="text-[10px] text-white/25 mt-0.5 ml-3">
-              {r.forme.includes('SAS') ? 'Sal. + patronales' : 'SSI (TNS)'} · {chargesPct.toFixed(0)}% CA
-            </div>
-          </div>
-          <div className="text-sm font-bold text-red-400 flex-shrink-0">−{fmt(r.charges)}</div>
-        </div>
-
-        {/* IR */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#FB923C' }} />
-              <div className="text-xs font-medium text-white/60">Impôt sur le revenu</div>
-            </div>
-            <div className="text-[10px] text-white/25 mt-0.5 ml-3">
-              TMI {cardTmi}% · {params.parts} parts · {irPct.toFixed(0)}% CA
-            </div>
-          </div>
-          <div className="text-sm font-bold text-orange-400 flex-shrink-0">−{fmt(r.ir)}</div>
-        </div>
-
-        {/* IS */}
-        {r.is > 0 && (
-          <div className="flex items-start justify-between gap-2">
+      <div style={{ padding: '0 20px 16px', flex: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        {[
+          { label: 'Cotisations sociales', hint: r.forme.includes('SAS') ? 'Charges sal. + patronales' : 'SSI (TNS) — maladie, retraite', val: r.charges, color: '#F87171', sign: '−' },
+          { label: 'Impôt sur le revenu', hint: `TMI ${cardTmi}% · ${params.parts} parts`, val: r.ir, color: '#FB923C', sign: '−' },
+          ...(r.is > 0 ? [{ label: 'IS société', hint: "15% jusqu'à 42 500 € · 25% au-delà", val: r.is, color: '#818CF8', sign: '−' }] : []),
+          ...(r.div > 0 ? [{ label: 'Dividendes perçus', hint: r.methDiv || 'PFU 30%', val: r.div, color: '#34D399', sign: '+' }] : []),
+        ].map((row, ri) => (
+          <div key={ri} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#60A5FA' }} />
-                <div className="text-xs font-medium text-white/60">IS société</div>
-              </div>
-              <div className="text-[10px] text-white/25 mt-0.5 ml-3">
-                15%/25% sur résultat · {isPct.toFixed(0)}% CA
-              </div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.70)' }}>{row.label}</div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.28)', marginTop: '1px' }}>{row.hint}</div>
             </div>
-            <div className="text-sm font-bold text-blue-400 flex-shrink-0">−{fmt(r.is)}</div>
+            <div style={{ fontSize: '13px', fontWeight: 800, color: row.color, flexShrink: 0 }}>{row.sign}{fmt(row.val)}</div>
           </div>
-        )}
-
-        {/* Dividendes */}
-        {r.div > 0 && (
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="text-xs font-medium text-white/60">Dividendes</div>
-              <div className="text-[10px] text-white/30">{r.methDiv || 'PFU 30%'}</div>
-            </div>
-            <div className="text-sm font-bold text-emerald-400 flex-shrink-0">+{fmt(r.div)}</div>
+        ))}
+        <div style={{ paddingTop: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.30)' }}>Coût total (cotis. + impôts)</div>
+            <div style={{ fontSize: '13px', fontWeight: 900, color: 'rgba(248,113,113,0.75)' }}>−{fmt(coutTotal)}</div>
           </div>
-        )}
-
-        {/* Coût total */}
-        <div className="pt-2.5" style={{ borderTop: `1px solid ${p.border}20` }}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.35)' }}>
-              Coût total (cotis. + impôts)
-            </div>
-            <div className="text-sm font-black" style={{ color: 'rgba(248,113,113,0.75)' }}>−{fmt(coutTotal)}</div>
-          </div>
-          <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.18)' }}>
-            {coutPct}% du CA de {fmt(params.ca)}
-          </div>
+          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.18)', marginTop: '2px' }}>{coutPct}% du CA de {fmt(params.ca)}</div>
         </div>
       </div>
 
-      {/* Footer TMI */}
-      <div className="px-5 py-3.5 grid grid-cols-3 divide-x divide-white/[0.07]"
-        style={{ background: '#07101d', borderTop: `1px solid ${p.border}30` }}>
-        <div className="text-center pr-3">
-          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">TMI</div>
-          <div className={`text-sm font-black ${cardTmi <= 11 ? 'text-emerald-400' : cardTmi <= 30 ? 'text-amber-400' : 'text-red-400'}`}>
-            {cardTmi}%
+      {/* Footer */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: pal.footerBg }}>
+        {[
+          { label: 'TMI', val: `${cardTmi}%`, color: cardTmi <= 11 ? '#34D399' : cardTmi <= 30 ? '#FBBF24' : '#F87171', hint: cardTmi <= 11 ? 'Basse' : cardTmi <= 30 ? 'Interméd.' : 'Haute' },
+          { label: 'IR total', val: fmt(r.ir), color: 'rgba(255,255,255,0.75)', hint: `${fmt(Math.round(r.ir / 12))}/mois` },
+          { label: 'Taux effectif', val: `${tauxEff}%`, color: 'rgba(255,255,255,0.55)', hint: 'Sur CA total' },
+        ].map((f, fi) => (
+          <div key={fi} style={{ textAlign: 'center' as const, padding: '12px 8px', borderRight: fi < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '4px' }}>{f.label}</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: f.color }}>{f.val}</div>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', marginTop: '2px' }}>{f.hint}</div>
           </div>
-          <div className="text-[8px] mt-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>Tranche marg.</div>
-        </div>
-        <div className="text-center px-3">
-          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">IR total</div>
-          <div className="text-sm font-black text-white/70">{fmt(r.ir)}</div>
-          <div className="text-[8px] mt-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>Impôt estimé</div>
-        </div>
-        <div className="text-center pl-3">
-          <div className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Taux eff.</div>
-          <div className="text-sm font-black text-white/70">{tauxEff}%</div>
-          <div className="text-[8px] mt-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>IR / Rev. brut</div>
-        </div>
+        ))}
       </div>
     </div>
   )
