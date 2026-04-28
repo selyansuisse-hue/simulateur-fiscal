@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const PROTECTED = ['/profil']
+const PROTECTED = ['/profil', '/cabinet']
+const ADMIN_ONLY = ['/admin']
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -32,6 +33,17 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/auth/login'
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
+  }
+
+  const isAdminOnly = ADMIN_ONLY.some(p => pathname.startsWith(p))
+  if (isAdminOnly) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+    if (!adminEmails.includes(user.email?.toLowerCase() || '')) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   if (user && (pathname === '/auth/login' || pathname === '/auth/signup')) {
