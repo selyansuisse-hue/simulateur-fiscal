@@ -45,6 +45,10 @@ export default async function DashboardPage() {
 
   return (
     <>
+      <style>{`
+        .sim-card:hover { border-color: rgba(71,85,105,0.8) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important; }
+        .dash-btn-new:hover { background: #1d4ed8 !important; }
+      `}</style>
       <PageHeader />
       <div style={{ minHeight: '100vh', background: '#020617' }}>
 
@@ -73,15 +77,12 @@ export default async function DashboardPage() {
                 </p>
               </div>
             </div>
-            <Link href="/simulateur" style={{
+            <Link href="/simulateur" className="dash-btn-new" style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               background: '#2563eb', color: '#fff', borderRadius: '12px',
               padding: '10px 20px', fontSize: '14px', fontWeight: 600,
               textDecoration: 'none', transition: 'background 150ms',
-            }}
-              onMouseOver={e => (e.currentTarget.style.background = '#1d4ed8')}
-              onMouseOut={e => (e.currentTarget.style.background = '#2563eb')}
-            >
+            }}>
               Nouvelle simulation →
             </Link>
           </div>
@@ -137,20 +138,11 @@ export default async function DashboardPage() {
                     day: 'numeric', month: 'short', year: 'numeric',
                   })
                   return (
-                    <div key={sim.id as string} style={{
+                    <div key={sim.id as string} className="sim-card" style={{
                       background: '#0f172a', border: '1px solid rgba(51,65,85,0.5)',
                       borderRadius: '18px', padding: '20px',
                       transition: 'border-color 150ms, box-shadow 150ms',
-                    }}
-                      onMouseOver={e => {
-                        e.currentTarget.style.borderColor = 'rgba(71,85,105,0.8)'
-                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)'
-                      }}
-                      onMouseOut={e => {
-                        e.currentTarget.style.borderColor = 'rgba(51,65,85,0.5)'
-                        e.currentTarget.style.boxShadow = 'none'
-                      }}
-                    >
+                    }}>
                       {/* Header */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                         <span style={{
