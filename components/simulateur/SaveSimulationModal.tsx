@@ -77,6 +77,7 @@ export function SaveSimulationModal({ onClose, results, params, tmi }: Props) {
         })
         if (!res.ok) {
           const data = await res.json()
+          console.error('[SaveSimulation] API error:', data)
           setError(data.error || 'Erreur lors de la sauvegarde.')
         } else {
           setSaved(true)
@@ -88,8 +89,8 @@ export function SaveSimulationModal({ onClose, results, params, tmi }: Props) {
         setSavedLocally(true)
         setTimeout(onClose, 2200)
       }
-    } catch {
-      // Supabase indisponible → fallback localStorage
+    } catch (err) {
+      console.error('[SaveSimulation] Network error:', err)
       saveLocally(name)
       setSavedLocally(true)
       setTimeout(onClose, 2200)
