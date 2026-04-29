@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
 
 const PROTECTED = ['/profil', '/cabinet']
 const ADMIN_ONLY = ['/admin']
@@ -13,7 +14,7 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options: any }>) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: ResponseCookie }>) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
