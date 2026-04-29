@@ -8,7 +8,7 @@ function getAuthError(err: unknown): string {
   if (err instanceof Error) {
     const msg = err.message
     if (msg.includes('503') || msg.includes('504') || msg.toLowerCase().includes('fetch'))
-      return 'Le service est temporairement indisponible. Réessayez dans quelques instants ou contactez-nous.'
+      return 'Le service est temporairement indisponible. Réessayez dans quelques instants.'
     return msg
   }
   return 'Erreur inconnue — réessayez.'
@@ -23,11 +23,18 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 16px', borderRadius: '12px',
+    background: '#1e293b', border: '1px solid #334155',
+    color: '#f1f5f9', fontSize: '14px', outline: 'none',
+    boxSizing: 'border-box', transition: 'border-color 150ms',
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password.length < 8) { setError('Mot de passe minimum 8 caractères.'); return }
     if (!isSupabaseConfigured()) {
-      setError('Supabase n\'est pas configuré. Ajoutez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans .env.local (voir README).')
+      setError('Supabase n\'est pas configuré. Ajoutez les variables d\'environnement.')
       return
     }
     setLoading(true)
@@ -35,18 +42,16 @@ export default function SignupPage() {
     try {
       const supabase = createClient()
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email, password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: `${location.origin}/dashboard`,
+          emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard`,
         },
       })
-
       if (signUpError) {
         const status = (signUpError as { status?: number }).status
         if (status === 503 || status === 504) {
-          setError('Le service est temporairement indisponible (projet Supabase peut-être en pause). Réessayez dans quelques instants.')
+          setError('Le service est temporairement indisponible. Réessayez dans quelques instants.')
         } else if (signUpError.message.toLowerCase().includes('already registered') || signUpError.message.toLowerCase().includes('already been registered')) {
           setError('Un compte existe déjà avec cet email. Connectez-vous à la place.')
         } else {
@@ -63,141 +68,136 @@ export default function SignupPage() {
     setLoading(false)
   }
 
-  const features = [
-    'Calculs fiscaux 2025 certifiés (barème IR, SSI par composante, IS)',
-    'Sauvegardez jusqu\'à 20 simulations',
-    'Tableau comparatif automatique des 4 structures',
-    'Export PDF de chaque rapport',
-  ]
-
   return (
-    <div className="min-h-screen flex">
-      {/* Panneau gauche */}
-      <div className="hidden lg:flex lg:w-[45%] flex-col p-12 relative overflow-hidden" style={{ backgroundColor: '#050c1a' }}>
-        <div className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(37,99,235,.22) 0%, transparent 65%)', top: '-12rem', right: '-6rem' }} />
-        <div className="absolute inset-0 pointer-events-none opacity-20"
-          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.10) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+    <div style={{
+      minHeight: '100vh', background: '#020617',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '24px',
+      backgroundImage: 'radial-gradient(ellipse at 40% 20%, rgba(139,92,246,0.10) 0%, transparent 60%)',
+    }}>
+      <div style={{ width: '100%', maxWidth: '420px' }}>
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 relative z-10 mb-auto">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}>
-            <span className="text-white text-sm font-black">B</span>
-          </div>
-          <span className="font-display font-bold text-white">Belho Xper</span>
-        </Link>
-
-        {/* Titre central */}
-        <div className="relative z-10 my-auto">
-          <div className="font-display text-4xl font-black text-white tracking-tight leading-tight mb-4">
-            Votre simulateur<br />
-            <span style={{ color: '#3B82F6' }}>fiscal 2025</span>
-          </div>
-          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.50)' }}>
-            Comparez 4 structures juridiques en quelques minutes et trouvez la plus avantageuse pour votre activité.
-          </p>
-        </div>
-
-        {/* Features */}
-        <div className="relative z-10 space-y-4">
-          {features.map(f => (
-            <div key={f} className="flex items-start gap-3">
-              <span className="mt-0.5 font-bold" style={{ color: '#4ade80' }}>✓</span>
-              <span className="text-sm" style={{ color: 'rgba(255,255,255,0.60)' }}>{f}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Panneau droite */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-surface">
-        <div className="w-full max-w-sm">
-          {/* Logo mobile */}
-          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}>
-              <span className="text-white text-xs font-black">B</span>
-            </div>
-            <span className="font-display font-bold text-ink">Belho Xper</span>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '16px', fontWeight: 900, color: '#fff',
+            }}>B</div>
+            <span style={{ fontSize: '17px', fontWeight: 700, color: '#f1f5f9' }}>Belho Xper</span>
           </Link>
+        </div>
 
-          <h1 className="font-display text-[2rem] font-black text-ink tracking-tight mb-1.5">Créer un compte</h1>
-          <p className="text-[14px] text-ink3 mb-8 leading-relaxed">Gratuit, sans engagement — résultat en 4 minutes.</p>
+        {/* Card */}
+        <div style={{
+          background: '#0f172a', border: '1px solid rgba(51,65,85,0.5)',
+          borderRadius: '20px', padding: '32px',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+        }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#f1f5f9', margin: '0 0 6px' }}>
+            Créer un compte
+          </h1>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 24px' }}>
+            Gratuit, sans engagement — résultat en 4 minutes.
+          </p>
 
           {success ? (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
-              <div className="text-4xl mb-3">📧</div>
-              <div className="font-display font-black text-ink mb-2">Vérifiez votre email !</div>
-              <div className="text-sm text-ink3 leading-relaxed">Cliquez sur le lien envoyé à <strong>{email}</strong> pour activer votre compte.</div>
+            <div style={{
+              background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
+              borderRadius: '14px', padding: '24px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📧</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9', marginBottom: '6px' }}>Vérifiez votre email !</div>
+              <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>
+                Cliquez sur le lien envoyé à <strong style={{ color: '#f1f5f9' }}>{email}</strong> pour activer votre compte.
+              </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Nom complet</label>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>
+                  Nom complet
+                </label>
                 <input
-                  type="text"
-                  required
-                  value={fullName}
+                  type="text" required value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   placeholder="Jean Dupont"
-                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
+                  style={inputStyle}
+                  onFocus={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#334155'}
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Email</label>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>
+                  Email
+                </label>
                 <input
-                  type="email"
-                  required
-                  value={email}
+                  type="email" required value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="vous@exemple.fr"
-                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
+                  style={inputStyle}
+                  onFocus={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#334155'}
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold tracking-widest uppercase text-ink3">Mot de passe</label>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>
+                  Mot de passe
+                </label>
                 <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={password}
+                  type="password" required minLength={8} value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="8 caractères minimum"
-                  className="px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl text-ink bg-white font-medium
-                    focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4"
+                  style={inputStyle}
+                  onFocus={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#334155'}
                 />
               </div>
 
               {error && (
-                <div className="text-red-700 text-[13px] py-3.5 px-4 bg-red-50 rounded-xl border border-red-200 leading-relaxed">
+                <div style={{
+                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                  borderRadius: '12px', padding: '12px 16px',
+                  fontSize: '13px', color: '#f87171', lineHeight: 1.5,
+                }}>
                   {error}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 bg-blue text-white font-bold text-[14px] rounded-xl
-                  shadow-[0_4px_14px_rgba(29,78,216,.35)] hover:bg-blue-dark hover:-translate-y-0.5
-                  hover:shadow-[0_8px_24px_rgba(29,78,216,.42)] transition-all disabled:opacity-60 mt-2"
-              >
-                {loading ? 'Création…' : 'Créer mon compte'}
+              <button type="submit" disabled={loading} style={{
+                width: '100%', padding: '13px', borderRadius: '12px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                background: '#2563eb', color: '#fff', fontSize: '15px', fontWeight: 700,
+                opacity: loading ? 0.7 : 1, transition: 'all 150ms',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}>
+                {loading ? (
+                  <>
+                    <span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                    Création…
+                  </>
+                ) : 'Créer mon compte'}
               </button>
 
-              <p className="text-[11.5px] text-ink4 text-center mt-2">
+              <p style={{ textAlign: 'center', fontSize: '11px', color: '#475569', margin: 0 }}>
                 En créant un compte, vous acceptez nos conditions d&apos;utilisation.
               </p>
-              <p className="text-center text-[13px] text-ink3 mt-3">
+              <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: 0 }}>
                 Déjà un compte ?{' '}
-                <Link href="/auth/login" className="text-blue font-bold hover:underline">Se connecter</Link>
+                <Link href="/auth/login" style={{ color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}>
+                  Se connecter
+                </Link>
               </p>
             </form>
           )}
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

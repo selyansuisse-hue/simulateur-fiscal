@@ -17,6 +17,14 @@ interface LocalSim {
   gain: number
 }
 
+function structureColor(forme: string) {
+  const f = (forme || '').toLowerCase()
+  if (f.includes('micro')) return '#94a3b8'
+  if (f.includes('ei') && !f.includes('eurl')) return '#fbbf24'
+  if (f.includes('eurl') || f.includes('sarl')) return '#60a5fa'
+  return '#a78bfa'
+}
+
 export function DashboardGuest() {
   const [sims, setSims] = useState<LocalSim[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -32,33 +40,39 @@ export function DashboardGuest() {
   if (!loaded) return null
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F8FAFF' }}>
+    <div style={{ minHeight: '100vh', background: '#020617' }}>
 
-      {/* Banner localStorage */}
+      {/* Banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)',
-        borderBottom: '1px solid #BFDBFE',
+        background: 'linear-gradient(135deg, rgba(37,99,235,0.12), rgba(139,92,246,0.08))',
+        borderBottom: '1px solid rgba(37,99,235,0.2)',
         padding: '14px 24px',
       }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-sm font-bold text-blue-800 mb-0.5">
-              💾 {sims.length > 0 ? `${sims.length} simulation${sims.length > 1 ? 's' : ''} sauvegardée${sims.length > 1 ? 's' : ''} localement` : 'Tableau de bord'}
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#93c5fd', marginBottom: '2px' }}>
+              💾 {sims.length > 0
+                ? `${sims.length} simulation${sims.length > 1 ? 's' : ''} sauvegardée${sims.length > 1 ? 's' : ''} localement`
+                : 'Tableau de bord'}
             </div>
-            <div className="text-xs text-blue-600">
+            <div style={{ fontSize: '12px', color: '#60a5fa', opacity: 0.8 }}>
               {sims.length > 0
                 ? 'Ces simulations sont stockées sur cet appareil — créez un compte pour les sauvegarder définitivement.'
                 : 'Connectez-vous pour accéder à votre tableau de bord personnalisé.'}
             </div>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <Link href="/auth/login"
-              className="text-xs font-semibold px-4 py-2 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <Link href="/auth/login" style={{
+              fontSize: '12px', fontWeight: 600, padding: '8px 16px', borderRadius: '9px',
+              border: '1px solid rgba(37,99,235,0.3)', color: '#93c5fd', textDecoration: 'none',
+              background: 'rgba(37,99,235,0.08)',
+            }}>
               Connexion
             </Link>
-            <Link href="/auth/signup"
-              className="text-xs font-bold px-4 py-2 rounded-lg text-white transition-all"
-              style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', boxShadow: '0 2px 8px rgba(29,78,216,0.3)' }}>
+            <Link href="/auth/signup" style={{
+              fontSize: '12px', fontWeight: 700, padding: '8px 16px', borderRadius: '9px',
+              background: '#2563eb', color: '#fff', textDecoration: 'none',
+            }}>
               Créer un compte →
             </Link>
           </div>
@@ -66,61 +80,70 @@ export function DashboardGuest() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-10">
-
         {sims.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 shadow-sm">
-            <div className="text-5xl mb-5">📊</div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Aucune simulation sauvegardée</h2>
-            <p className="text-slate-500 text-sm mb-8 max-w-sm mx-auto">
-              Lancez votre première simulation pour voir vos résultats ici.
+          <div style={{
+            background: '#0f172a', border: '1px solid rgba(51,65,85,0.5)',
+            borderRadius: '20px', padding: '64px 24px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9', margin: '0 0 12px' }}>
+              Aucune simulation sauvegardée
+            </h2>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: '0 auto 28px', maxWidth: '400px', lineHeight: 1.7 }}>
+              Lancez votre première simulation et découvrez quelle structure juridique vous fait vraiment économiser.
             </p>
-            <Link href="/simulateur"
-              className="inline-flex items-center gap-2 text-white font-bold px-8 py-4 rounded-xl transition-all hover:-translate-y-0.5"
-              style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', boxShadow: '0 8px 24px rgba(37,99,235,0.35)' }}>
+            <Link href="/simulateur" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              background: '#2563eb', color: '#fff', borderRadius: '12px',
+              padding: '12px 28px', fontSize: '15px', fontWeight: 700,
+              textDecoration: 'none', boxShadow: '0 4px 16px rgba(37,99,235,0.4)',
+            }}>
               ✦ Lancer ma première simulation
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-slate-900">Mes simulations locales</h2>
-              <Link href="/simulateur"
-                className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-                + Nouvelle simulation
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Simulations locales ({sims.length})
+              </h2>
+              <Link href="/simulateur" style={{ fontSize: '13px', color: '#60a5fa', textDecoration: 'none', fontWeight: 500 }}>
+                + Nouvelle
               </Link>
             </div>
-            {sims.map(sim => (
-              <div key={sim.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-slate-900 truncate">{sim.name}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">
-                      {new Date(sim.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-2xl font-black text-blue-600">{fmt(sim.best_net_annuel)}</div>
-                    <div className="text-xs text-slate-400">{fmt(sim.best_net_mois)}/mois</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100 flex-wrap">
-                  <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full">
-                    {sim.best_forme}
-                  </span>
-                  <span className="text-xs text-slate-400">CA {fmt(sim.ca)}</span>
-                  <span className="text-xs text-slate-400">TMI {sim.tmi}%</span>
-                  {sim.gain > 500 && (
-                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                      +{fmt(sim.gain)}/an vs moins avantageuse
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+              {sims.map(sim => (
+                <div key={sim.id} style={{
+                  background: '#0f172a', border: '1px solid rgba(51,65,85,0.5)',
+                  borderRadius: '18px', padding: '20px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: structureColor(sim.best_forme) }}>
+                      {sim.best_forme}
                     </span>
-                  )}
+                    <span style={{ fontSize: '11px', color: '#475569' }}>
+                      {new Date(sim.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '28px', fontWeight: 800, color: '#f1f5f9', marginBottom: '2px' }}>
+                    {fmt(sim.best_net_annuel)}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>
+                    {fmt(sim.best_net_mois)}/mois
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#475569' }}>
+                    CA {fmt(sim.ca)} · TMI {sim.tmi}%
+                    {sim.gain > 500 && <span style={{ color: '#22c55e' }}> · +{fmt(sim.gain)}/an</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
-            <div className="text-center pt-4">
-              <Link href="/auth/signup"
-                className="inline-flex items-center gap-2 text-sm font-bold px-6 py-3 rounded-xl text-white transition-all"
-                style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)' }}>
+              ))}
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <Link href="/auth/signup" style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                background: '#2563eb', color: '#fff', borderRadius: '12px',
+                padding: '12px 24px', fontSize: '14px', fontWeight: 700, textDecoration: 'none',
+              }}>
                 Créer un compte pour sauvegarder définitivement →
               </Link>
             </div>
