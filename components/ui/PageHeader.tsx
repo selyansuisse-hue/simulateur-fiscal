@@ -24,7 +24,7 @@ export function PageHeader() {
           .eq('user_id', data.user.id)
           .limit(1)
           .maybeSingle()
-        const cab = membre?.cabinets as { slug: string; nom: string } | null
+        const cab = (membre?.cabinets as { slug: string; nom: string }[] | null)?.[0] ?? null
         if (cab) { setCabinetSlug(cab.slug); setCabinetNom(cab.nom) }
       }
     })
