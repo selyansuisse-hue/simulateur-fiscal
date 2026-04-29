@@ -17,7 +17,10 @@ export function HeroCTA() {
         .eq('user_id', data.user.id)
         .limit(1)
         .maybeSingle()
-      const slug = (membre?.cabinets as { slug: string }[] | null)?.[0]?.slug
+      const cabs = membre?.cabinets
+      const slug = Array.isArray(cabs)
+        ? (cabs as { slug: string }[])[0]?.slug
+        : (cabs as unknown as { slug: string } | null)?.slug
       if (slug) setCabinetSlug(slug)
     })
   }, [])

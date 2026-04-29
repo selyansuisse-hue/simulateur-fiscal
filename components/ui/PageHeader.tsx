@@ -24,7 +24,10 @@ export function PageHeader() {
           .eq('user_id', data.user.id)
           .limit(1)
           .maybeSingle()
-        const cab = (membre?.cabinets as { slug: string; nom: string }[] | null)?.[0] ?? null
+        const rawCabs = membre?.cabinets
+        const cab = Array.isArray(rawCabs)
+          ? (rawCabs as { slug: string; nom: string }[])[0] ?? null
+          : (rawCabs as unknown as { slug: string; nom: string } | null) ?? null
         if (cab) { setCabinetSlug(cab.slug); setCabinetNom(cab.nom) }
       }
     })
