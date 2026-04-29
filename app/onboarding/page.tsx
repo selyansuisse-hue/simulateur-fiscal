@@ -62,9 +62,13 @@ export default function OnboardingPage() {
     e.preventDefault()
     setLoading(true); setError('')
     const supabase = createClient()
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
     const { error: err } = await supabase.auth.signUp({
       email, password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: `${appUrl}/auth/callback?next=/onboarding`,
+      },
     })
     if (err) { setError(err.message); setLoading(false); return }
     setStep(2); setLoading(false)
