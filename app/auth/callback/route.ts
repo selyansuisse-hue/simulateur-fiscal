@@ -26,8 +26,22 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      let destination = next
+      if (next === '/dashboard') {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: membre } = await supabase
+            .from('cabinet_membres')
+            .select('cabinets(slug)')
+            .eq('user_id', user.id)
+            .limit(1)
+            .maybeSingle()
+          const slug = (membre?.cabinets as { slug: string } | null)?.slug
+          if (slug) destination = `/cabinet/${slug}`
+        }
+      }
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin
-      return NextResponse.redirect(`${appUrl}${next}`)
+      return NextResponse.redirect(`${appUrl}${destination}`)
     }
   }
 

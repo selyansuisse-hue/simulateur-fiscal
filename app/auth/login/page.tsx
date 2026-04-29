@@ -33,7 +33,7 @@ export default function LoginPage() {
       if (mode === 'magic') {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: `${location.origin}/dashboard` },
+          options: { emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard` },
         })
         if (error) {
           const status = (error as { status?: number }).status
@@ -42,13 +42,22 @@ export default function LoginPage() {
             : error.message)
         } else setMagicSent(true)
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) {
           const status = (error as { status?: number }).status
           setError(status === 503 || status === 504
             ? 'Le service est temporairement indisponible. Réessayez dans quelques instants.'
             : error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message)
-        } else router.push('/dashboard')
+        } else if (data.user) {
+          const { data: membre } = await supabase
+            .from('cabinet_membres')
+            .select('cabinets(slug)')
+            .eq('user_id', data.user.id)
+            .limit(1)
+            .maybeSingle()
+          const slug = (membre?.cabinets as { slug: string } | null)?.slug
+          router.push(slug ? `/cabinet/${slug}` : '/dashboard')
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''

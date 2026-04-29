@@ -3,6 +3,7 @@ export const dynamic = 'force-static'
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Footer } from '@/components/ui/Footer'
+import { HeroCTA } from '@/components/ui/HeroCTA'
 
 const TESTIMONIALS = [
   {
@@ -111,18 +112,7 @@ export default function LandingPage() {
               </div>
 
               {/* CTAs */}
-              <div className="flex flex-wrap gap-3 mb-6">
-                <Link href="/simulateur"
-                  className="inline-flex items-center gap-2 font-bold text-[15px] text-white rounded-xl px-8 py-4 transition-all duration-150 hover:-translate-y-0.5"
-                  style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', boxShadow: '0 8px 32px rgba(29,78,216,0.55)' }}>
-                  ✦ Lancer la simulation gratuite
-                </Link>
-                <Link href="/auth/signup"
-                  className="inline-flex items-center gap-2 font-semibold text-[15px] text-white rounded-xl px-7 py-4 transition-all hover:-translate-y-0.5"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)' }}>
-                  Créer un compte →
-                </Link>
-              </div>
+              <HeroCTA />
 
               {/* Pills techniques */}
               <div className="flex flex-wrap gap-2">

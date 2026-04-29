@@ -9,13 +9,28 @@ export function PageHeader() {
   const [user, setUser] = useState<User | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hasSimulated, setHasSimulated] = useState(false)
+  const [cabinetSlug, setCabinetSlug] = useState<string | null>(null)
+  const [cabinetNom, setCabinetNom] = useState<string | null>(null)
   const pathname = usePathname()
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user)
+      if (data.user) {
+        const { data: membre } = await supabase
+          .from('cabinet_membres')
+          .select('cabinets(slug, nom)')
+          .eq('user_id', data.user.id)
+          .limit(1)
+          .maybeSingle()
+        const cab = membre?.cabinets as { slug: string; nom: string } | null
+        if (cab) { setCabinetSlug(cab.slug); setCabinetNom(cab.nom) }
+      }
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
+      if (!session?.user) { setCabinetSlug(null); setCabinetNom(null) }
     })
     setHasSimulated(!!localStorage.getItem('simulateurResultat'))
     return () => subscription.unsubscribe()
@@ -102,15 +117,40 @@ export function PageHeader() {
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
               >
+                {cabinetNom && (
+                  <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>
+                    Cabinet
+                  </span>
+                )}
                 <div className="w-7 h-7 rounded-full bg-blue flex items-center justify-center text-white text-xs font-bold">
                   {(user.email || 'U')[0].toUpperCase()}
                 </div>
-                <span className="hidden sm:inline">{user.email?.split('@')[0]}</span>
+                <span className="hidden sm:inline">{cabinetNom || user.email?.split('@')[0]}</span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-10 bg-white rounded-xl shadow-card-lg border border-surface2 py-1.5 min-w-[160px] z-50">
-                  <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">Dashboard</Link>
-                  <Link href="/simulations" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">Mes simulations</Link>
+                <div className="absolute right-0 top-10 bg-white rounded-xl shadow-card-lg border border-surface2 py-1.5 min-w-[180px] z-50">
+                  {cabinetSlug ? (
+                    <>
+                      <Link href={`/cabinet/${cabinetSlug}`} onClick={() => setMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-ink font-semibold hover:bg-surface transition-colors">
+                        🏢 Dashboard Cabinet
+                      </Link>
+                      <Link href={`/cabinet/${cabinetSlug}/stats`} onClick={() => setMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">
+                        Statistiques
+                      </Link>
+                      <Link href={`/cabinet/${cabinetSlug}/widget`} onClick={() => setMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">
+                        Mon widget
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">Dashboard</Link>
+                      <Link href="/simulations" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">Mes simulations</Link>
+                    </>
+                  )}
                   <Link href="/profil" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors">Mon profil</Link>
                   <hr className="my-1 border-surface2" />
                   <button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">Déconnexion</button>
