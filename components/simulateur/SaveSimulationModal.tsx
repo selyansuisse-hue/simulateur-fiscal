@@ -9,12 +9,13 @@ const LOCAL_KEY = 'belhoxper_simulations'
 
 interface Props {
   onClose: () => void
+  onSaved?: () => void
   results: { scored: StructureResult[]; best: StructureResult; tmi: number; gain: number }
   params: SimParams
   tmi: number
 }
 
-export function SaveSimulationModal({ onClose, results, params, tmi }: Props) {
+export function SaveSimulationModal({ onClose, onSaved, results, params, tmi }: Props) {
   const [name, setName] = useState(
     `${params.situation === 'creation' ? 'Création' : params.situation === 'existant' ? 'Existant' : 'Changement'} ${Math.round(params.ca / 1000)}k€ — ${results.best.forme}`
   )
@@ -81,18 +82,21 @@ export function SaveSimulationModal({ onClose, results, params, tmi }: Props) {
           setError(data.error || 'Erreur lors de la sauvegarde.')
         } else {
           setSaved(true)
+          onSaved?.()
           setTimeout(onClose, 1800)
         }
       } else {
         // Non connecté → sauvegarder en localStorage
         saveLocally(name)
         setSavedLocally(true)
+        onSaved?.()
         setTimeout(onClose, 2200)
       }
     } catch (err) {
       console.error('[SaveSimulation] Network error:', err)
       saveLocally(name)
       setSavedLocally(true)
+      onSaved?.()
       setTimeout(onClose, 2200)
     }
     setLoading(false)

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useSimulateur } from '@/hooks/useSimulateur'
 import { fmt } from '@/lib/utils'
@@ -7,6 +7,7 @@ import { tmiRate, calcPartsTotal } from '@/lib/fiscal/ir'
 import { StructureResult } from '@/lib/fiscal'
 import { SimParams } from '@/lib/fiscal/types'
 import { SaveSimulationModal } from '@/components/simulateur/SaveSimulationModal'
+import { createClient } from '@/lib/supabase/client'
 
 function genAnalyse(best: StructureResult, params: SimParams, tmi: number, gain: number, scored: StructureResult[]) {
   const ben = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
@@ -120,9 +121,102 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
   )
 }
 
+// ── Protection sociale ──────────────────────────────────────────────────────
+function getProtProfile(forme: string) {
+  const f = (forme || '').toLowerCase()
+  if (f.includes('sas')) return {
+    badge: 'Régime général — Sécurité sociale', icon: '⭐',
+    accentColor: '#a78bfa', fillColor: '#7c3aed',
+    bars: [
+      { label: 'Maladie',    score: 70, desc: 'Remboursements identiques au salarié — 70% SS' },
+      { label: 'Retraite',   score: 80, desc: 'Retraite de base + complémentaire AGIRC-ARRCO' },
+      { label: 'Prévoyance', score: 65, desc: 'Pas de Madelin — contrat Article 83 possible' },
+    ],
+    mention: { icon: '✅', text: 'Meilleure protection maladie/retraite de base', color: '#4ade80' },
+  }
+  if (f.includes('eurl') || f.includes('sarl')) return {
+    badge: 'Régime TNS — SSI', icon: '🛡️',
+    accentColor: '#60a5fa', fillColor: '#2563eb',
+    bars: [
+      { label: 'Maladie',    score: 55, desc: '70% des frais remboursés — niveau sécurité sociale' },
+      { label: 'Retraite',   score: 65, desc: 'Points retraite sur rémunération + PER déductible IS' },
+      { label: 'Prévoyance', score: 75, desc: 'Contrat Madelin possible — déductible IR' },
+    ],
+    mention: { icon: '💡', text: 'Complément mutuelle fortement recommandé', color: '#fbbf24' },
+  }
+  if (f.includes('micro')) return {
+    badge: 'Régime TNS simplifié', icon: '⚡',
+    accentColor: '#94a3b8', fillColor: '#64748b',
+    bars: [
+      { label: 'Maladie',    score: 35, desc: 'Cotisations faibles sur CA — IJ très réduits' },
+      { label: 'Retraite',   score: 30, desc: 'Trimestres limités — retraite insuffisante à long terme' },
+      { label: 'Prévoyance', score: 40, desc: 'Protection minimale — pas de Madelin possible' },
+    ],
+    mention: { icon: '❌', text: 'Protection minimale — à éviter pour activité principale', color: '#f87171' },
+  }
+  return {
+    badge: 'Régime TNS — SSI', icon: '🛡️',
+    accentColor: '#fbbf24', fillColor: '#d97706',
+    bars: [
+      { label: 'Maladie',    score: 50, desc: '70% des frais remboursés — IJ calculés sur le résultat' },
+      { label: 'Retraite',   score: 55, desc: 'Points retraite sur résultat net — PER déductible' },
+      { label: 'Prévoyance', score: 65, desc: 'Contrat Madelin possible — déductible BIC/BNC' },
+    ],
+    mention: { icon: '⚠️', text: 'Pas de séparation patrimoine — risque personnel', color: '#fbbf24' },
+  }
+}
+
+function ProtectionCard({ r, rank }: { r: StructureResult; rank: number }) {
+  const prof = getProtProfile(r.forme)
+  const isBest = rank === 0
+  return (
+    <div style={{
+      background: isBest ? 'rgba(30,41,59,0.9)' : 'rgba(15,23,42,0.7)',
+      border: `1px solid ${isBest ? 'rgba(51,65,85,0.8)' : 'rgba(51,65,85,0.4)'}`,
+      borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+        <span style={{ fontSize: '18px' }}>{prof.icon}</span>
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: prof.accentColor }}>{r.forme}</div>
+          <div style={{ fontSize: '10px', color: '#475569', marginTop: '1px' }}>{prof.badge}</div>
+        </div>
+      </div>
+      {prof.bars.map(bar => (
+        <div key={bar.label} style={{ marginBottom: '14px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.65)', display: 'block', marginBottom: '6px' }}>
+            {bar.label}
+          </span>
+          <div style={{ height: '6px', borderRadius: '999px', background: 'rgba(51,65,85,0.5)', overflow: 'hidden', marginBottom: '5px' }}>
+            <div style={{
+              height: '100%', borderRadius: '999px', width: `${bar.score}%`,
+              background: prof.fillColor, transition: 'width 600ms ease',
+            }} />
+          </div>
+          <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4 }}>{bar.desc}</div>
+        </div>
+      ))}
+      <div style={{
+        marginTop: 'auto', paddingTop: '12px',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        fontSize: '11px', color: prof.mention.color, lineHeight: 1.5,
+      }}>
+        {prof.mention.icon} {prof.mention.text}
+      </div>
+    </div>
+  )
+}
+
 export function StepResultats() {
   const { results, params, prevStep } = useSimulateur()
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+  const [isSaved, setIsSaved] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user))
+  }, [])
 
   if (!results) return null
   const { scored, best, tmi, gain } = results
@@ -454,59 +548,25 @@ export function StepResultats() {
 
       {/* ── PROTECTION SOCIALE ── */}
       <div>
-        <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-3">
-          Protection sociale
+        <div className="font-display text-lg font-bold text-ink tracking-tight flex items-center gap-3 mb-4">
+          Protection sociale par structure
           <span className="flex-1 h-px bg-gradient-to-r from-surface2 to-transparent" />
         </div>
-        <div className="bg-white border border-black/[0.07] rounded-xl overflow-hidden shadow-card">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-surface border-b border-surface2">
-                  <th className="text-left text-[10px] font-bold tracking-wide uppercase text-ink3 px-4 py-3 min-w-[140px]">Critère</th>
-                  {scored.map((r, i) => (
-                    <th key={r.forme} className={`text-left text-[10px] font-bold tracking-wide uppercase px-4 py-3 whitespace-nowrap ${i === 0 ? 'text-blue' : 'text-ink3'}`}>
-                      {r.forme}
-                      {i === 0 && <span className="ml-1.5 text-[8px] bg-blue text-white px-1.5 py-0.5 rounded-full">★</span>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {([
-                  { label: 'IJ maladie / jour', fn: (r: StructureResult) => `${r.prot.ijJ} €` },
-                  { label: 'IJ maladie / mois', fn: (r: StructureResult) => `${r.prot.ijM} €` },
-                  { label: 'Trimestres / an', fn: (r: StructureResult) => String(r.prot.trims) },
-                  { label: 'Retraite complémentaire', fn: (r: StructureResult) => r.prot.complement },
-                  { label: 'Qualité globale', fn: (r: StructureResult) => r.prot.qual },
-                ] as const).map((row, ri) => (
-                  <tr key={row.label} className={ri % 2 === 0 ? 'bg-white' : 'bg-surface/40'}>
-                    <td className="px-4 py-3 text-[12px] font-semibold text-ink3 border-b border-surface2">{row.label}</td>
-                    {scored.map((r, ci) => {
-                      const val = row.fn(r)
-                      const isQual = row.label === 'Qualité globale'
-                      const qualColor = isQual
-                        ? val === 'bon' ? 'text-green-700 font-bold' : val === 'moyen' ? 'text-amber-700 font-bold' : 'text-red-700 font-bold'
-                        : ci === 0 ? 'text-blue font-bold' : 'text-ink'
-                      return (
-                        <td key={r.forme} className={`px-4 py-3 text-[12px] border-b border-surface2 ${qualColor}`}>{val}</td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {hasTNS && (
-            <div className="px-4 py-3 bg-blue-bg border-t border-blue-border flex items-start gap-2.5 flex-wrap">
-              <span className="flex-shrink-0 text-sm">🛡</span>
-              <p className="text-xs text-blue-dark leading-relaxed flex-1">
-                <strong>Prévoyance TNS déductible</strong> — les primes (arrêt maladie, invalidité, décès) sont déductibles du résultat IS ou BIC.
-                Simulez l&apos;économie via le levier Prévoyance ci-dessus.
-              </p>
-            </div>
-          )}
+        <div className={`grid gap-4 ${cardsGrid}`}>
+          {scored.map((r, i) => (
+            <ProtectionCard key={r.forme} r={r} rank={i} />
+          ))}
         </div>
+        {hasTNS && (
+          <div className="mt-3 px-4 py-3 rounded-xl flex items-start gap-2.5 flex-wrap"
+            style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.2)' }}>
+            <span className="flex-shrink-0 text-sm">🛡</span>
+            <p className="text-xs leading-relaxed flex-1" style={{ color: '#93c5fd' }}>
+              <strong>Prévoyance TNS déductible</strong> — les primes (arrêt maladie, invalidité, décès) sont déductibles du résultat IS ou BIC.
+              Simulez l&apos;économie via le levier Prévoyance ci-dessus.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── CTA FINAL ── */}
@@ -598,8 +658,73 @@ export function StepResultats() {
         </button>
       </div>
 
+      {/* ── STICKY SAVE BAR ── */}
+      <style>{`
+        @keyframes savePulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+          50% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
+        }
+        .save-pulse { animation: savePulse 2.5s ease-in-out infinite; }
+      `}</style>
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
+        background: 'rgba(9,15,29,0.95)', backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(51,65,85,0.5)',
+        padding: '14px 24px',
+      }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>
+              {best.forme} · {fmt(best.netAnnuel)}/an · {fmt(Math.round(best.netAnnuel / 12))}/mois
+            </div>
+            <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>
+              Score {best.scoreTotal}/100 · TMI {tmi}%{gain > 500 ? ` · +${fmt(gain)}/an vs moins avantageuse` : ''}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+            {isSaved ? (
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#4ade80', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                ✅ Simulation enregistrée
+              </div>
+            ) : isLoggedIn === false ? (
+              <>
+                <Link href="/auth/login" style={{
+                  fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.55)',
+                  padding: '8px 16px', borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                  textDecoration: 'none',
+                }}>
+                  Se connecter
+                </Link>
+                <Link href="/auth/signup" style={{
+                  fontSize: '13px', fontWeight: 700, color: '#fff',
+                  padding: '8px 18px', borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  textDecoration: 'none',
+                }}>
+                  Créer un compte gratuit →
+                </Link>
+              </>
+            ) : (
+              <button
+                className="save-pulse"
+                onClick={() => setShowSaveModal(true)}
+                style={{
+                  fontSize: '14px', fontWeight: 700, color: '#fff',
+                  padding: '10px 22px', borderRadius: '12px', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #059669, #047857)',
+                  border: 'none',
+                }}
+              >
+                💾 Enregistrer cette simulation
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {showSaveModal && (
-        <SaveSimulationModal onClose={() => setShowSaveModal(false)} results={results} params={params} tmi={tmi} />
+        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={() => setIsSaved(true)} results={results} params={params} tmi={tmi} />
       )}
     </div>
   )

@@ -37,6 +37,44 @@ function structureBadge(forme: string) {
   return { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: 'rgba(139,92,246,0.3)' }
 }
 
+function genExpertAnalysis(s: SimRow, best: SimResult | undefined, scored: SimResult[]) {
+  if (!best) return null
+  const f = best.forme
+  const isSAS = f.includes('SAS')
+  const isEURL = f.includes('EURL') || f.includes('SARL')
+  const isMicro = f.includes('Micro')
+  const second = scored.find(r => r.forme !== f)
+
+  const constat = `Avec un CA de ${fmt(s.ca)}, votre structure optimale est ${f} avec ${fmt(best.netAnnuel)}/an net (${fmt(Math.round(best.netAnnuel / 12))}/mois).${s.gain > 500 ? ` Ce choix vous rapporte ${fmt(s.gain)}/an de plus que la structure la moins avantageuse.` : ''}`
+
+  let pourquoi = ''
+  if (isSAS) {
+    pourquoi = `La SASU offre le meilleur ratio net/protection pour votre profil (TMI ${s.tmi}%). Le président perçoit un salaire assimilé salarié et peut se verser des dividendes sans cotisations sociales. C'est la seule structure combinant droits retraite/maladie du régime général et distribution optimisée.`
+  } else if (isEURL) {
+    pourquoi = `L'EURL à l'IS est avantageuse car votre bénéfice supporterait l'IS 15% plutôt que votre TMI IR de ${s.tmi}%. La rémunération TNS est déductible de l'IS, et la séparation patrimoine personnel/société limite votre exposition personnelle.`
+  } else if (isMicro) {
+    pourquoi = `Le régime micro est optimal car l'abattement forfaitaire (34% à 71% selon activité) est supérieur à vos charges réelles. Pas de comptabilité complexe, cotisations proportionnelles au CA — idéal à ce niveau de CA.`
+  } else {
+    pourquoi = `L'EI au réel permet de déduire toutes vos charges réelles. Les cotisations SSI sont calculées sur votre résultat net réel, ce qui les rend très compétitives à votre niveau de CA. Pas d'IS, pas de comptabilité société.`
+  }
+
+  let vigilance = ''
+  if (isSAS) {
+    vigilance = `En tant que président de SASU, vous n'êtes pas couvert par France Travail en cas de cessation d'activité. Un contrat GSC (assurance perte d'emploi) est fortement recommandé et déductible de l'IS. Optimisez le ratio salaire/dividendes selon votre TMI.`
+  } else if (isEURL) {
+    vigilance = `Les dividendes EURL dépassant 10% du capital social supportent les cotisations TNS (~45%). Veillez à dimensionner votre capital ou à limiter les distributions pour préserver l'optimisation. Une prévoyance Madelin complémentaire est déductible.`
+  } else if (isMicro) {
+    vigilance = `Le régime micro ne permet pas de déduire vos charges réelles. Si vos charges dépassent l'abattement forfaitaire, le réel devient plus favorable. Surveillez également le plafond de CA (77 700 € services, 188 700 € commerce).`
+  } else {
+    vigilance = `En EI, votre patrimoine personnel est engagé (pensez à la déclaration d'insaisissabilité de votre résidence principale). Si votre résultat dépasse 60 000 €/an, le passage en EURL/SASU à l'IS devient généralement plus avantageux.`
+  }
+
+  const perMax = Math.min(35194, Math.round(s.ca * 0.10 * 0.7))
+  const optimisation = `Levier PER : à TMI ${s.tmi}%, verser ${fmt(perMax)}/an au PER réduit votre IR de ${s.tmi} centimes par euro versé. ${second ? `Structure alternative : ${second.forme} donnerait ${fmt(second.netAnnuel)}/an (${fmt(Math.round(second.netAnnuel / 12))}/mois), soit ${fmt(Math.round(best.netAnnuel - second.netAnnuel))} de moins par an.` : ''}`
+
+  return { constat, pourquoi, vigilance, optimisation }
+}
+
 export default async function SimulationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -192,16 +230,20 @@ export default async function SimulationDetailPage({ params }: { params: Promise
                         <tr key={r.forme} className="sim-tr" style={{
                           background: i === 0 ? 'rgba(37,99,235,0.05)' : 'transparent',
                           borderBottom: '1px solid rgba(51,65,85,0.3)',
+                          borderLeft: i === 0 ? '3px solid #2563eb' : '3px solid transparent',
                           transition: 'background 150ms',
                         }}>
-                          <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <td style={{ padding: '11px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                               <span style={{ fontSize: '13px', fontWeight: 700, color: rb.color }}>{r.forme}</span>
                               {i === 0 && (
                                 <span style={{ fontSize: '9px', fontWeight: 700, background: '#2563eb', color: '#fff', padding: '2px 7px', borderRadius: '999px' }}>
                                   ⭐ Meilleur
                                 </span>
                               )}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4, maxWidth: '200px' }}>
+                              {remDesc[r.forme] || ''}
                             </div>
                           </td>
                           <td style={{ padding: '11px 14px', fontSize: '13px', fontWeight: 700, color: '#4ade80', whiteSpace: 'nowrap' }}>{fmt(r.netAnnuel)}</td>
@@ -267,8 +309,44 @@ export default async function SimulationDetailPage({ params }: { params: Promise
             </div>
           )}
 
+          {/* Analyse experte */}
+          {(() => {
+            const analysis = genExpertAnalysis(s, best, scored)
+            if (!analysis) return null
+            return (
+              <div style={{
+                background: '#0f172a', border: '1px solid rgba(51,65,85,0.5)',
+                borderRadius: '16px', padding: '24px', marginBottom: '20px',
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '18px' }}>
+                  ✦ Analyse experte
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                  {[
+                    { label: 'Constat', icon: '📊', color: '#60a5fa', bg: 'rgba(37,99,235,0.07)', border: 'rgba(37,99,235,0.18)', text: analysis.constat },
+                    { label: 'Pourquoi ce choix', icon: '💡', color: '#4ade80', bg: 'rgba(34,197,94,0.07)', border: 'rgba(34,197,94,0.18)', text: analysis.pourquoi },
+                    { label: 'Point de vigilance', icon: '⚠️', color: '#fbbf24', bg: 'rgba(251,191,36,0.07)', border: 'rgba(251,191,36,0.18)', text: analysis.vigilance },
+                    { label: 'Levier d\'optimisation', icon: '🚀', color: '#a78bfa', bg: 'rgba(139,92,246,0.07)', border: 'rgba(139,92,246,0.18)', text: analysis.optimisation },
+                  ].map(card => (
+                    <div key={card.label} style={{
+                      background: card.bg, border: `1px solid ${card.border}`,
+                      borderRadius: '12px', padding: '14px 16px',
+                    }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: card.color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>
+                        {card.icon} {card.label}
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.60)', lineHeight: 1.6, margin: 0 }}>
+                        {card.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Actions */}
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
             <a
               href={`/api/simulations/${s.id}/pdf`}
               style={{
@@ -279,38 +357,96 @@ export default async function SimulationDetailPage({ params }: { params: Promise
             >
               📄 Télécharger le rapport PDF
             </a>
-            <Link
-              href="/simulations"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '10px 20px', borderRadius: '10px', textDecoration: 'none',
-                background: 'rgba(51,65,85,0.3)', border: '1px solid rgba(51,65,85,0.5)',
-                color: '#94a3b8', fontSize: '14px', fontWeight: 600,
-              }}
-            >
+            <Link href="/simulateur" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '10px 20px', borderRadius: '10px', textDecoration: 'none',
+              background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)',
+              color: '#34d399', fontSize: '14px', fontWeight: 600,
+            }}>
+              + Nouvelle simulation
+            </Link>
+            <Link href="/simulations" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '10px 20px', borderRadius: '10px', textDecoration: 'none',
+              background: 'rgba(51,65,85,0.3)', border: '1px solid rgba(51,65,85,0.5)',
+              color: '#94a3b8', fontSize: '14px', fontWeight: 600,
+            }}>
               ← Retour
             </Link>
           </div>
 
-          {/* CTA Cabinet */}
+          {/* CTA Cabinet — 2 colonnes */}
           <div style={{
-            marginTop: '24px', background: 'linear-gradient(135deg, #0d1627 0%, #0d1f3c 100%)',
-            borderRadius: '16px', padding: '28px', textAlign: 'center',
-            border: '1px solid rgba(37,99,235,0.15)',
+            background: 'linear-gradient(135deg, #050c1a 0%, #071428 50%, #0a1628 100%)',
+            borderRadius: '20px', padding: '32px',
+            border: '1px solid rgba(96,165,250,0.15)',
+            boxShadow: '0 0 60px rgba(37,99,235,0.1)',
+            display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center',
+            position: 'relative', overflow: 'hidden',
           }}>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#f1f5f9', marginBottom: '8px' }}>
-              Ces résultats vous intéressent ?
+            <div style={{
+              position: 'absolute', right: '-4rem', top: '-4rem',
+              width: '320px', height: '320px', borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 65%)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{ flex: '1 1 280px', position: 'relative' }}>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+                Cabinet Belho Xper · Lyon &amp; Montluel
+              </div>
+              <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1.2, margin: '0 0 10px' }}>
+                Vous voulez aller plus loin ?
+              </h2>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, margin: '0 0 20px', maxWidth: '360px' }}>
+                Ces résultats sont des estimations barème 2025. Nos experts affinent votre stratégie et vous accompagnent dans la mise en œuvre concrète — de la création à l&apos;optimisation continue.
+              </p>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+                  style={{
+                    padding: '11px 24px', borderRadius: '12px', textDecoration: 'none',
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    color: '#fff', fontSize: '14px', fontWeight: 700,
+                    boxShadow: '0 4px 16px rgba(29,78,216,0.4)',
+                  }}>
+                  Prendre RDV gratuitement →
+                </a>
+                <a href={`/api/simulations/${s.id}/pdf`}
+                  style={{
+                    padding: '11px 20px', borderRadius: '12px', textDecoration: 'none',
+                    background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.65)', fontSize: '14px', fontWeight: 600,
+                  }}>
+                  📄 Rapport PDF
+                </a>
+              </div>
             </div>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', marginBottom: '20px' }}>
-              Prenons RDV pour affiner votre situation réelle.
-            </p>
-            <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-              style={{
-                display: 'inline-block', padding: '12px 28px', borderRadius: '12px', textDecoration: 'none',
-                background: '#2563eb', color: '#fff', fontSize: '14px', fontWeight: 700,
+            {best && (
+              <div style={{
+                flexShrink: 0, background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: '16px', padding: '20px 24px', textAlign: 'center', minWidth: '180px',
+                position: 'relative',
               }}>
-              Prendre RDV →
-            </a>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                  Meilleur résultat
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.50)', marginBottom: '4px' }}>
+                  {best.forme}
+                </div>
+                <div style={{ fontSize: '36px', fontWeight: 900, color: '#60a5fa', letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '4px' }}>
+                  {fmt(best.netAnnuel)}
+                </div>
+                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '12px' }}>
+                  {fmt(Math.round(best.netAnnuel / 12))}/mois
+                </div>
+                {s.gain > 500 && (
+                  <div style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: '8px', padding: '6px 10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 800, color: '#34d399' }}>+{fmt(s.gain)}/an</div>
+                    <div style={{ fontSize: '10px', color: 'rgba(52,211,153,0.55)', marginTop: '1px' }}>vs moins favorable</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
