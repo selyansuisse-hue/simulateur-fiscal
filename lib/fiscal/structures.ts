@@ -235,7 +235,16 @@ export function scoreMulti(res: StructureResult[], priorite: Priorite): Structur
     const prot = protS(r)
     const sNet = mx === mn ? 5 : Math.round(((r.netAnnuel - mn) / (mx - mn)) * 5)
     const total = sNet * wN + prot * wP + b.s * wS + b.f * wF
-    return { ...r, scoreTotal: Math.round(total / (5 * (wN + wP + wS + wF)) * 100) }
+    return {
+      ...r,
+      scoreTotal: Math.round(total / (5 * (wN + wP + wS + wF)) * 100),
+      scoreBreakdown: {
+        netScore: sNet * wN, netMax: 5 * wN,
+        protScore: prot * wP, protMax: 5 * wP,
+        simpScore: b.s * wS, simpMax: 5 * wS,
+        flexScore: b.f * wF, flexMax: 5 * wF,
+      },
+    }
   })
 }
 
@@ -422,7 +431,7 @@ export function plan(best: StructureResult, p: SimParams): PlanAction[] {
     'SAS / SASU': [
       { t: `Salaire président : minimum 1 PASS (${fmt(PASS)}/an brut)`, d: 'En dessous, les trimestres retraite et IJ maladie sont insuffisants.', cls: 'tg-a', tag: 'Priorité 1' },
       { t: 'Dividendes sans cotisations sociales — optimisez le montant', d: 'Seule structure sans cotisation sociale sur les dividendes. PFU 30% ou barème IR calculé automatiquement.', cls: 'tg-g', tag: 'Avantage unique' },
-      { t: 'Assurance perte d\'emploi : GSC ou Madelin', d: 'Le président de SASU n\'est pas couvert par France Travail. Déductible IS.', cls: 'tg-a', tag: 'Protection obligatoire' },
+      { t: 'Assurance perte d\'emploi : contrat GSC', d: 'Le président de SASU n\'est pas couvert par France Travail. Déductible IS.', cls: 'tg-a', tag: 'Protection obligatoire' },
     ],
   }
   return plans[best.forme] || []

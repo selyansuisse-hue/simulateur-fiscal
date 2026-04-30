@@ -8,7 +8,7 @@ import { StructureResult } from '@/lib/fiscal'
 import { SimParams } from '@/lib/fiscal/types'
 import { SaveSimulationModal } from '@/components/simulateur/SaveSimulationModal'
 
-function genAnalyse(best: StructureResult, params: SimParams, tmi: number) {
+function genAnalyse(best: StructureResult, params: SimParams, tmi: number, gain: number, scored: StructureResult[]) {
   const ben = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
   const parts = calcPartsTotal(params.partsBase, params.nbEnfants)
   const partsStr = parts % 1 === 0 ? parts.toString() : parts.toFixed(1).replace('.', ',')
@@ -16,20 +16,27 @@ function genAnalyse(best: StructureResult, params: SimParams, tmi: number) {
     ? `couple${params.nbEnfants > 0 ? ` avec ${params.nbEnfants} enfant${params.nbEnfants > 1 ? 's' : ''}` : ''}`
     : 'célibataire'
   const f = best.forme
+  const gainStr = gain > 500 ? ` Cet avantage représente ${fmt(gain)}/an (${fmt(Math.round(gain / 12))}/mois) de plus vs la structure la moins avantageuse.` : ''
+  const second = scored.find(r => r.forme !== f)
+  const vsSecond = second ? best.netAnnuel - second.netAnnuel : 0
   let pourquoi = '', attention = ''
 
   if (f === 'EI (réel normal)') {
-    pourquoi = `Avec un CA de ${fmt(params.ca)} et un résultat avant rémunération de ${fmt(ben)}, en situation de ${situStr} (${partsStr} parts), votre TMI reste à ${tmi}%. L'EI au réel vous permet de déduire toutes les charges réelles et profite de cotisations SSI calculées par composante — sans surcoût lié à l'IS.`
-    attention = `Si votre résultat avant rémunération dépasse 60 000 €/an, le passage en société IS (EURL ou SASU) devient généralement avantageux : l'IS 15% sera inférieur à votre TMI IR (${tmi}%).`
+    pourquoi = `Avec un CA de ${fmt(params.ca)} et un résultat avant rémunération de ${fmt(ben)}, en situation de ${situStr} (${partsStr} parts), votre TMI reste à ${tmi}%. L'EI au réel permet de déduire toutes vos charges réelles et bénéficie de cotisations SSI calculées par composante — sans surcoût lié à l'IS.${gainStr}`
+    attention = `Si votre résultat avant rémunération dépasse 60 000 €/an, le passage en EURL ou SASU devient avantageux : l'IS 15% sera inférieur à votre TMI IR (${tmi}%).${vsSecond > 200 ? ` Actuellement vous êtes déjà à ${fmt(vsSecond)} au-dessus de la structure suivante.` : ''}`
   } else if (f === 'EURL / SARL (IS)') {
-    pourquoi = `Avec un CA de ${fmt(params.ca)} et un résultat avant rémunération de ${fmt(ben)}, l'IS 15% sur les premiers 42 500 € est inférieur à votre TMI (${tmi}%). La séparation patrimoine personnel / société apporte également une protection supplémentaire.`
-    attention = `Les dividendes supérieurs à ${fmt(params.capital * 0.10)} (10% du capital de ${fmt(params.capital)}) sont soumis aux cotisations TNS ~45%. Augmenter le capital social permet d'augmenter ce seuil de distribution.`
+    const tauxIS = ben > 42500 ? `15% jusqu'à 42 500 € puis 25% au-delà` : `15% sur l'intégralité de votre résultat`
+    pourquoi = `Avec un résultat avant rémunération de ${fmt(ben)} et un TMI personnel de ${tmi}%, l'IS (${tauxIS}) est moins coûteux que l'IR direct. La rémunération TNS est déductible de l'IS, et la séparation patrimoine personnel/société limite votre exposition personnelle.${gainStr}`
+    const seuilDiv = Math.round(params.capital * 0.10)
+    attention = `Les dividendes supérieurs à ${fmt(seuilDiv)} (10% du capital de ${fmt(params.capital)}) supportent les cotisations TNS (~45%). Augmenter le capital social ou opter pour une distribution limitée préserve l'optimisation.`
   } else if (f === 'SAS / SASU') {
-    pourquoi = `Avec un CA de ${fmt(params.ca)}, la SASU combine un salaire de président (cotisations assimilé salarié) et des dividendes sans cotisations sociales. C'est la seule structure en France offrant ce double avantage — particulièrement pertinent avec votre résultat avant rémunération de ${fmt(ben)}.`
-    attention = `En tant que président de SASU, vous n'êtes pas couvert par France Travail. Une assurance perte d'emploi (GSC ou contrat Madelin) est fortement recommandée et déductible de l'IS.`
+    pourquoi = `Avec un CA de ${fmt(params.ca)} et un résultat avant rémunération de ${fmt(ben)}, la SASU combine salaire de président (cotisations assimilé salarié, droits chômage exclus) et dividendes sans cotisations sociales. C'est la seule structure offrant ce double avantage en France.${gainStr}`
+    attention = `En tant que président de SASU, vous n'êtes pas couvert par France Travail. Un contrat GSC (assurance perte d'emploi) est fortement recommandé et déductible de l'IS.`
   } else {
-    pourquoi = `Avec un CA de ${fmt(params.ca)}, le régime micro offre la simplicité maximale : abattement forfaitaire de ${Math.round((params.abat || 0.5) * 100)}% sans comptabilité obligatoire. Vos charges réelles étant limitées, ce régime est bien adapté à votre profil.`
-    attention = `Si votre CA dépasse 77 700 € deux années consécutives, le passage au régime réel est obligatoire. Votre CA actuel représente ${Math.round(params.ca / 77700 * 100)}% du plafond — anticipez la transition dès maintenant.`
+    const abatPct = Math.round((params.abat || 0.5) * 100)
+    const pctPlafond = Math.round(params.ca / 77700 * 100)
+    pourquoi = `Avec un CA de ${fmt(params.ca)}, le régime micro offre l'abattement forfaitaire de ${abatPct}% sans comptabilité obligatoire. Vos charges réelles étant inférieures à cet abattement, ce régime maximise votre revenu net.${gainStr}`
+    attention = `Votre CA représente ${pctPlafond}% du plafond micro (77 700 €). ${pctPlafond >= 80 ? `Le dépassement deux années consécutives impose le régime réel — anticipez la transition.` : `Surveillez l'évolution de votre CA pour anticiper le changement de régime le cas échéant.`}`
   }
   return { pourquoi, attention }
 }
@@ -120,7 +127,7 @@ export function StepResultats() {
   if (!results) return null
   const { scored, best, tmi, gain } = results
 
-  const { pourquoi, attention } = genAnalyse(best, params, tmi)
+  const { pourquoi, attention } = genAnalyse(best, params, tmi, gain, scored)
   const benBrut = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
 
   const scenarioOptimise = useMemo(() => {
@@ -213,6 +220,11 @@ export function StepResultats() {
             <span className="bg-white/15 text-white text-xs px-3 py-1 rounded-full">
               Score {best.scoreTotal}/100
             </span>
+            {best.scoreBreakdown && (
+              <span className="text-white/30 text-xs">
+                Net {best.scoreBreakdown.netScore}/{best.scoreBreakdown.netMax} · Prot. {best.scoreBreakdown.protScore}/{best.scoreBreakdown.protMax} · Simpl. {best.scoreBreakdown.simpScore}/{best.scoreBreakdown.simpMax} · Flex. {best.scoreBreakdown.flexScore}/{best.scoreBreakdown.flexMax}
+              </span>
+            )}
             {gain > 500 && (
               <span className="bg-emerald-500/15 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium">
                 +{fmt(gain)}/an vs la moins avantageuse
@@ -716,6 +728,17 @@ function StructureCard({ r, rank, params, gain }: {
           </span>
         </div>
         <div style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '2px' }}>{r.forme}</div>
+        <div style={{ fontSize: '10px', fontWeight: 600, color: pal.rankColor, opacity: 0.8, marginBottom: '3px' }}>
+          {r.forme === 'SAS / SASU' ? 'Salaire assimilé salarié + dividendes sans CS' :
+           r.forme === 'EURL / SARL (IS)' ? 'Rémunération TNS + dividendes · régime IS' :
+           r.forme === 'EI (réel normal)' ? 'Revenu BIC/BNC · cotisations SSI sur résultat' :
+           'Cotisations sur CA · abattement forfaitaire'}
+        </div>
+        {r.scoreBreakdown && (
+          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.22)', marginBottom: '4px' }}>
+            Net {r.scoreBreakdown.netScore}/{r.scoreBreakdown.netMax} · Prot. {r.scoreBreakdown.protScore}/{r.scoreBreakdown.protMax} · Simpl. {r.scoreBreakdown.simpScore}/{r.scoreBreakdown.simpMax} · Flex. {r.scoreBreakdown.flexScore}/{r.scoreBreakdown.flexMax}
+          </div>
+        )}
         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
           {r.strat}
         </div>

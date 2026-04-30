@@ -63,6 +63,12 @@ export interface StructureResult {
   ratioDivPct: number
   strat: string
   scoreTotal: number
+  scoreBreakdown?: {
+    netScore: number; netMax: number
+    protScore: number; protMax: number
+    simpScore: number; simpMax: number
+    flexScore: number; flexMax: number
+  }
   prot: ProtectionSociale
   methDiv: string
   seuilCap?: number
