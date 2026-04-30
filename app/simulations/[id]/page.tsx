@@ -74,6 +74,9 @@ export default async function SimulationDetailPage({ params }: { params: Promise
 
   return (
     <>
+      <style>{`
+        .sim-tr:hover { background: rgba(51,65,85,0.25) !important; }
+      `}</style>
       <PageHeader />
       <div style={{ minHeight: '100vh', background: '#020617' }}>
         <div style={{ maxWidth: '920px', margin: '0 auto', padding: '40px 24px' }}>
@@ -186,14 +189,11 @@ export default async function SimulationDetailPage({ params }: { params: Promise
                     {scored.map((r, i) => {
                       const rb = structureBadge(r.forme)
                       return (
-                        <tr key={r.forme} style={{
+                        <tr key={r.forme} className="sim-tr" style={{
                           background: i === 0 ? 'rgba(37,99,235,0.05)' : 'transparent',
                           borderBottom: '1px solid rgba(51,65,85,0.3)',
                           transition: 'background 150ms',
-                        }}
-                          onMouseOver={e => e.currentTarget.style.background = 'rgba(51,65,85,0.25)'}
-                          onMouseOut={e => e.currentTarget.style.background = i === 0 ? 'rgba(37,99,235,0.05)' : 'transparent'}
-                        >
+                        }}>
                           <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span style={{ fontSize: '13px', fontWeight: 700, color: rb.color }}>{r.forme}</span>
