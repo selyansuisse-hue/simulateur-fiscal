@@ -98,7 +98,7 @@ function getTMI(r: StructureResult, autresRev: number, partsBase: number, nbEnfa
   return Math.round(tmiRate((r.baseIR ?? r.bNet ?? r.ben ?? 0) + autresRev, partsBase, nbEnfants) * 100)
 }
 
-/* ── Dark theme style helpers ── */
+/* ── Style helpers ── */
 const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#94a3b8' }
 
 const selectStyle: React.CSSProperties = {
@@ -115,44 +115,57 @@ const selectStyle: React.CSSProperties = {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: '#1e293b',
+  background: '#0f172a',
   borderRadius: '16px',
-  border: '1px solid rgba(51,65,85,0.7)',
-  boxShadow: '0 1px 6px rgba(0,0,0,0.25)',
+  border: '1px solid rgba(51,65,85,0.6)',
+  boxShadow: '0 1px 6px rgba(0,0,0,0.3)',
 }
 
-/* ── SliderField (dark) ── */
-function SliderField({ label, value, onChange, min, max, step, hint, hintColor }: {
+/* ── SliderField ── */
+function SliderField({ label, value, onChange, min, max, step, hint, hintColor, fillColor }: {
   label: string; value: number; onChange: (v: number) => void
-  min: number; max: number; step: number; hint?: string; hintColor?: string
+  min: number; max: number; step: number; hint?: string; hintColor?: string; fillColor?: string
 }) {
   const safeMax = Math.max(max, min + 1)
   const sliderVal = Math.min(value, safeMax)
   const pct = safeMax > min ? Math.round((sliderVal - min) / (safeMax - min) * 100) : 0
+  const fill = fillColor || '#3B82F6'
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <label style={labelStyle}>{label}</label>
-        <input type="number" value={value}
-          onChange={e => onChange(Math.max(min, parseFloat(e.target.value) || min))}
+        <div style={{
+          background: '#1e293b', border: '1px solid #334155', borderRadius: '8px',
+          padding: '3px 10px', fontSize: '13px', fontWeight: 700, color: '#f1f5f9',
+          minWidth: '80px', textAlign: 'right',
+        }}>
+          {fmt(value)}
+        </div>
+      </div>
+      <div style={{ position: 'relative', height: '20px', display: 'flex', alignItems: 'center' }}>
+        <div style={{
+          position: 'absolute', left: 0, right: 0, height: '6px', borderRadius: '999px',
+          background: `linear-gradient(to right, ${fill} 0%, ${fill} ${pct}%, #1e293b ${pct}%, #1e293b 100%)`,
+          border: '1px solid rgba(51,65,85,0.5)',
+        }} />
+        <input type="range" min={min} max={safeMax} step={step} value={sliderVal}
+          onChange={e => onChange(parseFloat(e.target.value))}
           style={{
-            width: '100px', textAlign: 'right',
-            background: '#0f172a', border: '1px solid #334155',
-            borderRadius: '8px', padding: '3px 10px',
-            fontSize: '13px', fontWeight: 700, color: '#f1f5f9', outline: 'none',
+            position: 'absolute', left: 0, right: 0, width: '100%',
+            height: '6px', opacity: 0, cursor: 'pointer', zIndex: 1,
           }}
         />
+        <div style={{
+          position: 'absolute',
+          left: `calc(${pct}% - 8px)`,
+          width: '16px', height: '16px', borderRadius: '50%',
+          background: '#fff', border: `2px solid ${fill}`,
+          boxShadow: `0 2px 6px rgba(0,0,0,0.4)`,
+          pointerEvents: 'none',
+        }} />
       </div>
-      <input type="range" min={min} max={safeMax} step={step} value={sliderVal}
-        onChange={e => onChange(parseFloat(e.target.value))}
-        className="w-full cursor-pointer"
-        style={{
-          height: '4px', accentColor: '#3B82F6',
-          background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${pct}%, #334155 ${pct}%, #334155 100%)`,
-        }}
-      />
       {hint && (
-        <div style={{ fontSize: '10px', marginTop: '4px', color: hintColor || '#64748b', fontWeight: 500 }}>
+        <div style={{ fontSize: '10px', marginTop: '5px', color: hintColor || '#64748b', fontWeight: 500 }}>
           {hint}
         </div>
       )}
@@ -244,6 +257,8 @@ export default function ExplorerPage() {
 
   const worst = results.scored[results.scored.length - 1]
   const gainVsWorst = results.best.netAnnuel - (worst?.netAnnuel || 0)
+  const second = results.scored.find(r => r.forme !== results.best.forme)
+  const sc = structColor(results.best.forme)
 
   /* ── Delta ── */
   useEffect(() => {
@@ -272,28 +287,26 @@ export default function ExplorerPage() {
     return { ...q, impact: diff }
   }), [params, results.best.netAnnuel])
 
-  /* ── Waterfall chart data (floating bars: [yMin, yMax]) ── */
-  const waterfallChartData = useMemo(() => {
-    const best = results.best
-    const cotis = best.charges
-    const ir = best.ir
-    const is = best.is || 0
-    const net = best.netAnnuel
-    const ca = Math.max(1, params.ca)
-
-    const rows: { label: string; min: number; max: number; color: string }[] = [
-      { label: 'CA', min: 0, max: ca, color: '#3B82F6' },
-      { label: '−Cotis.', min: ca - cotis, max: ca, color: '#F43F5E' },
-      { label: '−IR', min: ca - cotis - ir, max: ca - cotis, color: '#F97316' },
-      ...(is > 0 ? [{ label: '−IS', min: net, max: ca - cotis - ir, color: '#A855F7' }] : []),
-      { label: 'Net', min: 0, max: net, color: '#10B981' },
-    ]
+  /* ── Stacked horizontal bar (FIX 3) ── */
+  const stackedBarData = useMemo(() => {
+    const b = results.best
+    const exploit = params.charges
+    const cotis = b.charges
+    const ir = b.ir
+    const is = b.is || 0
+    const net = b.netAnnuel
     return {
-      labels: rows.map(r => r.label),
-      data: rows.map(r => [r.min, r.max] as [number, number]),
-      colors: rows.map(r => r.color),
+      labels: [''],
+      datasets: [
+        { label: 'Charges exploit.', data: [exploit], backgroundColor: '#dc2626', borderRadius: 0 },
+        { label: 'Cotisations', data: [cotis], backgroundColor: '#f97316', borderRadius: 0 },
+        { label: 'IR', data: [ir], backgroundColor: '#eab308', borderRadius: 0 },
+        ...(is > 0 ? [{ label: 'IS', data: [is], backgroundColor: '#a855f7', borderRadius: 0 }] : []),
+        { label: 'Net', data: [net], backgroundColor: '#10b981', borderRadius: 4 },
+      ],
+      raw: { exploit, cotis, ir, is, net },
     }
-  }, [results.best, params.ca])
+  }, [results.best, params.charges])
 
   /* ── Breakeven curve data ── */
   const breakevenData = useMemo(() => {
@@ -322,13 +335,18 @@ export default function ExplorerPage() {
   const tmiColor = tmi <= 11 ? '#10B981' : tmi <= 30 ? '#F59E0B' : tmi <= 41 ? '#F97316' : '#EF4444'
   const kpiDeltaVal = delta.visible && Math.abs(delta.value) > 100 ? delta.value : null
 
-  /* ── Chart.js options (dark theme) ── */
-  const waterfallOptions: ChartOptions<'bar'> = {
+  /* ── Chart.js options ── */
+  const stackedBarOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y' as const,
     responsive: true,
     maintainAspectRatio: false,
-    animation: { duration: 250 },
+    animation: { duration: 300 },
     plugins: {
-      legend: { display: false },
+      legend: {
+        display: true,
+        position: 'bottom' as const,
+        labels: { boxWidth: 10, font: { size: 10 }, color: '#64748b', padding: 14 },
+      },
       tooltip: {
         backgroundColor: '#1e293b',
         borderColor: '#334155',
@@ -337,26 +355,27 @@ export default function ExplorerPage() {
         bodyColor: '#f1f5f9',
         callbacks: {
           label: (item: TooltipItem<'bar'>) => {
-            const raw = item.raw as [number, number]
-            const val = Array.isArray(raw) ? raw[1] - raw[0] : Number(raw)
-            return ` ${fmt(Math.abs(val))}`
+            const val = typeof item.raw === 'number' ? item.raw : 0
+            return ` ${item.dataset.label}: ${fmt(val)}`
           },
         },
       },
     },
     scales: {
       x: {
-        grid: { display: false },
-        ticks: { font: { size: 11 }, color: '#64748b' },
-        border: { color: '#334155' },
-      },
-      y: {
-        grid: { color: 'rgba(51,65,85,0.5)' },
+        stacked: true,
+        grid: { color: 'rgba(51,65,85,0.25)' },
         ticks: {
           font: { size: 10 }, color: '#64748b',
           callback: (val) => `${Math.round(Number(val) / 1000)}k€`,
         },
         border: { color: '#334155' },
+      },
+      y: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { display: false },
+        border: { display: false },
       },
     },
   }
@@ -410,16 +429,6 @@ export default function ExplorerPage() {
     },
   }
 
-  const waterfallChartConfig = {
-    labels: waterfallChartData.labels,
-    datasets: [{
-      data: waterfallChartData.data,
-      backgroundColor: waterfallChartData.colors,
-      borderRadius: 4,
-      borderSkipped: false as const,
-    }],
-  }
-
   const breakevenChartConfig = {
     datasets: [
       {
@@ -450,27 +459,39 @@ export default function ExplorerPage() {
     ],
   }
 
-  /* ── Tab trigger style ── */
+  /* ── Tab trigger style (FIX 7 — plus subtil) ── */
   const tabTriggerStyle = (val: string): React.CSSProperties => ({
     flex: 1, padding: '8px 4px', fontSize: '10px', fontWeight: 700,
     cursor: 'pointer', border: 'none',
     borderRadius: '8px',
-    background: activeTab === val ? '#2563EB' : 'transparent',
-    color: activeTab === val ? '#ffffff' : '#64748B',
+    background: activeTab === val ? 'rgba(51,65,85,0.8)' : 'transparent',
+    color: activeTab === val ? '#f1f5f9' : '#64748B',
     transition: 'all 150ms',
     display: 'flex', flexDirection: 'column' as const,
     alignItems: 'center', gap: '2px',
-    boxShadow: activeTab === val ? '0 4px 12px rgba(37,99,235,0.35)' : 'none',
+    boxShadow: 'none',
   })
+
+  /* ── Décomposition % pour le mini-bar du hero ── */
+  const ca = Math.max(1, params.ca)
+  const heroChargesPct = Math.min(45, (params.charges / ca * 100))
+  const heroCotisPct = Math.min(45, (results.best.charges / ca * 100))
+  const heroIrPct = Math.min(30, (results.best.ir / ca * 100))
+  const heroNetPct = Math.min(100, (results.best.netAnnuel / ca * 100))
 
   return (
     <>
+      <style>{`
+        html, body { background: #020617 !important; }
+        input[type=range]::-webkit-slider-thumb { opacity: 0; }
+        input[type=range]::-moz-range-thumb { opacity: 0; }
+      `}</style>
       <PageHeader />
-      <div style={{ minHeight: '100vh', background: '#0f172a' }}>
+      <div style={{ minHeight: '100vh', background: '#020617' }}>
 
         {/* ── PAGE SUB-HEADER ── */}
         <div style={{
-          background: '#1e293b', borderBottom: '1px solid #334155',
+          background: '#0a1628', borderBottom: '1px solid rgba(51,65,85,0.6)',
           padding: '14px 24px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap',
         }}>
@@ -483,20 +504,19 @@ export default function ExplorerPage() {
                 Résultats mis à jour instantanément
               </p>
             </div>
-            {/* Badge meilleure structure */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              background: structColor(results.best.forme) + '18',
-              border: `1px solid ${structColor(results.best.forme)}40`,
+              background: sc + '18',
+              border: `1px solid ${sc}40`,
               borderRadius: '999px', padding: '5px 12px',
             }}>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: structColor(results.best.forme) }} />
-              <span style={{ fontSize: '11px', fontWeight: 700, color: structColor(results.best.forme) }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: sc }} />
+              <span style={{ fontSize: '11px', fontWeight: 700, color: sc }}>
                 {results.best.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
               </span>
               <span style={{
                 fontSize: '10px', fontWeight: 800, color: '#fff',
-                background: structColor(results.best.forme),
+                background: sc,
                 borderRadius: '999px', padding: '1px 7px',
               }}>
                 {results.best.scoreTotal}/100
@@ -539,14 +559,14 @@ export default function ExplorerPage() {
           </div>
         </div>
 
-        {/* ── KPI BAR STICKY ── */}
+        {/* ── KPI BAR STICKY (FIX 2) ── */}
         <div style={{
           position: 'sticky', top: '64px', zIndex: 40,
-          background: 'rgba(15,23,42,0.92)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #334155',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          background: 'rgba(2,6,23,0.96)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(51,65,85,0.5)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', maxWidth: '1400px', margin: '0 auto' }}
             className="!grid-cols-2 lg:!grid-cols-4">
@@ -555,70 +575,66 @@ export default function ExplorerPage() {
                 label: 'Revenu net annuel',
                 value: fmt(results.best.netAnnuel),
                 sub: `${fmt(Math.round(results.best.netAnnuel / 12))}/mois`,
-                color: structColor(results.best.forme),
-                accentColor: structColor(results.best.forme),
-                icon: '💰', delta: kpiDeltaVal,
+                valueColor: '#60a5fa',
+                accentColor: sc,
+                delta: kpiDeltaVal,
               },
               {
                 label: 'TMI estimé',
                 value: `${tmi}%`,
-                sub: tmi <= 11 ? 'Tranche basse ✓' : tmi <= 30 ? 'Intermédiaire' : 'Haute ⚠',
-                color: tmiColor, accentColor: tmiColor, icon: '📊', delta: null,
+                sub: tmi <= 11 ? 'Tranche basse' : tmi <= 30 ? 'Intermédiaire' : tmi <= 41 ? 'Haute' : 'Très haute',
+                valueColor: tmiColor,
+                accentColor: tmiColor,
+                delta: null,
               },
               {
                 label: 'Gain vs moins avantageux',
-                value: `↑ +${fmt(gainVsWorst)}`,
+                value: `+${fmt(gainVsWorst)}`,
                 sub: 'par an',
-                color: '#34d399', accentColor: '#10B981', icon: '📈', delta: null,
+                valueColor: '#34d399',
+                accentColor: '#10B981',
+                delta: null,
               },
               {
                 label: 'Résultat avant rémunération',
                 value: fmt(ben),
-                sub: 'CA − charges − amort',
-                color: '#94a3b8', accentColor: '#64748b', icon: '📋', delta: null,
+                sub: 'CA − charges − amort.',
+                valueColor: '#cbd5e1',
+                accentColor: '#475569',
+                delta: null,
               },
             ].map((kpi, i) => (
               <div key={i} style={{
-                padding: '10px 16px 12px',
-                borderRight: i < 3 ? '1px solid rgba(51,65,85,0.5)' : 'none',
-                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '10px 18px 11px',
+                borderRight: i < 3 ? '1px solid rgba(51,65,85,0.4)' : 'none',
                 position: 'relative', overflow: 'hidden',
               }}>
-                {/* Top accent bar per structure */}
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: kpi.accentColor, opacity: 0.85 }} />
-                <div style={{
-                  width: '34px', height: '34px', borderRadius: '10px',
-                  background: kpi.color + '18', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: '15px', flexShrink: 0,
-                  border: `1px solid ${kpi.color}25`,
-                }}>
-                  {kpi.icon}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: kpi.accentColor, opacity: 0.9 }} />
+                <div style={{ fontSize: '9px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '3px' }}>
+                  {kpi.label}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '9px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '1px' }}>
-                    {kpi.label}
-                  </div>
-                  <div style={{ fontSize: '17px', fontWeight: 900, color: kpi.color, letterSpacing: '-0.03em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' as const }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' as const }}>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: kpi.valueColor, letterSpacing: '-0.02em', lineHeight: 1 }}>
                     {kpi.value}
-                    {kpi.delta !== null && (
-                      <span style={{
-                        fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px',
-                        background: kpi.delta >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                        color: kpi.delta >= 0 ? '#34d399' : '#f87171',
-                        border: `1px solid ${kpi.delta >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                      }}>
-                        {kpi.delta >= 0 ? '↑ +' : '↓ '}{fmt(Math.abs(kpi.delta))}
-                      </span>
-                    )}
-                    {newBestAlert && i === 0 && (
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', background: '#2563EB', color: '#fff' }}>
-                        ✦ Nouveau
-                      </span>
-                    )}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#475569', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {kpi.sub}
-                  </div>
+                  {kpi.delta !== null && (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px',
+                      background: kpi.delta >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: kpi.delta >= 0 ? '#34d399' : '#f87171',
+                      border: `1px solid ${kpi.delta >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                    }}>
+                      {kpi.delta >= 0 ? '↑ +' : '↓ '}{fmt(Math.abs(kpi.delta))}
+                    </span>
+                  )}
+                  {newBestAlert && i === 0 && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', background: '#2563EB', color: '#fff' }}>
+                      ✦ Nouveau
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                  {kpi.sub}
                 </div>
               </div>
             ))}
@@ -630,13 +646,14 @@ export default function ExplorerPage() {
           className="!grid-cols-1 lg:!grid-cols-[300px_1fr]">
 
           {/* ════ SIDEBAR AVEC TABS ════ */}
-          <div style={{ background: '#162032', borderRight: '1px solid #334155' }}
-            className="lg:sticky lg:top-[172px] lg:overflow-y-auto lg:max-h-[calc(100vh-172px)]">
+          <div style={{ background: '#080f1e', borderRight: '1px solid rgba(51,65,85,0.5)' }}
+            className="lg:sticky lg:top-[148px] lg:overflow-y-auto lg:max-h-[calc(100vh-148px)]">
 
+            {/* FIX 7 — Tab bar plus subtil */}
             <RadixTabs.Root value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
               <RadixTabs.List style={{
-                display: 'flex', borderBottom: '1px solid #334155',
-                background: '#0f172a', position: 'sticky' as const, top: 0, zIndex: 10,
+                display: 'flex', borderBottom: '1px solid rgba(51,65,85,0.5)',
+                background: '#020617', position: 'sticky' as const, top: 0, zIndex: 10,
                 padding: '5px 6px', gap: '4px',
               }}>
                 {[
@@ -647,7 +664,7 @@ export default function ExplorerPage() {
                   <RadixTabs.Trigger key={tab.value} value={tab.value} style={tabTriggerStyle(tab.value)}>
                     <span style={{
                       fontSize: '14px',
-                      background: activeTab === tab.value ? 'rgba(255,255,255,0.15)' : '#1e293b',
+                      background: activeTab === tab.value ? 'rgba(255,255,255,0.08)' : '#0f172a',
                       borderRadius: '5px', padding: '2px 4px',
                     }}>{tab.icon}</span>
                     {tab.label}
@@ -671,26 +688,46 @@ export default function ExplorerPage() {
 
                 <SliderField label="CA annuel HT" value={params.ca}
                   onChange={v => set('ca', v)} min={0} max={2000000} step={5000}
+                  fillColor={sc}
                   hint={microExcluded ? `⚠ Micro exclue (>${fmt(results.microPlafond)})` : `✓ Micro possible (≤ ${fmt(results.microPlafond)})`}
                   hintColor={microExcluded ? '#F59E0B' : '#10B981'}
                 />
 
-                <SectionTitle label="Charges & Investissements" color="#3B82F6" />
+                {/* Mode expert : charges détaillées */}
+                {mode === 'expert' && (
+                  <>
+                    <SectionTitle label="Charges & Investissements" color="#3B82F6" />
+                    <SliderField label="Charges d'exploitation" value={params.charges}
+                      onChange={v => set('charges', v)}
+                      min={0} max={Math.max(Math.round(params.ca * 0.9), 10000)} step={1000}
+                      fillColor={sc}
+                      hint={params.ca > 0 ? `${(params.charges / params.ca * 100).toFixed(0)}% du CA` : undefined}
+                    />
+                    <SliderField label="Amortissements" value={params.amort}
+                      onChange={v => set('amort', v)} min={0} max={200000} step={500}
+                      fillColor={sc}
+                    />
+                  </>
+                )}
 
-                <SliderField label="Charges d'exploitation" value={params.charges}
-                  onChange={v => set('charges', v)}
-                  min={0} max={Math.max(Math.round(params.ca * 0.9), 10000)} step={1000}
-                  hint={params.ca > 0 ? `${(params.charges / params.ca * 100).toFixed(0)}% du CA` : undefined}
-                />
-
-                <SliderField label="Amortissements" value={params.amort}
-                  onChange={v => set('amort', v)} min={0} max={200000} step={500}
-                />
+                {/* Mode simplifié : charges résumées */}
+                {mode === 'simple' && (
+                  <div style={{
+                    background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)',
+                    borderRadius: '10px', padding: '10px 12px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <span style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 600 }}>Charges + amort.</span>
+                    <span style={{ fontSize: '15px', fontWeight: 800, color: '#93c5fd' }}>
+                      {fmt(params.charges + params.amort)}
+                    </span>
+                  </div>
+                )}
 
                 {/* Résultat indicator */}
                 <div style={{
-                  background: seuil60k ? 'rgba(245,158,11,0.1)' : 'rgba(37,99,235,0.1)',
-                  border: `1px solid ${seuil60k ? 'rgba(245,158,11,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                  background: seuil60k ? 'rgba(245,158,11,0.1)' : 'rgba(37,99,235,0.08)',
+                  border: `1px solid ${seuil60k ? 'rgba(245,158,11,0.3)' : 'rgba(59,130,246,0.25)'}`,
                   borderRadius: '10px', padding: '10px 12px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
@@ -744,14 +781,18 @@ export default function ExplorerPage() {
 
                 <SliderField label="Autres revenus du foyer (€/an)" value={params.autresRev}
                   onChange={v => set('autresRev', Math.max(0, v))} min={0} max={200000} step={1000}
+                  fillColor="#8B5CF6"
                   hint="Salaire conjoint, revenus fonciers..."
                 />
 
-                <SliderField label="Capital social (société IS)" value={params.capital}
-                  onChange={v => set('capital', v)} min={1000} max={500000} step={1000}
-                  hint={`Seuil dividendes TNS : ${fmt(params.capital * 0.10)}`}
-                  hintColor="#64748b"
-                />
+                {mode === 'expert' && (
+                  <SliderField label="Capital social (société IS)" value={params.capital}
+                    onChange={v => set('capital', v)} min={1000} max={500000} step={1000}
+                    fillColor="#8B5CF6"
+                    hint={`Seuil dividendes TNS : ${fmt(params.capital * 0.10)}`}
+                    hintColor="#64748b"
+                  />
+                )}
               </RadixTabs.Content>
 
               {/* Tab Optimisation */}
@@ -763,7 +804,7 @@ export default function ExplorerPage() {
                       style={{
                         padding: '10px', borderRadius: '10px', cursor: 'pointer',
                         border: params.strategie === val ? '2px solid #10B981' : '1.5px solid #334155',
-                        background: params.strategie === val ? 'rgba(16,185,129,0.12)' : '#1e293b',
+                        background: params.strategie === val ? 'rgba(16,185,129,0.12)' : '#0f172a',
                         color: params.strategie === val ? '#34d399' : '#64748b',
                         fontSize: '11px', fontWeight: 700, transition: 'all 150ms',
                       }}>
@@ -775,6 +816,7 @@ export default function ExplorerPage() {
                 {params.strategie === 'reserve' && (
                   <SliderField label="Montant en réserves" value={params.reserveVoulue}
                     onChange={v => set('reserveVoulue', v)} min={0} max={Math.max(ben, 1)} step={1000}
+                    fillColor="#10B981"
                   />
                 )}
 
@@ -783,6 +825,7 @@ export default function ExplorerPage() {
                 <SliderField label="Versements PER annuels" value={params.perMontant}
                   onChange={v => set('perMontant', Math.max(0, v))}
                   min={0} max={perPlafond} step={500}
+                  fillColor="#10B981"
                   hint={params.perMontant > 0
                     ? `Économie IR estimée : ~${fmt(Math.round(params.perMontant * tmi / 100))}/an`
                     : `Plafond déductible : ${fmt(perPlafond)}`}
@@ -801,7 +844,6 @@ export default function ExplorerPage() {
                   </div>
                 )}
 
-                {/* Réinitialiser */}
                 {(params.ca !== DEFAULT.ca || params.charges !== DEFAULT.charges || params.situationFam !== DEFAULT.situationFam) && (
                   <button onClick={() => { setParams(DEFAULT); setIsPrefilledFromSim(false) }}
                     style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', cursor: 'pointer', padding: '8px', textAlign: 'center' as const }}>
@@ -813,7 +855,76 @@ export default function ExplorerPage() {
           </div>
 
           {/* ════ ZONE PRINCIPALE ════ */}
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column' as const, gap: '14px' }}>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column' as const, gap: '14px', background: '#020617' }}>
+
+            {/* FIX 5 — Bloc résultat hero 3 colonnes */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(109,40,217,0.10) 100%)',
+              border: '1px solid rgba(96,165,250,0.25)',
+              borderRadius: '20px', padding: '20px 24px',
+              display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '24px', alignItems: 'center',
+            }}
+              className="!grid-cols-1 lg:!grid-cols-[1fr_auto_1fr]">
+
+              {/* Gauche — revenu net */}
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase' as const, letterSpacing: '0.09em', marginBottom: '4px' }}>
+                  Revenu net estimé
+                </div>
+                <div style={{ fontSize: '48px', fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '4px' }}>
+                  {fmt(results.best.netAnnuel)}
+                </div>
+                <div style={{ fontSize: '14px', color: '#94a3b8' }}>
+                  soit {fmt(Math.round(results.best.netAnnuel / 12))}/mois
+                </div>
+                <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: sc }} />
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: sc }}>{results.best.forme}</span>
+                </div>
+              </div>
+
+              {/* Centre — mini barre de décomposition */}
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px', minWidth: '180px' }}>
+                <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', height: '10px' }}>
+                  <div style={{ width: `${heroChargesPct.toFixed(0)}%`, background: '#dc2626', transition: 'width 300ms' }} />
+                  <div style={{ width: `${heroCotisPct.toFixed(0)}%`, background: '#f97316', transition: 'width 300ms' }} />
+                  <div style={{ width: `${heroIrPct.toFixed(0)}%`, background: '#eab308', transition: 'width 300ms' }} />
+                  <div style={{ flex: 1, background: '#10b981', transition: 'flex 300ms' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' as const }}>
+                  {[
+                    { dot: '#dc2626', label: 'Charges', pct: heroChargesPct },
+                    { dot: '#f97316', label: 'Cotis.', pct: heroCotisPct },
+                    { dot: '#eab308', label: 'IR', pct: heroIrPct },
+                    { dot: '#10b981', label: 'Net', pct: heroNetPct },
+                  ].map(l => (
+                    <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: l.dot }} />
+                      <span style={{ fontSize: '10px', color: '#64748b' }}>{l.label} {l.pct.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Droite — comparaisons */}
+              <div style={{ textAlign: 'right' as const }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '8px' }}>
+                  Vs autres structures
+                </div>
+                {results.scored.slice(1).map(r => {
+                  const diff = Math.round(results.best.netAnnuel - r.netAnnuel)
+                  if (diff <= 0) return null
+                  return (
+                    <div key={r.forme} style={{ fontSize: '12px', color: '#34d399', fontWeight: 700, marginBottom: '4px' }}>
+                      ↑ +{fmt(diff)}/an vs {r.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
+                    </div>
+                  )
+                })}
+                <div style={{ marginTop: '8px', padding: '6px 12px', borderRadius: '8px', display: 'inline-block', background: sc + '20', border: `1px solid ${sc}40` }}>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: sc }}>Score {results.best.scoreTotal}/100</span>
+                </div>
+              </div>
+            </div>
 
             {/* Boutons "Et si..." */}
             <div style={{
@@ -830,7 +941,7 @@ export default function ExplorerPage() {
                   style={{
                     flexShrink: 0, padding: '7px 12px', borderRadius: '999px',
                     cursor: 'pointer', transition: 'all 150ms', outline: 'none',
-                    border: '1px solid #334155', background: '#0f172a',
+                    border: '1px solid rgba(51,65,85,0.5)', background: '#0a1628',
                     display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '1px',
                   }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>{q.label}</div>
@@ -843,38 +954,52 @@ export default function ExplorerPage() {
               ))}
             </div>
 
-            {/* ── Graphique Waterfall ── */}
+            {/* ── FIX 3 — Graphique stacked horizontal bar ── */}
             <div style={{ ...cardStyle, padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>Décomposition du CA</div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                    {results.best.forme} · Cascade CA → Prélèvements → Net
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' as const }}>
-                  {[
-                    { color: '#3B82F6', label: 'CA' },
-                    { color: '#F43F5E', label: 'Cotis.' },
-                    { color: '#F97316', label: 'IR' },
-                    ...(results.best.is > 0 ? [{ color: '#A855F7', label: 'IS' }] : []),
-                    { color: '#10B981', label: 'Net' },
-                  ].map(l => (
-                    <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: l.color }} />
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>{l.label}</span>
-                    </div>
-                  ))}
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>Décomposition du CA</div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                  {results.best.forme} · Comment votre CA se répartit
                 </div>
               </div>
-              <div style={{ height: '200px', marginTop: '12px' }}>
-                <Bar data={waterfallChartConfig} options={waterfallOptions} />
+
+              {/* Ligne de flow CA → Net */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' as const, marginBottom: '14px', fontSize: '11px', fontWeight: 600 }}>
+                <span style={{ color: '#60a5fa' }}>CA {fmt(params.ca)}</span>
+                {params.charges > 0 && <>
+                  <span style={{ color: '#475569' }}>→</span>
+                  <span style={{ color: '#f43f5e' }}>−{fmt(params.charges)} charges</span>
+                </>}
+                <span style={{ color: '#475569' }}>→</span>
+                <span style={{ color: '#f97316' }}>−{fmt(results.best.charges)} cotis.</span>
+                <span style={{ color: '#475569' }}>→</span>
+                <span style={{ color: '#eab308' }}>−{fmt(results.best.ir)} IR</span>
+                {results.best.is > 0 && <>
+                  <span style={{ color: '#475569' }}>→</span>
+                  <span style={{ color: '#a855f7' }}>−{fmt(results.best.is)} IS</span>
+                </>}
+                <span style={{ color: '#475569' }}>→</span>
+                <span style={{ color: '#10b981', fontWeight: 800 }}>={fmt(results.best.netAnnuel)} net</span>
+              </div>
+
+              <div style={{ height: '120px' }}>
+                <Bar
+                  data={{
+                    labels: [''],
+                    datasets: stackedBarData.datasets,
+                  }}
+                  options={stackedBarOptions}
+                />
               </div>
             </div>
 
-            {/* ── Tableau comparatif ── */}
+            {/* ── FIX 6 — Tableau comparatif ── */}
             <div style={{ ...cardStyle, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{
+                padding: '14px 20px', borderBottom: '1px solid rgba(51,65,85,0.5)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: 'rgba(15,23,42,0.5)',
+              }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>Comparatif des structures</span>
                 <span style={{ fontSize: '11px', color: '#64748b' }}>
                   {mode === 'expert' ? 'Mode expert — toutes les colonnes' : 'Mode simplifié'}
@@ -883,10 +1008,10 @@ export default function ExplorerPage() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ background: 'rgba(15,23,42,0.6)' }}>
-                      <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Structure</th>
+                    <tr style={{ background: 'rgba(15,23,42,0.8)' }}>
+                      <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: '10px', fontWeight: 700, color: '#334155', textTransform: 'uppercase' as const, letterSpacing: '0.07em', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(51,65,85,0.4)' }}>Structure</th>
                       {['Net/an', 'Net/mois', ...(mode === 'expert' ? ['Cotis.', 'IR'] : []), 'TMI', 'Score'].map(h => (
-                        <th key={h} style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px', fontWeight: 700, color: '#334155', textTransform: 'uppercase' as const, letterSpacing: '0.07em', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(51,65,85,0.4)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -896,22 +1021,24 @@ export default function ExplorerPage() {
                       const isExcluded = r.forme === 'Micro-entreprise' && microExcluded
                       const structTmi = getTMI(r, params.autresRev, partsBase, params.nbEnfants)
                       const tmiPillColor = structTmi <= 11 ? '#34d399' : structTmi <= 30 ? '#fbbf24' : structTmi <= 41 ? '#fb923c' : '#f87171'
-                      const tmiPillBg = structTmi <= 11 ? 'rgba(16,185,129,0.15)' : structTmi <= 30 ? 'rgba(245,158,11,0.15)' : structTmi <= 41 ? 'rgba(249,115,22,0.15)' : 'rgba(239,68,68,0.15)'
-                      const sc = structColor(r.forme)
+                      const tmiPillBg = structTmi <= 11 ? 'rgba(16,185,129,0.12)' : structTmi <= 30 ? 'rgba(245,158,11,0.12)' : structTmi <= 41 ? 'rgba(249,115,22,0.12)' : 'rgba(239,68,68,0.12)'
+                      const rsc = structColor(r.forme)
                       const scoreBadgeColor = r.scoreTotal >= 60 ? '#34d399' : r.scoreTotal >= 40 ? '#fbbf24' : '#64748b'
                       const scoreBadgeBg = r.scoreTotal >= 60 ? 'rgba(16,185,129,0.12)' : r.scoreTotal >= 40 ? 'rgba(245,158,11,0.12)' : 'rgba(100,116,139,0.12)'
                       return (
                         <tr key={r.forme} style={{
-                          borderTop: '1px solid rgba(51,65,85,0.6)',
-                          background: isBest && !isExcluded ? sc + '10' : 'transparent',
+                          borderTop: '1px solid rgba(51,65,85,0.35)',
+                          borderLeft: isBest && !isExcluded ? `3px solid ${rsc}` : '3px solid transparent',
+                          background: isBest && !isExcluded ? rsc + '08' : 'transparent',
+                          transition: 'background 150ms',
                         }}>
                           <td style={{ padding: '11px 20px', minWidth: '140px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isExcluded ? '#334155' : sc, flexShrink: 0 }} />
+                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isExcluded ? '#334155' : rsc, flexShrink: 0 }} />
                               <div>
                                 <div style={{
                                   fontSize: '13px', fontWeight: isBest && !isExcluded ? 700 : 500,
-                                  color: isExcluded ? '#475569' : isBest ? sc : '#94a3b8',
+                                  color: isExcluded ? '#475569' : isBest ? rsc : '#94a3b8',
                                   textDecoration: isExcluded ? 'line-through' : 'none',
                                 }}>
                                   {r.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
@@ -924,7 +1051,7 @@ export default function ExplorerPage() {
                             </div>
                           </td>
                           <td style={{ textAlign: 'right', padding: '11px 14px' }}>
-                            <span style={{ fontSize: '14px', fontWeight: 800, color: isExcluded ? '#334155' : isBest ? sc : '#f1f5f9' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 800, color: isExcluded ? '#334155' : isBest ? rsc : '#f1f5f9' }}>
                               {isExcluded ? '—' : fmt(r.netAnnuel)}
                             </span>
                           </td>
@@ -959,6 +1086,26 @@ export default function ExplorerPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mode expert : détail IS + IR */}
+              {mode === 'expert' && (
+                <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(51,65,85,0.35)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '4px' }}>IS barème</div>
+                    <div style={{ fontSize: '12px', color: '#a78bfa' }}>15% jusqu&apos;à 42 500 € · 25% au-delà</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '4px' }}>IR tranche marginale</div>
+                    <div style={{ fontSize: '12px', color: tmiColor }}>TMI {tmi}% · {partsStr} part{parts > 1 ? 's' : ''}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '4px' }}>Taux effectif global</div>
+                    <div style={{ fontSize: '12px', color: '#60a5fa' }}>
+                      {params.ca > 0 ? `${((results.best.charges + results.best.ir + (results.best.is || 0)) / params.ca * 100).toFixed(1)}%` : '—'} du CA
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── Courbe Breakeven ── */}
@@ -979,14 +1126,15 @@ export default function ExplorerPage() {
               className="!grid-cols-1 lg:!grid-cols-2">
 
               <div style={{
-                background: `linear-gradient(135deg, ${structColor(results.best.forme)}, ${structColor(results.best.forme)}CC)`,
+                background: `linear-gradient(135deg, ${sc}30, ${sc}18)`,
                 borderRadius: '16px', padding: '22px',
-                boxShadow: `0 4px 20px ${structColor(results.best.forme)}40`,
+                boxShadow: `0 4px 20px ${sc}25`,
+                border: `1px solid ${sc}40`,
                 position: 'relative', overflow: 'hidden',
               }}>
-                <div style={{ position: 'absolute', right: '-4rem', top: '-4rem', width: '200px', height: '200px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%)', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', right: '-4rem', top: '-4rem', width: '200px', height: '200px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 65%)', pointerEvents: 'none' }} />
                 <div style={{ position: 'relative' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 800, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 800, color: sc, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '8px' }}>
                     Structure recommandée
                   </div>
                   <div style={{ fontSize: '14px', fontWeight: 800, color: '#fff', marginBottom: '3px' }}>
@@ -999,7 +1147,7 @@ export default function ExplorerPage() {
                     {fmt(Math.round(results.best.netAnnuel / 12))}/mois net après impôts
                   </div>
                   {gainVsWorst > 500 && (
-                    <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '10px', padding: '7px 12px', marginBottom: '14px', fontSize: '12px', fontWeight: 800, color: '#fff' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.10)', borderRadius: '10px', padding: '7px 12px', marginBottom: '14px', fontSize: '12px', fontWeight: 800, color: '#fff', border: '1px solid rgba(255,255,255,0.12)' }}>
                       +{fmt(gainVsWorst)}/an vs moins avantageuse
                     </div>
                   )}
@@ -1007,14 +1155,14 @@ export default function ExplorerPage() {
                     <button onClick={() => router.push('/simulateur')} style={{
                       flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer',
                       border: 'none', fontWeight: 700, fontSize: '12px',
-                      background: 'rgba(255,255,255,0.18)', color: '#fff',
+                      background: 'rgba(255,255,255,0.15)', color: '#fff',
                     }}>
                       Analyse complète →
                     </button>
                     <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
                       style={{
                         flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer',
-                        border: '1px solid rgba(255,255,255,0.25)',
+                        border: '1px solid rgba(255,255,255,0.2)',
                         fontWeight: 700, fontSize: '12px', color: 'rgba(255,255,255,0.75)',
                         textDecoration: 'none', textAlign: 'center' as const,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1030,15 +1178,17 @@ export default function ExplorerPage() {
                   💡 Ce que ça change concrètement
                 </div>
                 {[
-                  { label: 'Revenu mensuel net', val: fmt(Math.round(results.best.netAnnuel / 12)), color: structColor(results.best.forme), bg: structColor(results.best.forme) + '18' },
-                  { label: 'Charges sociales/an', val: `−${fmt(results.best.charges)}`, color: '#f43f5e', bg: 'rgba(244,63,94,0.1)' },
-                  { label: 'IR estimé/an', val: `−${fmt(results.best.ir)}`, color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-                  ...(results.best.is > 0 ? [{ label: 'IS estimé', val: `−${fmt(results.best.is)}`, color: '#a78bfa', bg: 'rgba(139,92,246,0.1)' }] : []),
-                  ...(gainVsWorst > 500 ? [{ label: 'Gain vs moins avantageux', val: `+${fmt(gainVsWorst)}/an`, color: '#34d399', bg: 'rgba(16,185,129,0.1)' }] : []),
+                  { label: 'Revenu mensuel net', val: fmt(Math.round(results.best.netAnnuel / 12)), color: sc, bg: sc + '18' },
+                  { label: 'Charges sociales/an', val: `−${fmt(results.best.charges)}`, color: '#f43f5e', bg: 'rgba(244,63,94,0.08)' },
+                  { label: 'IR estimé/an', val: `−${fmt(results.best.ir)}`, color: '#f97316', bg: 'rgba(249,115,22,0.08)' },
+                  ...(results.best.is > 0 ? [{ label: 'IS estimé', val: `−${fmt(results.best.is)}`, color: '#a78bfa', bg: 'rgba(139,92,246,0.08)' }] : []),
+                  ...(gainVsWorst > 500 ? [{ label: 'Gain vs moins avantageux', val: `+${fmt(gainVsWorst)}/an`, color: '#34d399', bg: 'rgba(16,185,129,0.08)' }] : []),
+                  ...(second ? [{ label: `vs ${second.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}`, val: `+${fmt(Math.round(results.best.netAnnuel - second.netAnnuel))}/an`, color: '#60a5fa', bg: 'rgba(59,130,246,0.08)' }] : []),
                 ].map(row => (
                   <div key={row.label} style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '8px 11px', borderRadius: '10px', background: row.bg, marginBottom: '6px',
+                    border: '1px solid rgba(51,65,85,0.2)',
                   }}>
                     <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{row.label}</span>
                     <span style={{ fontSize: '14px', fontWeight: 900, color: row.color }}>{row.val}</span>
@@ -1050,11 +1200,11 @@ export default function ExplorerPage() {
             {/* ── Résumé automatique ── */}
             <div style={{ ...cardStyle, padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'stretch', gap: '0', marginBottom: '12px' }}>
-                <div style={{ width: '3px', borderRadius: '2px 0 0 2px', background: structColor(results.best.forme), flexShrink: 0 }} />
+                <div style={{ width: '3px', borderRadius: '2px 0 0 2px', background: sc, flexShrink: 0 }} />
                 <span style={{
-                  fontSize: '11px', fontWeight: 800, color: structColor(results.best.forme),
+                  fontSize: '11px', fontWeight: 800, color: sc,
                   textTransform: 'uppercase' as const, letterSpacing: '0.08em',
-                  background: structColor(results.best.forme) + '18',
+                  background: sc + '18',
                   padding: '3px 10px', borderRadius: '0 6px 6px 0',
                 }}>
                   Résumé de ce scénario
@@ -1065,7 +1215,7 @@ export default function ExplorerPage() {
               </p>
               <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' as const }}>
                 {['Barème IR 2025', 'Estimation indicative', 'À valider avec votre expert-comptable'].map(tag => (
-                  <span key={tag} style={{ fontSize: '10px', color: '#475569', background: '#0f172a', border: '1px solid #334155', padding: '3px 8px', borderRadius: '6px' }}>
+                  <span key={tag} style={{ fontSize: '10px', color: '#475569', background: '#0a1628', border: '1px solid rgba(51,65,85,0.4)', padding: '3px 8px', borderRadius: '6px' }}>
                     {tag}
                   </span>
                 ))}
