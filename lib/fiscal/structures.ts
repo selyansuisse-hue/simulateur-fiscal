@@ -210,42 +210,75 @@ export function calcSASU(p: SimParams): StructureResult {
   }
 }
 
-// Score multicritère
+// Score multicritère — net annuel est le critère dominant (60 pts par défaut)
 export function scoreMulti(res: StructureResult[], priorite: Priorite): StructureResult[] {
-  const wN = priorite === 'net' ? 6 : priorite === 'equilibre' ? 4 : priorite === 'protection' ? 2 : priorite === 'simplicite' ? 3 : 3
-  const wP = priorite === 'protection' ? 6 : priorite === 'equilibre' ? 4 : 1
-  const wS = priorite === 'simplicite' ? 5 : 1
-  const wF = priorite === 'croissance' ? 5 : 1
+  // Poids fixes par priorité, toujours somme = 100
+  const W: Record<string, { n: number; f: number; p: number; a: number }> = {
+    net:        { n: 75, f: 12, p:  8, a:  5 },
+    equilibre:  { n: 60, f: 20, p: 12, a:  8 },
+    croissance: { n: 50, f: 38, p:  7, a:  5 },
+    simplicite: { n: 45, f: 10, p: 10, a: 35 },
+    protection: { n: 35, f: 12, p: 45, a:  8 },
+  }
+  const { n: wN, f: wF, p: wP, a: wA } = W[priorite] ?? W.equilibre
+
   const SC: Record<string, { s: number; f: number }> = {
     'Micro-entreprise': { s: 5, f: 1 },
     'EI (réel normal)': { s: 4, f: 2 },
     'EURL / SARL (IS)': { s: 2, f: 4 },
-    'SAS / SASU': { s: 2, f: 5 },
+    'SAS / SASU':       { s: 2, f: 5 },
   }
-  const protS = (r: StructureResult) => {
+  // Protection score 1/3/5 → normalisé 0-1 (divRatio > 60% pénalise la protection réelle)
+  const protRaw = (r: StructureResult) => {
     const q = r.prot?.qual
     if (q === 'bon') return r.ratioDivPct > 60 ? 3 : 5
     if (q === 'moyen') return 3
     return 1
   }
+
   const nets = res.map(r => r.netAnnuel)
   const mn = Math.min(...nets), mx = Math.max(...nets)
-  return res.map(r => {
-    const b = SC[r.forme] || { s: 2, f: 2 }
-    const prot = protS(r)
-    const sNet = mx === mn ? 5 : Math.round(((r.netAnnuel - mn) / (mx - mn)) * 5)
-    const total = sNet * wN + prot * wP + b.s * wS + b.f * wF
+
+  const scored = res.map(r => {
+    const b = SC[r.forme] ?? { s: 2, f: 2 }
+    const prot = protRaw(r)
+    // Normalisation 0→1 pour chaque critère
+    const netNorm   = mx === mn ? 1 : (r.netAnnuel - mn) / (mx - mn)
+    const flexNorm  = (b.f - 1) / 4   // SC flex : 1-5 → 0-1
+    const protNorm  = (prot - 1) / 4  // prot : 1/3/5 → 0/0.5/1
+    const adminNorm = (b.s - 1) / 4   // SC simp : 1-5 → 0-1
+
+    const netScore   = Math.round(netNorm   * wN)
+    const flexScore  = Math.round(flexNorm  * wF)
+    const protScore  = Math.round(protNorm  * wP)
+    const adminScore = Math.round(adminNorm * wA)
+
     return {
       ...r,
-      scoreTotal: Math.round(total / (5 * (wN + wP + wS + wF)) * 100),
+      scoreTotal: netScore + flexScore + protScore + adminScore,
       scoreBreakdown: {
-        netScore: sNet * wN, netMax: 5 * wN,
-        protScore: prot * wP, protMax: 5 * wP,
-        simpScore: b.s * wS, simpMax: 5 * wS,
-        flexScore: b.f * wF, flexMax: 5 * wF,
+        netScore,  netMax: wN,
+        flexScore, flexMax: wF,
+        protScore, protMax: wP,
+        adminScore, adminMax: wA,
       },
     }
   })
+
+  // Invariant : hors priorité protection, la structure au net le plus élevé
+  // doit toujours avoir le score le plus élevé (ou ex-aequo).
+  if (priorite !== 'protection') {
+    const maxNetIdx = scored.reduce((best, r, i) =>
+      r.netAnnuel > scored[best].netAnnuel ? i : best, 0)
+    const maxOtherScore = Math.max(
+      ...scored.filter((_, i) => i !== maxNetIdx).map(r => r.scoreTotal)
+    )
+    if (scored[maxNetIdx].scoreTotal < maxOtherScore) {
+      scored[maxNetIdx] = { ...scored[maxNetIdx], scoreTotal: maxOtherScore + 1 }
+    }
+  }
+
+  return scored
 }
 
 // Analyse SWOT par structure — valeurs spécifiques au profil simulé

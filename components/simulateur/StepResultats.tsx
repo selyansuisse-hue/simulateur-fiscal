@@ -222,7 +222,7 @@ export function StepResultats() {
             </span>
             {best.scoreBreakdown && (
               <span className="text-white/30 text-xs">
-                Net {best.scoreBreakdown.netScore}/{best.scoreBreakdown.netMax} · Prot. {best.scoreBreakdown.protScore}/{best.scoreBreakdown.protMax} · Simpl. {best.scoreBreakdown.simpScore}/{best.scoreBreakdown.simpMax} · Flex. {best.scoreBreakdown.flexScore}/{best.scoreBreakdown.flexMax}
+                Net {best.scoreBreakdown.netScore}/{best.scoreBreakdown.netMax} · Flex. {best.scoreBreakdown.flexScore}/{best.scoreBreakdown.flexMax} · Prot. {best.scoreBreakdown.protScore}/{best.scoreBreakdown.protMax} · Admin {best.scoreBreakdown.adminScore}/{best.scoreBreakdown.adminMax}
               </span>
             )}
             {gain > 500 && (
@@ -736,7 +736,7 @@ function StructureCard({ r, rank, params, gain }: {
         </div>
         {r.scoreBreakdown && (
           <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.22)', marginBottom: '4px' }}>
-            Net {r.scoreBreakdown.netScore}/{r.scoreBreakdown.netMax} · Prot. {r.scoreBreakdown.protScore}/{r.scoreBreakdown.protMax} · Simpl. {r.scoreBreakdown.simpScore}/{r.scoreBreakdown.simpMax} · Flex. {r.scoreBreakdown.flexScore}/{r.scoreBreakdown.flexMax}
+            Net {r.scoreBreakdown.netScore}/{r.scoreBreakdown.netMax} · Flex. {r.scoreBreakdown.flexScore}/{r.scoreBreakdown.flexMax} · Prot. {r.scoreBreakdown.protScore}/{r.scoreBreakdown.protMax} · Admin {r.scoreBreakdown.adminScore}/{r.scoreBreakdown.adminMax}
           </div>
         )}
         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>

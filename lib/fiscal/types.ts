@@ -65,9 +65,9 @@ export interface StructureResult {
   scoreTotal: number
   scoreBreakdown?: {
     netScore: number; netMax: number
-    protScore: number; protMax: number
-    simpScore: number; simpMax: number
     flexScore: number; flexMax: number
+    protScore: number; protMax: number
+    adminScore: number; adminMax: number
   }
   prot: ProtectionSociale
   methDiv: string
