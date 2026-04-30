@@ -309,7 +309,7 @@ export function StepResultats() {
 
           <div className={`grid gap-4 items-stretch ${cardsGrid}`}>
             {scored.map((r, i) => (
-              <StructureCard key={r.forme} r={r} rank={i} params={params} gain={gain} />
+              <StructureCard key={r.forme} r={r} rank={i} params={params} gain={gain} bestNetAnnuel={scored[0].netAnnuel} />
             ))}
           </div>
 
@@ -688,11 +688,12 @@ const CARD_PALETTES = [
   },
 ]
 
-function StructureCard({ r, rank, params, gain }: {
+function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
   r: StructureResult
   rank: number
   params: SimParams
   gain: number
+  bestNetAnnuel: number
 }) {
   const pal = CARD_PALETTES[Math.min(rank, CARD_PALETTES.length - 1)]
   const cardTmiBase = r.baseIR ?? r.bNet ?? r.ben
@@ -758,6 +759,11 @@ function StructureCard({ r, rank, params, gain }: {
             <span style={{ fontSize: '12px', fontWeight: 800, color: '#34D399' }}>+{fmt(gain)}/an vs moins avantageuse</span>
           </div>
         )}
+        {rank > 0 && (() => { const diff = Math.round(bestNetAnnuel - r.netAnnuel); return diff > 500 ? (
+          <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.22)', borderRadius: '10px', padding: '6px 12px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#F87171' }}>−{fmt(diff)}/an vs recommandée</span>
+          </div>
+        ) : null })()}
       </div>
 
       {/* Barre proportionnelle */}
@@ -809,16 +815,16 @@ function StructureCard({ r, rank, params, gain }: {
       </div>
 
       {/* Footer */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', background: pal.footerBg }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: pal.footerBg }}>
         {[
-          { label: 'TMI', val: `${cardTmi}%`, color: cardTmi <= 11 ? '#34D399' : cardTmi <= 30 ? '#FBBF24' : '#F87171', hint: cardTmi <= 11 ? 'Basse' : cardTmi <= 30 ? 'Interméd.' : 'Haute' },
-          { label: 'IR total', val: fmt(r.ir), color: 'rgba(255,255,255,0.75)', hint: `${fmt(Math.round(r.ir / 12))}/mois` },
-          { label: 'Taux eff.', val: `${tauxEff}%`, color: 'rgba(255,255,255,0.55)', hint: 'Sur CA total' },
+          { label: 'TMI', val: `${cardTmi}%`, color: cardTmi <= 11 ? '#34D399' : cardTmi <= 30 ? '#FBBF24' : '#F87171', hint: cardTmi <= 11 ? 'Basse' : cardTmi <= 30 ? 'Inter.' : 'Haute' },
+          { label: 'IR', val: fmt(r.ir), color: 'rgba(255,255,255,0.75)', hint: `${fmt(Math.round(r.ir / 12))}/mois` },
+          { label: 'Taux eff.', val: `${tauxEff}%`, color: 'rgba(255,255,255,0.55)', hint: 'Sur CA' },
         ].map((f, fi) => (
-          <div key={fi} style={{ textAlign: 'center' as const, padding: '12px 6px', borderRight: fi < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none', minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</div>
-            <div style={{ fontSize: '13px', fontWeight: 900, color: f.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.val}</div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.hint}</div>
+          <div key={fi} style={{ textAlign: 'center' as const, padding: '10px 4px', borderRight: fi < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none', minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.20)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.label}</div>
+            <div style={{ fontSize: '12px', fontWeight: 900, color: f.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.val}</div>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.18)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.hint}</div>
           </div>
         ))}
       </div>

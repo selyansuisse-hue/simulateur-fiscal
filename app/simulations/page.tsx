@@ -51,7 +51,6 @@ export default function SimulationsPage() {
           setSims(getLocalSims())
         }
       } catch {
-        // Supabase indisponible → fallback localStorage
         setSims(getLocalSims())
       } finally {
         setLoading(false)
@@ -64,8 +63,8 @@ export default function SimulationsPage() {
     return (
       <>
         <PageHeader />
-        <div className="min-h-screen bg-surface flex items-center justify-center">
-          <div className="text-slate-400 text-sm">Chargement…</div>
+        <div style={{ minHeight: '100vh', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#475569', fontSize: '14px' }}>Chargement…</div>
         </div>
         <Footer />
       </>
@@ -75,38 +74,55 @@ export default function SimulationsPage() {
   return (
     <>
       <PageHeader />
-      <div className="min-h-screen bg-surface">
+      <div style={{ minHeight: '100vh', background: '#020617' }}>
 
-        {/* Bannière douce pour utilisateurs non connectés */}
+        {/* Bannière non-connecté */}
         {!isLoggedIn && sims.length > 0 && (
-          <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <span>💾</span>
-              <span>
-                Vos simulations sont sauvegardées localement.
-                Créez un compte pour les conserver définitivement et accéder au dashboard.
-              </span>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(37,99,235,0.10), rgba(139,92,246,0.07))',
+            borderBottom: '1px solid rgba(37,99,235,0.2)',
+            padding: '12px 24px',
+          }}>
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+              <div style={{ fontSize: '13px', color: '#93c5fd' }}>
+                💾 Simulations sauvegardées localement — créez un compte pour les conserver définitivement.
+              </div>
+              <Link href="/auth/signup" style={{
+                fontSize: '12px', fontWeight: 700, padding: '7px 14px', borderRadius: '8px',
+                background: '#2563eb', color: '#fff', textDecoration: 'none', flexShrink: 0,
+              }}>
+                Créer un compte →
+              </Link>
             </div>
-            <Link href="/auth/signup"
-              className="text-xs font-semibold bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0">
-              Créer un compte →
-            </Link>
           </div>
         )}
 
         <div className="max-w-6xl mx-auto px-6 py-10">
-          <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Mes simulations</h1>
-              <p className="text-sm text-ink3 mt-0.5">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Mes simulations</h1>
+                <span style={{
+                  fontSize: '12px', fontWeight: 700, padding: '2px 10px', borderRadius: '999px',
+                  background: 'rgba(37,99,235,0.15)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.25)',
+                }}>
+                  {sims.length}
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#475569', margin: '4px 0 0' }}>
                 {sims.length} simulation{sims.length !== 1 ? 's' : ''} enregistrée{sims.length !== 1 ? 's' : ''}
                 {!isLoggedIn && sims.length > 0 && (
-                  <span className="ml-2 text-blue-500 font-medium">(sauvegardées localement)</span>
+                  <span style={{ marginLeft: '8px', color: '#60a5fa', fontWeight: 500 }}>(locales)</span>
                 )}
               </p>
             </div>
-            <Link href="/simulateur"
-              className="px-4 py-2 bg-blue text-white text-sm font-semibold rounded-lg hover:bg-blue-dark transition-all">
+            <Link href="/simulateur" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: '#2563eb', color: '#fff', borderRadius: '12px',
+              padding: '10px 20px', fontSize: '14px', fontWeight: 600,
+              textDecoration: 'none',
+            }}>
               + Nouvelle simulation
             </Link>
           </div>
@@ -123,17 +139,25 @@ export default function SimulationsPage() {
             onPersistDelete={!isLoggedIn ? deleteLocalSim : undefined}
           />
 
-          {/* Incitation compte si pas connecté et simulations locales */}
-          {!isLoggedIn && sims.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 shadow-sm">
-              <div className="text-4xl mb-4">📊</div>
-              <h2 className="text-lg font-bold text-slate-900 mb-2">Aucune simulation enregistrée</h2>
-              <p className="text-slate-500 text-sm mb-6 max-w-sm mx-auto">
+          {/* Empty state */}
+          {sims.length === 0 && (
+            <div style={{
+              background: '#0f172a', border: '1px solid rgba(51,65,85,0.5)',
+              borderRadius: '20px', padding: '64px 24px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
+              <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9', margin: '0 0 12px' }}>
+                Aucune simulation enregistrée
+              </h2>
+              <p style={{ fontSize: '14px', color: '#64748b', margin: '0 auto 28px', maxWidth: '400px', lineHeight: 1.7 }}>
                 Lancez une simulation et cliquez sur &quot;Enregistrer&quot; pour la retrouver ici, même sans compte.
               </p>
-              <Link href="/simulateur"
-                className="inline-flex items-center gap-2 text-white font-bold px-7 py-3 rounded-xl transition-all hover:-translate-y-0.5"
-                style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', boxShadow: '0 6px 20px rgba(37,99,235,.35)' }}>
+              <Link href="/simulateur" style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                background: '#2563eb', color: '#fff', borderRadius: '12px',
+                padding: '12px 28px', fontSize: '15px', fontWeight: 700,
+                textDecoration: 'none', boxShadow: '0 4px 16px rgba(37,99,235,0.4)',
+              }}>
                 ✦ Lancer une simulation
               </Link>
             </div>
