@@ -13,8 +13,6 @@ interface SimRow {
     perActif?: string
     partsBase?: number
     nbEnfants?: number
-    charges?: number
-    amort?: number
   }
 }
 
@@ -27,6 +25,15 @@ interface Insight {
   highlight: string | null
 }
 
+function structureColor(forme: string): string {
+  if (!forme) return '#60a5fa'
+  const f = forme.toLowerCase()
+  if (f.includes('sas')) return '#a78bfa'
+  if (f.includes('eurl') || f.includes('sarl')) return '#60a5fa'
+  if (f.includes('micro')) return '#94a3b8'
+  return '#fbbf24'
+}
+
 function generateNarrative(sims: SimRow[]) {
   const sorted = [...sims].sort((a, b) => (b.best_net_annuel ?? 0) - (a.best_net_annuel ?? 0))
   const best = sorted[0]
@@ -34,7 +41,6 @@ function generateNarrative(sims: SimRow[]) {
   const gainTotal = (best.best_net_annuel ?? 0) - (worst.best_net_annuel ?? 0)
   const insights: Insight[] = []
 
-  // Différence de CA
   const caMax = Math.max(...sims.map(s => s.ca ?? 0))
   const caMin = Math.min(...sims.map(s => s.ca ?? 0))
   if (caMax / Math.max(1, caMin) > 1.15) {
@@ -48,7 +54,6 @@ function generateNarrative(sims: SimRow[]) {
     })
   }
 
-  // Structures différentes
   const structures = Array.from(new Set(sims.map(s => s.best_forme).filter(Boolean)))
   if (structures.length > 1) {
     const hasSASU = structures.some(s => s.includes('SAS') || s.includes('SASU'))
@@ -68,7 +73,6 @@ function generateNarrative(sims: SimRow[]) {
     })
   }
 
-  // Différence de TMI
   const tmis = Array.from(new Set(sims.map(s => s.tmi).filter(Boolean)))
   if (tmis.length > 1) {
     const tmiMin = Math.min(...tmis)
@@ -83,7 +87,6 @@ function generateNarrative(sims: SimRow[]) {
     })
   }
 
-  // Impact PER
   const simsAvecPER = sims.filter(s => (s.params?.perMontant ?? 0) > 0 || s.params?.perActif === 'oui')
   const sansPER = sims.filter(s => !((s.params?.perMontant ?? 0) > 0) && s.params?.perActif !== 'oui')
   if (simsAvecPER.length > 0 && sansPER.length > 0) {
@@ -111,68 +114,259 @@ function generateNarrative(sims: SimRow[]) {
   return { best, worst, gainTotal, insights, conclusion }
 }
 
+function generateWhyBullets(sims: SimRow[]): { emoji: string; text: string; color: string }[] {
+  if (sims.length < 2) return []
+  const sorted = [...sims].sort((a, b) => (b.best_net_annuel ?? 0) - (a.best_net_annuel ?? 0))
+  const best = sorted[0]
+  const worst = sorted[sorted.length - 1]
+  const bullets: { emoji: string; text: string; color: string }[] = []
+
+  const caDiff = (best.ca ?? 0) - (worst.ca ?? 0)
+  if (Math.abs(caDiff) > 5000) {
+    bullets.push({
+      emoji: '📈',
+      text: `CA ${caDiff > 0 ? 'supérieur' : 'inférieur'} de ${fmt(Math.abs(caDiff))} dans "${best.name}" — impact direct sur le revenu brut disponible.`,
+      color: '#3b82f6',
+    })
+  }
+
+  if (Math.abs(caDiff) < 5000 && (best.best_net_annuel - worst.best_net_annuel) > 1000) {
+    bullets.push({
+      emoji: '🔀',
+      text: `À CA comparable, "${best.name}" dégage ${fmt(best.best_net_annuel - worst.best_net_annuel)}/an de plus — optimisation de structure ou de paramètres fiscaux.`,
+      color: '#8b5cf6',
+    })
+  }
+
+  if (best.best_forme !== worst.best_forme) {
+    bullets.push({
+      emoji: '🏗️',
+      text: `Structures différentes : ${best.best_forme} vs ${worst.best_forme}. Le niveau de cotisations et le mode d'imposition divergent significativement.`,
+      color: '#6366f1',
+    })
+  }
+
+  if (best.tmi !== worst.tmi) {
+    const lower = best.tmi < worst.tmi
+    bullets.push({
+      emoji: lower ? '✅' : '⚠️',
+      text: `TMI ${best.tmi}% pour "${best.name}" vs ${worst.tmi}% — ${lower ? 'tranche marginale plus basse, moins d\'IR à la marge' : 'TMI plus élevé mais compensé par d\'autres avantages structurels'}.`,
+      color: lower ? '#10b981' : '#f59e0b',
+    })
+  }
+
+  const bestHasPER = (best.params?.perMontant ?? 0) > 0 || best.params?.perActif === 'oui'
+  const worstHasPER = (worst.params?.perMontant ?? 0) > 0 || worst.params?.perActif === 'oui'
+  if (bestHasPER && !worstHasPER) {
+    bullets.push({
+      emoji: '💰',
+      text: `PER activé dans "${best.name}" — réduit la base imposable et génère une économie d'IR directe sur l'exercice.`,
+      color: '#10b981',
+    })
+  } else if (!bestHasPER && worstHasPER) {
+    bullets.push({
+      emoji: '⚠️',
+      text: `PER présent dans "${worst.name}" mais absent du meilleur scénario — d'autres leviers (structure, charges) compensent avantageusement.`,
+      color: '#f59e0b',
+    })
+  }
+
+  return bullets.slice(0, 4)
+}
+
 interface Props { simulations: SimRow[] }
 
 export function NarrativeAnalysis({ simulations }: Props) {
   if (simulations.length < 2) return null
   const analysis = generateNarrative(simulations)
+  const whyBullets = generateWhyBullets(simulations)
+  const color = structureColor(analysis.best.best_forme)
 
   return (
-    <div className="mb-8">
-      {/* Header résumé sombre */}
-      <div className="rounded-2xl overflow-hidden mb-4" style={{ background: 'linear-gradient(135deg, #050c1a, #0d1f3c)' }}>
-        <div className="p-6">
-          <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-4">
-            📊 Analyse de vos {simulations.length} scénarios
+    <div style={{ marginBottom: '32px' }}>
+
+      {/* ── Hero card ── */}
+      <div style={{
+        background: 'linear-gradient(135deg, #050c1a 0%, #0d1f3c 100%)',
+        borderRadius: '20px',
+        overflow: 'hidden',
+        marginBottom: '16px',
+        border: '1px solid rgba(37,99,235,0.22)',
+      }}>
+        {/* Top label */}
+        <div style={{
+          padding: '10px 24px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(255,255,255,0.02)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            📊 Analyse comparative — {simulations.length} scénarios
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-            <div>
-              <div className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>Meilleur scénario</div>
-              <div className="text-base font-bold text-white truncate">{analysis.best.name}</div>
-              <div className="text-2xl font-black tracking-tight" style={{ color: '#60A5FA' }}>
-                {fmt(analysis.best.best_net_annuel ?? 0)}/an
-              </div>
+        </div>
+
+        {/* 3-col hero */}
+        <div style={{
+          padding: '26px 24px 20px',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          gap: '20px',
+          alignItems: 'start',
+        }}>
+          {/* Col 1 — meilleur scénario */}
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: '10px' }}>
+              Meilleur scénario
             </div>
-            <div>
-              <div className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>Écart entre vos scénarios</div>
-              <div className="text-2xl font-black tracking-tight text-emerald-400">
-                +{fmt(analysis.gainTotal)}/an
-              </div>
-              <div className="text-xs mt-0.5" style={{ color: 'rgba(52,211,153,0.50)' }}>
-                soit +{fmt(Math.round(analysis.gainTotal / 12))}/mois
-              </div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {analysis.best.name}
             </div>
-            <div>
-              <div className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>Structure optimale</div>
-              <div className="text-base font-bold text-white">{analysis.best.best_forme}</div>
-              <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.40)' }}>
-                TMI {analysis.best.tmi}% · CA {fmt(analysis.best.ca)}
-              </div>
+            <div style={{ fontSize: '38px', fontWeight: 900, color: '#34d399', letterSpacing: '-0.035em', lineHeight: 1 }}>
+              {fmt(analysis.best.best_net_annuel ?? 0)}
+            </div>
+            <div style={{ fontSize: '13px', color: 'rgba(52,211,153,0.5)', marginTop: '5px' }}>
+              {fmt(Math.round((analysis.best.best_net_annuel ?? 0) / 12))}/mois
             </div>
           </div>
-          <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}>
-            <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.70)' }}>
+
+          {/* Col 2 — écart (center) */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', minWidth: '148px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
+              Écart total
+            </div>
+            <div style={{
+              background: 'rgba(16,185,129,0.09)',
+              border: '1px solid rgba(16,185,129,0.20)',
+              borderRadius: '16px',
+              padding: '14px 18px',
+              textAlign: 'center',
+              width: '100%',
+            }}>
+              <div style={{ fontSize: '40px', fontWeight: 900, color: '#34d399', letterSpacing: '-0.04em', lineHeight: 1 }}>
+                +{fmt(analysis.gainTotal)}
+              </div>
+              <div style={{ fontSize: '12px', color: 'rgba(52,211,153,0.48)', marginTop: '4px' }}>
+                +{fmt(Math.round(analysis.gainTotal / 12))}/mois
+              </div>
+            </div>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#fbbf24',
+              background: 'rgba(251,191,36,0.08)',
+              border: '1px solid rgba(251,191,36,0.18)',
+              borderRadius: '8px',
+              padding: '5px 12px',
+              textAlign: 'center',
+              width: '100%',
+            }}>
+              Sur 10 ans : +{fmt(analysis.gainTotal * 10)}
+            </div>
+          </div>
+
+          {/* Col 3 — structure optimale */}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: '10px' }}>
+              Structure optimale
+            </div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color, marginBottom: '6px' }}>
+              {analysis.best.best_forme}
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.28)', marginBottom: '12px' }}>
+              TMI {analysis.best.tmi}% · CA {fmt(analysis.best.ca)}
+            </div>
+            <span style={{
+              display: 'inline-block',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#60a5fa',
+              background: 'rgba(37,99,235,0.12)',
+              border: '1px solid rgba(37,99,235,0.25)',
+              borderRadius: '999px',
+              padding: '4px 12px',
+            }}>
+              ★ Scénario optimal
+            </span>
+          </div>
+        </div>
+
+        {/* Conclusion */}
+        <div style={{ padding: '0 24px 22px' }}>
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '12px',
+            padding: '14px 18px',
+          }}>
+            <p style={{ fontSize: '13px', lineHeight: 1.75, color: 'rgba(255,255,255,0.55)', margin: 0 }}>
               {analysis.conclusion}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Insights */}
-      {analysis.insights.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {analysis.insights.map((insight) => (
-            <div key={insight.type} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 flex items-center gap-3"
-                style={{ background: insight.color + '0D', borderBottom: `1px solid ${insight.color}20` }}>
-                <span className="text-xl">{insight.icon}</span>
-                <h3 className="text-sm font-bold text-slate-900">{insight.title}</h3>
+      {/* ── Pourquoi section ── */}
+      {whyBullets.length > 0 && (
+        <div style={{
+          background: '#07111f',
+          border: '1px solid rgba(51,65,85,0.45)',
+          borderRadius: '16px',
+          padding: '18px 22px',
+          marginBottom: '16px',
+        }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: '14px' }}>
+            Pourquoi &ldquo;{analysis.best.name}&rdquo; est plus rentable ?
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {whyBullets.map((b, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>{b.emoji}</span>
+                <span style={{ fontSize: '13px', color: '#64748b', lineHeight: 1.65 }}>
+                  {b.text}
+                </span>
               </div>
-              <div className="px-5 py-4">
-                <p className="text-sm text-slate-600 leading-relaxed mb-3">{insight.text}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Insights grid ── */}
+      {analysis.insights.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+          {analysis.insights.map(insight => (
+            <div key={insight.type} style={{
+              background: '#07111f',
+              border: `1px solid ${insight.color}28`,
+              borderRadius: '16px',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                borderBottom: `1px solid ${insight.color}18`,
+                background: `${insight.color}09`,
+              }}>
+                <span style={{ fontSize: '18px' }}>{insight.icon}</span>
+                <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', margin: 0 }}>{insight.title}</h3>
+              </div>
+              <div style={{ padding: '14px 18px' }}>
+                <p style={{ fontSize: '12px', color: '#475569', lineHeight: 1.7, margin: 0 }}>{insight.text}</p>
                 {insight.highlight && (
-                  <div className="rounded-xl px-4 py-3 text-xs leading-relaxed font-medium"
-                    style={{ background: insight.color + '0A', border: `1px solid ${insight.color}20`, color: insight.color }}>
+                  <div style={{
+                    marginTop: '12px',
+                    background: `${insight.color}0C`,
+                    border: `1px solid ${insight.color}22`,
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: insight.color,
+                    lineHeight: 1.55,
+                  }}>
                     💡 {insight.highlight}
                   </div>
                 )}
