@@ -48,7 +48,7 @@ function CircularScore({ score, size = 90, strokeWidth = 8 }: { score: number; s
         />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: size > 80 ? '22px' : '16px', fontWeight: 900, color: '#60a5fa', lineHeight: 1 }}>{score}</div>
+        <div style={{ fontSize: size >= 110 ? '30px' : size > 80 ? '22px' : '16px', fontWeight: 900, color: '#60a5fa', lineHeight: 1 }}>{score}</div>
         <div style={{ fontSize: '9px', color: '#475569', fontWeight: 600 }}>/ 100</div>
       </div>
     </div>
@@ -80,8 +80,10 @@ function ScoreDimBar({ label, score, max, color }: { label: string; score: numbe
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <span style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.30)', width: '32px', flexShrink: 0, textTransform: 'uppercase' }}>{label}</span>
-      <div style={{ flex: 1, height: '4px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '999px', transition: 'width 500ms ease' }} />
+      <div style={{ flex: 1, height: '4px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '999px', transition: 'width 500ms ease', position: 'relative', overflow: 'hidden' }}>
+          <span className="bar-shimmer" />
+        </div>
       </div>
       <span style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.40)', width: '18px', textAlign: 'right', flexShrink: 0 }}>{score}</span>
     </div>
@@ -263,13 +265,15 @@ function ProtectionCard({ r, rank }: { r: StructureResult; rank: number }) {
   const isBest = rank === 0
   return (
     <div style={{
-      background: isBest ? '#0f172a' : '#080f1c',
-      border: `1px solid ${isBest ? 'rgba(51,65,85,0.7)' : 'rgba(51,65,85,0.3)'}`,
+      background: '#0d1425',
+      border: `1px solid ${isBest ? `${accent}30` : 'rgba(51,65,85,0.3)'}`,
+      borderTop: isBest ? `3px solid ${accent}` : '1px solid rgba(51,65,85,0.3)',
       borderRadius: '16px',
       padding: '20px',
       display: 'flex',
       flexDirection: 'column',
       gap: '0',
+      boxShadow: isBest ? `0 0 30px ${accent}12` : 'none',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
@@ -330,10 +334,8 @@ function ProtectionCard({ r, rank }: { r: StructureResult; rank: number }) {
 ───────────────────────────────────────────────────────── */
 const CARD_PALETTES = [
   {
-    cardBg: 'linear-gradient(180deg, #0d1f3c 0%, #0a1628 100%)',
-    headerBg: 'linear-gradient(135deg, rgba(37,99,235,0.4), rgba(29,78,216,0.2))',
-    border: '2px solid rgba(96,165,250,0.5)',
-    glow: '0 0 40px rgba(37,99,235,0.3), 0 0 0 2px rgba(96,165,250,0.4)',
+    cardBg: '#0d1425',
+    headerBg: 'linear-gradient(135deg, rgba(37,99,235,0.3), rgba(29,78,216,0.12))',
     rankText: '★ RECOMMANDÉ',
     rankColor: '#93C5FD',
     badgeBg: 'rgba(96,165,250,0.2)',
@@ -342,10 +344,8 @@ const CARD_PALETTES = [
     footerBg: 'rgba(37,99,235,0.06)',
   },
   {
-    cardBg: 'linear-gradient(180deg, #130d2e 0%, #0e0920 100%)',
-    headerBg: 'linear-gradient(135deg, rgba(124,58,237,0.35), rgba(109,40,217,0.18))',
-    border: '1.5px solid rgba(167,139,250,0.35)',
-    glow: '0 0 30px rgba(124,58,237,0.2), 0 0 0 1.5px rgba(167,139,250,0.3)',
+    cardBg: '#0d1425',
+    headerBg: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(109,40,217,0.10))',
     rankText: '2ÈME CHOIX',
     rankColor: '#C4B5FD',
     badgeBg: 'rgba(167,139,250,0.15)',
@@ -354,10 +354,8 @@ const CARD_PALETTES = [
     footerBg: 'rgba(124,58,237,0.04)',
   },
   {
-    cardBg: 'linear-gradient(180deg, #1a1200 0%, #120d00 100%)',
-    headerBg: 'linear-gradient(135deg, rgba(217,119,6,0.35), rgba(180,83,9,0.18))',
-    border: '1.5px solid rgba(251,191,36,0.30)',
-    glow: '0 0 30px rgba(217,119,6,0.15), 0 0 0 1.5px rgba(251,191,36,0.25)',
+    cardBg: '#0d1425',
+    headerBg: 'linear-gradient(135deg, rgba(217,119,6,0.25), rgba(180,83,9,0.10))',
     rankText: '3ÈME CHOIX',
     rankColor: '#FCD34D',
     badgeBg: 'rgba(251,191,36,0.15)',
@@ -366,10 +364,8 @@ const CARD_PALETTES = [
     footerBg: 'rgba(217,119,6,0.04)',
   },
   {
-    cardBg: 'linear-gradient(180deg, #0f1520 0%, #0a1018 100%)',
-    headerBg: 'linear-gradient(135deg, rgba(100,116,139,0.25), rgba(71,85,105,0.12))',
-    border: '1.5px solid rgba(148,163,184,0.20)',
-    glow: '0 0 0 1.5px rgba(148,163,184,0.18)',
+    cardBg: '#0d1425',
+    headerBg: 'linear-gradient(135deg, rgba(100,116,139,0.20), rgba(71,85,105,0.08))',
     rankText: '4ÈME CHOIX',
     rankColor: '#94A3B8',
     badgeBg: 'rgba(148,163,184,0.10)',
@@ -402,13 +398,19 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
   const revBrut = Math.max(1, r.netAnnuel + coutTotal)
   const tauxEff = (r.ir / revBrut * 100).toFixed(1)
 
+  const accent = structureAccent(r.forme)
+  const cardShadow = rank === 0
+    ? `0 0 40px ${accent}22, 0 0 0 1px ${accent}35`
+    : `0 0 20px ${accent}10, 0 0 0 1px ${accent}20`
+
   return (
     <div style={{
       background: pal.cardBg,
       borderRadius: '20px',
       overflow: 'hidden',
-      boxShadow: pal.glow,
-      border: pal.border,
+      boxShadow: cardShadow,
+      border: `1px solid ${accent}25`,
+      borderTop: `3px solid ${accent}`,
       display: 'flex',
       flexDirection: 'column',
     }}>
@@ -439,13 +441,25 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
         <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '6px' }}>
           Revenu net après impôts
         </div>
-        <div style={{ fontSize: rank === 0 ? '40px' : '34px', fontWeight: 900, color: pal.netColor, letterSpacing: '-0.03em', lineHeight: '1', marginBottom: '4px', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+        <div style={{
+          fontSize: rank === 0 ? '64px' : '36px',
+          fontWeight: 900, color: pal.netColor,
+          letterSpacing: '-0.04em', lineHeight: '1', marginBottom: '4px',
+          overflowWrap: 'break-word', wordBreak: 'break-word',
+          ...(rank === 0 ? { textShadow: `0 0 30px ${accent}99` } : {}),
+        }}>
           {fmt(r.netAnnuel)}
         </div>
         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>{fmt(Math.round(r.netAnnuel / 12))}/mois</div>
         {rank === 0 && gain > 500 && (
-          <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: '10px', padding: '6px 12px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: '#34D399' }}>+{fmt(gain)}/an vs moins avantageuse</span>
+          <div style={{
+            marginTop: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px',
+            background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.30)',
+            borderRadius: '14px', padding: '9px 18px',
+            boxShadow: '0 0 16px rgba(16,185,129,0.22)',
+          }}>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#34D399' }}>+{fmt(gain)}/an</span>
+            <span style={{ fontSize: '11px', color: 'rgba(52,211,153,0.65)' }}>vs moins avantageuse</span>
           </div>
         )}
         {rank > 0 && (() => { const diff = Math.round(bestNetAnnuel - r.netAnnuel); return diff > 500 ? (
@@ -457,8 +471,10 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
 
       {/* Barre proportionnelle CA */}
       <div style={{ padding: '14px 20px 0' }}>
-        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', height: '6px', marginBottom: '4px' }}>
-          <div style={{ width: `${netPct.toFixed(0)}%`, background: pal.netColor, transition: 'width 400ms' }} />
+        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', height: '7px', marginBottom: '4px', position: 'relative' }}>
+          <div style={{ width: `${netPct.toFixed(0)}%`, background: pal.netColor, transition: 'width 400ms', position: 'relative', overflow: 'hidden' }}>
+            <span className="bar-shimmer" />
+          </div>
           <div style={{ width: `${chargesPct.toFixed(0)}%`, background: '#F87171', transition: 'width 400ms' }} />
           <div style={{ width: `${irPct.toFixed(0)}%`, background: '#FB923C', transition: 'width 400ms' }} />
           {r.is > 0 && <div style={{ width: `${isPct.toFixed(0)}%`, background: '#818CF8', transition: 'width 400ms' }} />}
@@ -609,12 +625,14 @@ export function StepResultats() {
           1. HERO — split 2 colonnes
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: 'linear-gradient(135deg, #050d1a 0%, #071428 100%)',
+        background: '#080d1a',
         border: '1px solid rgba(51,65,85,0.5)',
+        borderTop: `3px solid ${structureAccent(best.forme)}`,
         borderRadius: '24px',
         padding: '32px',
         position: 'relative',
         overflow: 'hidden',
+        boxShadow: `0 0 60px ${structureAccent(best.forme)}18`,
       }}>
         {/* Glow décoratif */}
         <div style={{
@@ -640,20 +658,25 @@ export function StepResultats() {
           {/* Gauche — net + gain */}
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>{best.forme}</div>
-            <div style={{ fontSize: '60px', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '8px' }}>
+            <div style={{
+              fontSize: '80px', fontWeight: 900, color: '#f1f5f9',
+              letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '8px',
+              textShadow: `0 0 40px ${structureAccent(best.forme)}80`,
+            }}>
               {fmt(best.netAnnuel)}
             </div>
-            <div style={{ fontSize: '15px', color: '#475569', marginBottom: '20px' }}>
+            <div style={{ fontSize: '15px', color: '#64748b', marginBottom: '22px' }}>
               {fmt(Math.round(best.netAnnuel / 12))}/mois net après impôts &amp; cotisations
             </div>
             {gain > 500 && (
               <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)',
-                borderRadius: '12px', padding: '8px 16px',
+                display: 'inline-flex', alignItems: 'center', gap: '10px',
+                background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.30)',
+                borderRadius: '14px', padding: '10px 20px',
+                boxShadow: '0 0 16px rgba(16,185,129,0.22)',
               }}>
-                <span style={{ fontSize: '18px', fontWeight: 900, color: '#34d399' }}>+{fmt(gain)}/an</span>
-                <span style={{ fontSize: '11px', color: 'rgba(52,211,153,0.60)' }}>vs structure la moins avantageuse</span>
+                <span style={{ fontSize: '20px', fontWeight: 900, color: '#34d399' }}>+{fmt(gain)}/an</span>
+                <span style={{ fontSize: '12px', color: 'rgba(52,211,153,0.65)' }}>vs structure la moins avantageuse</span>
               </div>
             )}
           </div>
@@ -720,14 +743,16 @@ export function StepResultats() {
               { label: 'IR estimé', val: best.ir, color: '#fb923c', pct: params.ca > 0 ? best.ir / params.ca * 100 : 0 },
               { label: 'IS estimé', val: best.is || 0, color: '#818cf8', pct: params.ca > 0 ? (best.is || 0) / params.ca * 100 : 0 },
             ].map(item => (
-              <div key={item.label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '12px' }}>
+              <div key={item.label} style={{ background: '#0d1425', border: '1px solid rgba(51,65,85,0.3)', borderRadius: '12px', padding: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0 }} />
                   <div style={{ fontSize: '11px', color: '#475569' }}>{item.label}</div>
                 </div>
                 <div style={{ fontSize: '16px', fontWeight: 800, color: '#f1f5f9', marginBottom: '2px' }}>{fmt(Math.round(item.val))}</div>
                 <div style={{ height: '3px', borderRadius: '999px', background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.min(100, item.pct)}%`, background: item.color, opacity: 0.7 }} />
+                  <div style={{ height: '100%', width: `${Math.min(100, item.pct)}%`, background: item.color, opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
+                    <span className="bar-shimmer" />
+                  </div>
                 </div>
               </div>
             ))}
@@ -739,7 +764,7 @@ export function StepResultats() {
           2. COMPARAISON 4 STRUCTURES
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: 'linear-gradient(180deg, #060e1f 0%, #050c1a 100%)',
+        background: '#080d1a',
         border: '1px solid rgba(51,65,85,0.4)',
         borderRadius: '24px',
         padding: '28px',
@@ -749,7 +774,7 @@ export function StepResultats() {
         {/* Dot grid */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
@@ -783,7 +808,7 @@ export function StepResultats() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
             {buildAnalysis(scored, params, tmi, gain).map(item => (
               <div key={item.title} style={{
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                background: '#0d1425', border: '1px solid rgba(51,65,85,0.4)',
                 borderRadius: '16px', padding: '20px',
               }}>
                 <div style={{ fontSize: '20px', marginBottom: '10px' }}>{item.icon}</div>
@@ -803,8 +828,8 @@ export function StepResultats() {
           3. SCORE MULTICRITÈRE — nouveau
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: '#0a1020',
-        border: '1px solid rgba(51,65,85,0.5)',
+        background: '#080d1a',
+        border: '1px solid rgba(51,65,85,0.45)',
         borderRadius: '24px',
         padding: '28px',
       }}>
@@ -920,7 +945,7 @@ export function StepResultats() {
           4. PROTECTION SOCIALE — dot ratings
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: '#080f1c',
+        background: '#080d1a',
         border: '1px solid rgba(51,65,85,0.4)',
         borderRadius: '24px',
         padding: '28px',
@@ -970,7 +995,7 @@ export function StepResultats() {
           5. POURQUOI CE CHOIX
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: '#080f1c',
+        background: '#080d1a',
         border: '1px solid rgba(51,65,85,0.4)',
         borderRadius: '24px',
         padding: '28px',
@@ -1083,7 +1108,7 @@ export function StepResultats() {
           7. PONT VERS L'EXPLORER — dark
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: '#0a1020',
+        background: '#080d1a',
         border: '1px solid rgba(59,130,246,0.20)',
         borderRadius: '20px',
         padding: '24px 28px',
@@ -1136,8 +1161,8 @@ export function StepResultats() {
           8. CTA "Ces chiffres vous parlent ?"
       ══════════════════════════════════════════════ */}
       <div style={{
-        background: 'linear-gradient(135deg, #050c1a 0%, #071428 50%, #0a1628 100%)',
-        border: '1px solid rgba(96,165,250,0.15)',
+        background: '#080d1a',
+        border: '1px solid rgba(96,165,250,0.18)',
         borderRadius: '24px',
         position: 'relative',
         overflow: 'hidden',
