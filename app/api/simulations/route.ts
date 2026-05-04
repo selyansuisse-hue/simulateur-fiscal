@@ -59,14 +59,15 @@ export async function POST(req: NextRequest) {
 
   // Auto-lead : si l'user n'est pas membre cabinet, créer/mettre à jour un lead belho-xper
   try {
-    const { data: membre } = await supabase
+    // Utiliser le client admin (service role) pour bypasser la RLS sur cabinet_membres
+    const admin = await createAdminClient()
+    const { data: membre } = await admin
       .from('cabinet_membres')
-      .select('cabinet_id')
+      .select('id')
       .eq('user_id', user.id)
       .maybeSingle()
 
     if (!membre) {
-      const admin = await createAdminClient()
       const { data: cabinet } = await admin
         .from('cabinets')
         .select('id')

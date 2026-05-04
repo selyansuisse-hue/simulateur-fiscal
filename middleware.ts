@@ -48,6 +48,27 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && (pathname === '/auth/login' || pathname === '/auth/signup')) {
+    // Cabinet member → redirect to their cabinet page after login
+    // This is the ONLY place where a cabinet-specific redirect happens.
+    // All other routes (/simulateur, /explorer, /simulations…) are freely accessible.
+    const { data: membership } = await supabase
+      .from('cabinet_membres')
+      .select('cabinet_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (membership?.cabinet_id) {
+      const { data: cabinet } = await supabase
+        .from('cabinets')
+        .select('slug')
+        .eq('id', membership.cabinet_id)
+        .maybeSingle()
+
+      if (cabinet?.slug) {
+        return NextResponse.redirect(new URL(`/cabinet/${cabinet.slug}`, request.url))
+      }
+    }
+
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
