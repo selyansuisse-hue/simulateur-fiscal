@@ -12,6 +12,12 @@ const NAV = [
   { href: '/settings', label: 'Paramètres', icon: '⚙️' },
 ]
 
+const OUTILS = [
+  { href: '/simulateur', label: 'Simulateur', icon: '🧮' },
+  { href: '/explorer', label: 'Explorateur', icon: '🔍' },
+  { href: '/simulations', label: 'Mes simulations', icon: '📁' },
+]
+
 export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -82,6 +88,39 @@ export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
           )
         })}
       </nav>
+
+      {/* Séparateur + Outils */}
+      <div style={{ margin: '4px 8px 0', borderTop: '1px solid rgba(51,65,85,0.5)' }} />
+      <div style={{ padding: '8px 8px 4px' }}>
+        <div style={{ padding: '4px 12px 6px', fontSize: '10px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
+          Outils
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {OUTILS.map(item => (
+            <Link key={item.href} href={item.href} style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '8px 12px', borderRadius: '9px',
+              fontSize: '13px', fontWeight: 500,
+              color: '#64748b',
+              background: 'transparent',
+              border: '1px solid transparent',
+              textDecoration: 'none', transition: 'all 150ms',
+            }}
+              onMouseOver={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                e.currentTarget.style.color = '#94a3b8'
+              }}
+              onMouseOut={e => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = '#64748b'
+              }}
+            >
+              <span style={{ fontSize: '15px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/* Bottom: plan + logout */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>

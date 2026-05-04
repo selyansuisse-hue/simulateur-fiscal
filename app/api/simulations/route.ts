@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function GET() {
   const supabase = await createClient()
@@ -59,40 +60,61 @@ export async function POST(req: NextRequest) {
 
   // Auto-lead : si l'user n'est pas membre cabinet, créer/mettre à jour un lead belho-xper
   try {
-    // Utiliser le client admin (service role) pour bypasser la RLS sur cabinet_membres
-    const admin = await createAdminClient()
-    const { data: membre } = await admin
+    // Client admin direct (service role) — bypass RLS complet
+    const supabaseAdmin = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    )
+
+    // Vérifier que ce user n'est PAS membre cabinet
+    const { data: estMembre } = await supabaseAdmin
       .from('cabinet_membres')
       .select('id')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (!membre) {
-      const { data: cabinet } = await admin
+    if (!estMembre) {
+      // Récupérer le cabinet belho-xper
+      const { data: cabinet } = await supabaseAdmin
         .from('cabinets')
         .select('id')
         .eq('slug', 'belho-xper')
         .single()
 
       if (cabinet) {
-        const userName = (user.user_metadata?.full_name as string | undefined) || user.email || ''
-        await admin.from('leads').upsert({
-          cabinet_id: cabinet.id,
-          email: user.email,
-          nom: userName,
-          ca_simule: body.ca,
-          structure_recommandee: body.best_forme,
-          net_annuel: body.best_net_annuel,
-          score: body.score ?? null,
-          simulation_data: { params: body.params, results: body.results },
-          statut: 'nouveau',
-          source: 'direct',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'cabinet_id,email', ignoreDuplicates: false })
+        const emailUser = user.email ?? null
+        // Ne pas insérer si pas d'email (contrainte UNIQUE cabinet_id, email)
+        if (emailUser) {
+          const nom = (user.user_metadata?.full_name as string | undefined)
+            ?? emailUser.split('@')[0]
+            ?? 'Prospect'
+
+          const { error: leadError } = await supabaseAdmin
+            .from('leads')
+            .upsert({
+              cabinet_id: cabinet.id,
+              email: emailUser,
+              nom,
+              ca_simule: body.ca ?? null,
+              structure_recommandee: body.best_forme ?? null,
+              net_annuel: body.best_net_annuel ?? null,
+              score: body.gain ?? null,
+              simulation_data: { params: body.params ?? {}, results: body.results ?? {} },
+              statut: 'nouveau',
+              source: 'direct',
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'cabinet_id,email', ignoreDuplicates: false })
+
+          if (leadError) {
+            console.error('[leads] Erreur upsert lead:', leadError)
+          }
+        }
       }
     }
-  } catch {
+  } catch (err) {
     // Non-bloquant : la simulation est déjà sauvegardée
+    console.error('[leads] Exception lors de la création du lead:', err)
   }
 
   return NextResponse.json(data, { status: 201 })
