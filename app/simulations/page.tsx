@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -39,6 +39,7 @@ export default function SimulationsPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [comparePdfLoading, setComparePdfLoading] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -75,6 +76,37 @@ export default function SimulationsPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sims])
+
+  const handleComparePDF = useCallback(async () => {
+    if (selectedIds.length < 2 || comparePdfLoading) return
+    setComparePdfLoading(true)
+    try {
+      const res = await fetch('/api/simulations/compare/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simulationIds: selectedIds.slice(0, 2) }),
+      })
+      const contentType = res.headers.get('content-type') || ''
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      if (contentType.includes('application/pdf')) {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `comparaison-belhoxper-${Date.now()}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(url), 1500)
+      } else {
+        // Fallback HTML avec window.print() auto
+        window.open(url, '_blank')
+      }
+    } catch (e) {
+      console.error('[compare pdf]', e)
+    } finally {
+      setComparePdfLoading(false)
+    }
+  }, [selectedIds, comparePdfLoading])
 
   const toggleId = (id: string) => {
     setSelectedIds(prev => {
@@ -209,6 +241,45 @@ export default function SimulationsPage() {
                 <span style={{ fontSize: '11px', color: '#334155', marginLeft: '4px' }}>
                   {selectedIds.length} sélectionnés
                 </span>
+              )}
+
+              {/* Bouton comparaison PDF — visible si connecté et ≥2 sélectionnés */}
+              {isLoggedIn && selectedIds.length >= 2 && (
+                <button
+                  onClick={handleComparePDF}
+                  disabled={comparePdfLoading}
+                  style={{
+                    marginLeft: 'auto',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: comparePdfLoading
+                      ? 'rgba(37,99,235,0.4)'
+                      : 'linear-gradient(135deg,#2563eb,#1d4ed8)',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: comparePdfLoading ? 'default' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.35)',
+                    flexShrink: 0,
+                    transition: 'all 150ms',
+                  }}
+                >
+                  {comparePdfLoading ? (
+                    <>
+                      <span style={{ fontSize: '13px' }}>⏳</span>
+                      Génération…
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '13px' }}>⬇</span>
+                      Télécharger la comparaison PDF
+                    </>
+                  )}
+                </button>
               )}
             </div>
           )}
