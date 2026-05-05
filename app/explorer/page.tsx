@@ -87,27 +87,33 @@ function SliderField({ label, value, onChange, min, max, step, hint, hintColor, 
   const fill = fillColor || '#3B82F6'
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>{label}</label>
-        <div style={{ background: '#0a1628', border: '1px solid #1e3a5f', borderRadius: '8px', padding: '3px 10px', fontSize: '12px', fontWeight: 700, color: '#f1f5f9', minWidth: '80px', textAlign: 'right' as const }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <label style={{ fontSize: '12px', fontWeight: 600, color: '#7896b8' }}>{label}</label>
+        <div style={{
+          background: '#08101e', border: '1px solid #1a2540', borderRadius: '6px',
+          padding: '3px 10px', fontSize: '13px', fontWeight: 700, color: '#e2e8f0',
+          minWidth: '90px', textAlign: 'right' as const,
+          fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', monospace",
+          letterSpacing: '-0.02em',
+        }}>
           {fmt(value)}
         </div>
       </div>
-      <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
+      <div style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center' }}>
         <div style={{
-          position: 'absolute', left: 0, right: 0, height: '8px', borderRadius: '999px',
-          background: `linear-gradient(to right,${fill} 0%,${fill} ${pct}%,#1e293b ${pct}%,#1e293b 100%)`,
+          position: 'absolute', left: 0, right: 0, height: '4px', borderRadius: '999px',
+          background: `linear-gradient(to right, ${fill} 0%, ${fill} ${pct}%, #1a2540 ${pct}%, #1a2540 100%)`,
         }} />
         <input type="range" min={min} max={safeMax} step={step} value={sv}
           onChange={e => onChange(parseFloat(e.target.value))}
-          style={{ position: 'absolute', left: 0, right: 0, width: '100%', height: '8px', opacity: 0, cursor: 'pointer', zIndex: 1 }} />
+          style={{ position: 'absolute', left: 0, right: 0, width: '100%', height: '28px', opacity: 0, cursor: 'pointer', zIndex: 1 }} />
         <div style={{
-          position: 'absolute', left: `calc(${pct}% - 10px)`, width: '20px', height: '20px',
-          borderRadius: '50%', background: '#fff', border: `2.5px solid ${fill}`,
-          boxShadow: `0 2px 8px rgba(0,0,0,0.4), 0 0 0 3px ${fill}20`, pointerEvents: 'none',
+          position: 'absolute', left: `calc(${pct}% - 12px)`, width: '24px', height: '24px',
+          borderRadius: '50%', background: '#fff', border: `2px solid ${fill}`,
+          boxShadow: `0 2px 10px rgba(0,0,0,0.5), 0 0 0 4px ${fill}22`, pointerEvents: 'none',
         }} />
       </div>
-      {hint && <div style={{ fontSize: '11px', marginTop: '6px', color: hintColor || '#64748b', fontWeight: 500 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: '11px', marginTop: '8px', color: hintColor || '#64748b', fontWeight: 500 }}>{hint}</div>}
     </div>
   )
 }
@@ -159,7 +165,7 @@ function TmiTranchesBar({ tmi }: { tmi: number }) {
       <div style={{
         position: 'absolute', top: '-4px', left: `calc(${pos}% - 8px)`,
         width: '16px', height: '16px', borderRadius: '50%',
-        background: dotColor, border: '2px solid #020617',
+        background: dotColor, border: '2px solid #060d1a',
         boxShadow: `0 0 8px ${dotColor}80`, transition: 'left 300ms ease',
       }} />
       <div style={{ display: 'flex', marginTop: '6px' }}>
@@ -193,10 +199,21 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 function MiniBar({ val, max, color }: { val: number; max: number; color: string }) {
   const pct = max > 0 ? Math.min(100, val / max * 100) : 0
   return (
-    <div style={{ flex: 1, height: '5px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden', minWidth: '30px' }}>
+    <div style={{ flex: 1, height: '5px', background: '#1a2540', borderRadius: '3px', overflow: 'hidden', minWidth: '30px' }}>
       <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '3px', transition: 'width 300ms ease', minWidth: pct > 0 ? '3px' : '0' }} />
     </div>
   )
+}
+
+/* ─── SavedSim type for load modal ─── */
+interface SavedSim {
+  id: string
+  name: string
+  best_forme: string
+  best_net_annuel: number
+  ca: number
+  created_at: string
+  params: Record<string, unknown>
 }
 
 /* ═══════════════════════════════════════════ PAGE ══ */
@@ -212,6 +229,13 @@ export default function ExplorerPage() {
   const [leverMadelin, setLeverMadelin] = useState(0)
   const [flashKpi, setFlashKpi] = useState(false)
   const flashRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /* ── Save / Load state ── */
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [savedOk, setSavedOk] = useState(false)
+  const [showLoadModal, setShowLoadModal] = useState(false)
+  const [savedSims, setSavedSims] = useState<SavedSim[]>([])
+  const [loadingModal, setLoadingModal] = useState(false)
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search)
@@ -296,7 +320,6 @@ export default function ExplorerPage() {
     const sasR = results.scored.find(r => r.forme === 'SAS / SASU')
     const eurlR = results.scored.find(r => r.forme === 'EURL / SARL (IS)')
 
-    // Bullet 1 — cotisations savings
     if (bestR && sasR && bestR.forme !== 'SAS / SASU') {
       const cotSav = sasR.charges - bestR.charges
       if (cotSav > 500) {
@@ -304,14 +327,12 @@ export default function ExplorerPage() {
       }
     }
 
-    // Bullet 2 — TMI / IS
     if (tmi >= 30 && eurlR) {
       b.push(`Votre TMI de ${tmi}% rend le régime IS (EURL) très avantageux — taux IS 15% vs IR ${tmi}%`)
     } else if (tmi <= 11 && b.length < 2) {
       b.push(`Votre TMI de ${tmi}% est bas — structure simplifiée (EI/Micro) potentiellement suffisante`)
     }
 
-    // Bullet 3 — Micro or gain
     if (microExcluded) {
       b.push(`Micro-entreprise exclue — votre CA dépasse le plafond de ${fmt(results.microPlafond)}`)
     } else if (gainVsWorst > 2000) {
@@ -326,32 +347,112 @@ export default function ExplorerPage() {
   const coutTotal = activeResult.charges + activeResult.ir + (activeResult.is || 0)
   const coutPct = params.ca > 0 ? (coutTotal / params.ca * 100).toFixed(0) : '0'
 
+  /* ── Save handler ── */
+  const handleSave = useCallback(async () => {
+    setSaveLoading(true)
+    try {
+      const simParams = buildSimParams(params)
+      const body = {
+        name: `Explorateur — ${results.best.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')} — ${fmt(results.best.netAnnuel)}/an`,
+        params: simParams,
+        results: results.scored,
+        best_forme: results.best.forme,
+        best_net_annuel: results.best.netAnnuel,
+        best_net_mois: Math.round(results.best.netAnnuel / 12),
+        best_ir: results.best.ir,
+        tmi,
+        ca: params.ca,
+        situation: params.situationFam,
+        parts,
+        per_montant: params.perMontant,
+        gain: gainVsWorst,
+      }
+      const res = await fetch('/api/simulations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setSavedOk(true)
+        setTimeout(() => setSavedOk(false), 3000)
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Erreur lors de la sauvegarde')
+      }
+    } catch {
+      alert('Erreur réseau')
+    } finally {
+      setSaveLoading(false)
+    }
+  }, [params, results, tmi, parts, gainVsWorst])
+
+  /* ── Load modal handler ── */
+  const openLoadModal = useCallback(async () => {
+    setShowLoadModal(true)
+    setLoadingModal(true)
+    try {
+      const res = await fetch('/api/simulations')
+      if (res.ok) {
+        const data = await res.json()
+        setSavedSims(data || [])
+      } else {
+        setSavedSims([])
+      }
+    } catch {
+      setSavedSims([])
+    } finally {
+      setLoadingModal(false)
+    }
+  }, [])
+
+  const applyLoadedSim = useCallback((sim: SavedSim) => {
+    const p = sim.params
+    const upd: Partial<ExplorerParams> = {}
+    if (p.ca !== undefined) upd.ca = Number(p.ca)
+    if (p.charges !== undefined) upd.charges = Number(p.charges)
+    if (p.amort !== undefined) upd.amort = Number(p.amort)
+    if (p.capital !== undefined) upd.capital = Number(p.capital)
+    if (p.nbEnfants !== undefined) upd.nbEnfants = Number(p.nbEnfants)
+    if (p.autresRev !== undefined) upd.autresRev = Number(p.autresRev)
+    if (p.perMontant !== undefined) upd.perMontant = Number(p.perMontant)
+    if (p.secteur) upd.secteur = p.secteur as Secteur
+    if (p.stratActif) upd.strategie = p.stratActif as 'max' | 'reserve'
+    if (p.reserveVoulue !== undefined) upd.reserveVoulue = Number(p.reserveVoulue)
+    if (p.partsBase !== undefined) upd.situationFam = Number(p.partsBase) === 1 ? 'celib' : 'marie'
+    setParams(prev => ({ ...prev, ...upd }))
+    setIsPrefilledFromSim(true)
+    setShowLoadModal(false)
+  }, [])
+
   const selectStyle: React.CSSProperties = {
     width: '100%', padding: '9px 28px 9px 12px', borderRadius: '10px',
-    border: '1px solid #1e3a5f', background: '#0a1628',
+    border: '1px solid #1a2540', background: '#08101e',
     fontSize: '13px', fontWeight: 600, color: '#e2e8f0',
     cursor: 'pointer', outline: 'none', appearance: 'none', WebkitAppearance: 'none', colorScheme: 'dark',
     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
     backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '12px',
   }
 
+  /* ── Tab button — gradient active ── */
   const tabBtn = (active: boolean): React.CSSProperties => ({
-    flex: 1, padding: '9px 6px', fontSize: '12px', fontWeight: active ? 600 : 400,
+    flex: 1, padding: '9px 6px', fontSize: '12px', fontWeight: active ? 700 : 400,
     color: active ? '#fff' : '#64748b',
-    background: active ? 'rgba(51,65,85,0.9)' : 'transparent',
+    background: active ? 'linear-gradient(135deg, #2563eb, #7c3aed)' : 'transparent',
     border: 'none', borderRadius: '9px', cursor: 'pointer',
     transition: 'all 150ms', whiteSpace: 'nowrap' as const,
+    boxShadow: active ? '0 2px 12px rgba(37,99,235,0.35)' : 'none',
   })
 
+  /* ── KPI card — new dark card ── */
   const kpiCard: React.CSSProperties = {
-    background: 'rgba(15,23,42,0.8)',
-    border: '1px solid rgba(51,65,85,0.4)',
+    background: '#0d1a2e',
+    border: '1px solid rgba(30,58,95,0.5)',
     borderRadius: '16px', padding: '20px',
     position: 'relative', overflow: 'hidden',
   }
 
   const leverCard: React.CSSProperties = {
-    background: '#080f1e', border: '1px solid rgba(51,65,85,0.4)',
+    background: '#080f1e', border: '1px solid rgba(30,58,95,0.5)',
     borderRadius: '14px', padding: '16px',
   }
 
@@ -370,7 +471,7 @@ export default function ExplorerPage() {
     'EI (réel normal)': { bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' },
     'Micro-entreprise': { bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.25)' },
   }
-  const cs4 = structBg[activeResult.forme] || { bg: 'rgba(15,23,42,0.8)', border: 'rgba(51,65,85,0.4)' }
+  const cs4 = structBg[activeResult.forme] || { bg: '#0d1a2e', border: 'rgba(30,58,95,0.5)' }
   const tmiColor = tmi <= 11 ? '#10b981' : tmi <= 30 ? '#f59e0b' : tmi <= 41 ? '#f97316' : '#ef4444'
   const tmiLabel = tmi <= 11 ? 'Tranche basse ✓' : tmi <= 30 ? 'Tranche intermédiaire' : tmi <= 41 ? 'Tranche haute ⚠' : 'Tranche max ⚠'
   const bestColor = sc(results.best.forme)
@@ -379,11 +480,16 @@ export default function ExplorerPage() {
   return (
     <>
       <style>{`
-        html, body { background: #020617 !important; }
+        html, body { background: #060d1a !important; }
         input[type=range]::-webkit-slider-thumb { opacity: 0; }
         input[type=range]::-moz-range-thumb { opacity: 0; }
         @keyframes kpiFlash { 0%,100%{} 40%{color:#4ade80;} }
         .kpi-flash { animation: kpiFlash 700ms ease; }
+        @keyframes calcPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.75); }
+        }
+        .calc-pulse { animation: calcPulse 1.8s ease-in-out infinite; }
 
         .exp-layout {
           display: flex;
@@ -391,10 +497,9 @@ export default function ExplorerPage() {
           max-width: 1400px;
           margin: 0 auto;
         }
-        /* FIX 1: left col — height auto, no overflow issues, no sticky inside */
         .exp-left {
           width: 42%;
-          border-right: 1px solid rgba(51,65,85,0.35);
+          border-right: 1px solid rgba(30,58,95,0.35);
           background: #040b17;
         }
         .exp-right {
@@ -403,44 +508,92 @@ export default function ExplorerPage() {
           top: 64px;
           max-height: calc(100vh - 64px);
           overflow-y: auto;
-          background: #020617;
+          background: #060d1a;
           scrollbar-width: thin;
-          scrollbar-color: #1e293b transparent;
+          scrollbar-color: #1a2540 transparent;
         }
         .exp-right::-webkit-scrollbar { width: 4px; }
         .exp-right::-webkit-scrollbar-track { background: transparent; }
-        .exp-right::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
+        .exp-right::-webkit-scrollbar-thumb { background: #1a2540; border-radius: 99px; }
 
         @media (max-width: 1024px) {
           .exp-layout { flex-direction: column; }
-          .exp-left { width: 100%; order: 2; border-right: none; border-top: 1px solid rgba(51,65,85,0.35); }
+          .exp-left { width: 100%; order: 2; border-right: none; border-top: 1px solid rgba(30,58,95,0.35); }
           .exp-right { width: 100%; position: static; max-height: none; order: 1; }
+        }
+
+        /* Load modal */
+        .load-modal-overlay {
+          position: fixed; inset: 0; z-index: 100;
+          background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+          display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .load-modal {
+          background: #0d1a2e; border: 1px solid rgba(30,58,95,0.6);
+          border-radius: 20px; padding: 28px; width: 100%; max-width: 520px;
+          max-height: 80vh; overflow-y: auto;
         }
       `}</style>
 
       <PageHeader />
-      <div style={{ background: '#020617' }}>
+      <div style={{ background: '#060d1a' }}>
 
         {/* ── SUB-HEADER ── */}
-        <div style={{ background: '#070f1f', borderBottom: '1px solid rgba(51,65,85,0.5)', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' as const }}>
+        <div style={{ background: '#08101e', borderBottom: '1px solid rgba(30,58,95,0.5)', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' as const }}>
           <div>
             <h1 style={{ fontSize: '17px', fontWeight: 800, color: '#f1f5f9', margin: 0, letterSpacing: '-0.02em' }}>Explorateur de scénarios fiscaux</h1>
             <p style={{ fontSize: '11px', color: '#475569', margin: '2px 0 0' }}>Résultats mis à jour en temps réel · Barème IR 2025</p>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
+            {/* CALCULS EN DIRECT badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}>
+              <div className="calc-pulse" style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#34d399', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Calculs en direct</span>
+            </div>
+
             {isPrefilledFromSim && (
               <span style={{ fontSize: '11px', fontWeight: 600, color: '#60a5fa', background: 'rgba(29,78,216,0.15)', border: '1px solid rgba(37,99,235,0.3)', padding: '4px 10px', borderRadius: '999px' }}>
-                ✓ Pré-rempli depuis simulation
+                ✓ Pré-rempli
               </span>
             )}
-            <Link href="/simulateur" style={{ padding: '8px 18px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', color: '#fff', display: 'block' }}>
-              Simulateur complet →
+
+            {/* Charger simulation */}
+            <button onClick={openLoadModal} style={{
+              padding: '7px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+              color: '#94a3b8', background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(51,65,85,0.5)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+            }}>
+              <span>📂</span> Charger
+            </button>
+
+            {/* Réinitialiser */}
+            <button onClick={() => { setParams(DEFAULT); setIsPrefilledFromSim(false) }} style={{
+              padding: '7px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+              color: '#94a3b8', background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(51,65,85,0.5)',
+              cursor: 'pointer',
+            }}>
+              ↺ Réinitialiser
+            </button>
+
+            {/* Enregistrer */}
+            <button onClick={handleSave} disabled={saveLoading} style={{
+              padding: '7px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+              color: '#fff', border: 'none', cursor: saveLoading ? 'wait' : 'pointer',
+              background: savedOk ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
+              boxShadow: savedOk ? '0 2px 12px rgba(5,150,105,0.4)' : '0 2px 12px rgba(37,99,235,0.35)',
+              display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 300ms',
+            }}>
+              {savedOk ? '✓ Sauvegardé' : saveLoading ? '…' : '💾 Enregistrer'}
+            </button>
+
+            <Link href="/simulateur" style={{ padding: '7px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', background: 'rgba(37,99,235,0.15)', color: '#60a5fa', display: 'block', border: '1px solid rgba(37,99,235,0.3)' }}>
+              Simulateur →
             </Link>
           </div>
         </div>
 
         {/* ── STRUCTURE PILLS ── */}
-        <div style={{ background: '#060d1b', borderBottom: '1px solid rgba(51,65,85,0.35)', padding: '10px 20px', overflowX: 'auto' as const }}>
+        <div style={{ background: '#060d1a', borderBottom: '1px solid rgba(30,58,95,0.35)', padding: '10px 20px', overflowX: 'auto' as const }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 'max-content' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', flexShrink: 0, marginRight: '6px' }}>Analyser :</span>
             {results.scored.map((r, i) => {
@@ -452,8 +605,8 @@ export default function ExplorerPage() {
                   onClick={() => setSelectedForme(isActive ? null : r.forme)}
                   style={{
                     padding: '8px 16px', borderRadius: '12px', cursor: isExcl ? 'not-allowed' : 'pointer',
-                    border: `1.5px solid ${isActive ? rsc + '80' : 'rgba(51,65,85,0.5)'}`,
-                    background: isActive ? rsc + '18' : 'rgba(10,22,40,0.7)',
+                    border: `1.5px solid ${isActive ? rsc + '80' : 'rgba(30,58,95,0.5)'}`,
+                    background: isActive ? rsc + '18' : 'rgba(8,16,30,0.7)',
                     display: 'flex', alignItems: 'center', gap: '8px',
                     opacity: isExcl ? 0.4 : 1, transition: 'all 200ms',
                     boxShadow: isActive ? `0 0 16px ${rsc}30, 0 2px 8px rgba(0,0,0,0.3)` : 'none',
@@ -462,7 +615,7 @@ export default function ExplorerPage() {
                   <span style={{ fontSize: '13px', fontWeight: isActive ? 700 : 500, color: isActive ? '#f1f5f9' : '#64748b', whiteSpace: 'nowrap' as const }}>
                     {r.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
                   </span>
-                  <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '999px', background: isActive ? rsc : 'rgba(51,65,85,0.4)', color: isActive ? '#fff' : '#64748b' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '999px', background: isActive ? rsc : 'rgba(30,41,59,0.8)', color: isActive ? '#fff' : '#64748b' }}>
                     {r.scoreTotal}/100
                   </span>
                   {i === 0 && <span style={{ fontSize: '10px', fontWeight: 600, color: '#fbbf24' }}>★ Recommandée</span>}
@@ -479,9 +632,9 @@ export default function ExplorerPage() {
           {/* ═══ LEFT COLUMN — PARAMS ═══ */}
           <div className="exp-left">
 
-            {/* FIX 1: tab bar — pas de position sticky, scroll normal avec la page */}
-            <div style={{ padding: '12px 16px', background: '#060d1b', borderBottom: '1px solid rgba(51,65,85,0.3)' }}>
-              <div style={{ display: 'flex', background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(51,65,85,0.2)', borderRadius: '12px', padding: '4px', gap: '3px' }}>
+            {/* Tab bar */}
+            <div style={{ padding: '12px 16px', background: '#060d1a', borderBottom: '1px solid rgba(30,58,95,0.3)' }}>
+              <div style={{ display: 'flex', background: 'rgba(8,16,30,0.9)', border: '1px solid rgba(30,58,95,0.25)', borderRadius: '12px', padding: '4px', gap: '3px' }}>
                 {([
                   { value: 'activite', label: 'Activité' },
                   { value: 'foyer', label: 'Foyer' },
@@ -495,7 +648,7 @@ export default function ExplorerPage() {
               </div>
             </div>
 
-            {/* FIX 1: tab content — height auto, overflow visible */}
+            {/* Tab content */}
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column' as const, gap: '20px', height: 'auto', overflow: 'visible' }}>
 
               {/* ── ACTIVITÉ ── */}
@@ -503,7 +656,7 @@ export default function ExplorerPage() {
                 <>
                   <SectionLabel label="Secteur & Chiffre d'affaires" color={activeColor} />
                   <div>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: '7px' }}>Secteur d&apos;activité</label>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#7896b8', display: 'block', marginBottom: '7px' }}>Secteur d&apos;activité</label>
                     <select style={selectStyle} value={params.secteur} onChange={e => set('secteur', e.target.value as Secteur)}>
                       <option value="services_bic">Services BIC — abattement 50%</option>
                       <option value="liberal_bnc">Libéral / BNC — abattement 34%</option>
@@ -523,21 +676,33 @@ export default function ExplorerPage() {
                   <SliderField label="Amortissements" value={params.amort} onChange={v => set('amort', v)}
                     min={0} max={200000} step={500} fillColor="#f97316"
                   />
+
+                  {/* Résultat avant rémunération */}
                   <div style={{
-                    background: seuil60k ? 'rgba(245,158,11,0.07)' : 'rgba(37,99,235,0.06)',
-                    border: `1px solid ${seuil60k ? 'rgba(245,158,11,0.25)' : 'rgba(59,130,246,0.2)'}`,
-                    borderRadius: '12px', padding: '14px 16px',
+                    background: '#0d1a2e',
+                    border: `1px solid ${seuil60k ? 'rgba(245,158,11,0.3)' : 'rgba(37,99,235,0.25)'}`,
+                    borderRadius: '14px', padding: '16px 18px',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    boxShadow: seuil60k ? '0 0 20px rgba(245,158,11,0.08)' : '0 0 20px rgba(37,99,235,0.07)',
                   }}>
                     <div>
-                      <div style={{ fontSize: '10px', fontWeight: 700, color: seuil60k ? '#fbbf24' : '#60a5fa', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: seuil60k ? '#fbbf24' : '#60a5fa', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '6px' }}>
                         Résultat avant rémunération
                       </div>
-                      <div style={{ fontSize: '24px', fontWeight: 900, color: seuil60k ? '#F59E0B' : '#3b82f6', letterSpacing: '-0.03em' }}>{fmt(ben)}</div>
+                      <div style={{
+                        fontSize: '26px', fontWeight: 900, letterSpacing: '-0.03em',
+                        color: seuil60k ? '#F59E0B' : '#3b82f6',
+                        textShadow: seuil60k ? '0 0 24px rgba(245,158,11,0.5)' : '0 0 24px rgba(59,130,246,0.5)',
+                      }}>{fmt(ben)}</div>
                     </div>
                     {seuil60k && (
-                      <div style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#fbbf24' }}>
+                      <div style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: '10px', padding: '6px 14px', fontSize: '11px', fontWeight: 700, color: '#fbbf24' }}>
                         ⚡ Zone IS favorable
+                      </div>
+                    )}
+                    {!seuil60k && (
+                      <div style={{ background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.3)', borderRadius: '10px', padding: '6px 14px', fontSize: '11px', fontWeight: 700, color: '#60a5fa' }}>
+                        IR direct
                       </div>
                     )}
                   </div>
@@ -550,7 +715,7 @@ export default function ExplorerPage() {
                   <SectionLabel label="Situation familiale" color="#8B5CF6" />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: '7px' }}>Situation</label>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#7896b8', display: 'block', marginBottom: '7px' }}>Situation</label>
                       <select style={selectStyle} value={params.situationFam} onChange={e => set('situationFam', e.target.value as ExplorerParams['situationFam'])}>
                         <option value="celib">Célibataire</option>
                         <option value="marie">Marié(e)</option>
@@ -559,13 +724,13 @@ export default function ExplorerPage() {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: '7px' }}>Enfants à charge</label>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#7896b8', display: 'block', marginBottom: '7px' }}>Enfants à charge</label>
                       <select style={selectStyle} value={params.nbEnfants} onChange={e => set('nbEnfants', parseInt(e.target.value))}>
                         {[0,1,2,3,4,5].map(n => <option key={n} value={n}>{n === 0 ? 'Aucun' : `${n} enfant${n>1?'s':''}`}</option>)}
                       </select>
                     </div>
                   </div>
-                  <div style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ background: '#0d1a2e', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#a78bfa' }}>Parts fiscales calculées</span>
                     <span style={{ fontSize: '26px', fontWeight: 900, color: '#c4b5fd', letterSpacing: '-0.03em' }}>{partsStr}</span>
                   </div>
@@ -576,7 +741,7 @@ export default function ExplorerPage() {
                 </>
               )}
 
-              {/* ── OPTIMISATION — FIX 2 (sans PER) + FIX 3 (sans Et si) ── */}
+              {/* ── OPTIMISATION ── */}
               {leftTab === 'optim' && (
                 <>
                   <SectionLabel label="Stratégie de rémunération" color="#10B981" />
@@ -584,8 +749,8 @@ export default function ExplorerPage() {
                     {(['max', 'reserve'] as const).map(val => (
                       <button key={val} onClick={() => set('strategie', val)} style={{
                         padding: '13px', borderRadius: '12px', cursor: 'pointer',
-                        border: params.strategie === val ? '2px solid #10B981' : '1.5px solid rgba(51,65,85,0.5)',
-                        background: params.strategie === val ? 'rgba(16,185,129,0.10)' : 'rgba(10,22,40,0.7)',
+                        border: params.strategie === val ? '2px solid #10B981' : '1.5px solid rgba(30,58,95,0.5)',
+                        background: params.strategie === val ? 'rgba(16,185,129,0.10)' : 'rgba(8,16,30,0.7)',
                         color: params.strategie === val ? '#34d399' : '#475569',
                         fontSize: '12px', fontWeight: 700, transition: 'all 150ms',
                       }}>
@@ -605,13 +770,6 @@ export default function ExplorerPage() {
                       Pour affiner avec des leviers fiscaux (PER, IK, Madelin…), utilisez l&apos;onglet <strong style={{ color: '#f1f5f9' }}>Leviers</strong> qui calcule leur impact estimé en temps réel.
                     </p>
                   </div>
-
-                  {(params.ca !== DEFAULT.ca || params.charges !== DEFAULT.charges || params.situationFam !== DEFAULT.situationFam) && (
-                    <button onClick={() => { setParams(DEFAULT); setIsPrefilledFromSim(false) }}
-                      style={{ fontSize: '12px', fontWeight: 600, color: '#475569', background: 'transparent', border: '1px solid rgba(51,65,85,0.4)', borderRadius: '10px', cursor: 'pointer', padding: '10px', textAlign: 'center' as const }}>
-                      ↺ Réinitialiser les paramètres
-                    </button>
-                  )}
                 </>
               )}
 
@@ -630,7 +788,7 @@ export default function ExplorerPage() {
                     </div>
                   )}
 
-                  {/* PER — uniquement ici */}
+                  {/* PER */}
                   <div style={leverCard}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
                       <div>
@@ -721,7 +879,11 @@ export default function ExplorerPage() {
             <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
 
               {/* KPI 1 — Revenu net */}
-              <div style={{ ...kpiCard, borderTop: `3px solid ${activeColor}` }}>
+              <div style={{
+                ...kpiCard,
+                borderTop: `3px solid ${activeColor}`,
+                boxShadow: `0 0 28px ${activeColor}12, 0 2px 12px rgba(0,0,0,0.3)`,
+              }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Revenu net annuel</div>
                 <div className={flashKpi ? 'kpi-flash' : ''} style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px' }}>
                   {fmt(leverNet)}
@@ -738,7 +900,11 @@ export default function ExplorerPage() {
               </div>
 
               {/* KPI 2 — TMI */}
-              <div style={{ ...kpiCard, borderTop: `3px solid ${tmiColor}` }}>
+              <div style={{
+                ...kpiCard,
+                borderTop: `3px solid ${tmiColor}`,
+                boxShadow: `0 0 28px ${tmiColor}10, 0 2px 12px rgba(0,0,0,0.3)`,
+              }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Tranche marginale</div>
                 <div style={{ fontSize: '36px', fontWeight: 900, color: tmiColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px' }}>
                   {tmi}%
@@ -748,7 +914,11 @@ export default function ExplorerPage() {
               </div>
 
               {/* KPI 3 — Prélèvements */}
-              <div style={{ ...kpiCard, borderTop: '3px solid #f43f5e' }}>
+              <div style={{
+                ...kpiCard,
+                borderTop: '3px solid #f43f5e',
+                boxShadow: '0 0 28px rgba(244,63,94,0.08), 0 2px 12px rgba(0,0,0,0.3)',
+              }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Prélèvements totaux</div>
                 <div style={{ fontSize: '36px', fontWeight: 900, color: '#f87171', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px' }}>
                   {fmt(coutTotal)}
@@ -756,20 +926,26 @@ export default function ExplorerPage() {
                 <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>{coutPct}% du CA</div>
                 <div style={{ fontSize: '11px', color: '#475569', display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
                   <span>Cotis. {fmt(activeResult.charges)}</span>
-                  <span style={{ color: '#1e3a5f' }}>·</span>
+                  <span style={{ color: '#1a2540' }}>·</span>
                   <span>IR {fmt(activeResult.ir)}</span>
-                  {activeResult.is > 0 && <><span style={{ color: '#1e3a5f' }}>·</span><span>IS {fmt(activeResult.is)}</span></>}
+                  {activeResult.is > 0 && <><span style={{ color: '#1a2540' }}>·</span><span>IS {fmt(activeResult.is)}</span></>}
                 </div>
               </div>
 
               {/* KPI 4 — Structure */}
-              <div style={{ ...kpiCard, background: cs4.bg, borderColor: cs4.border, borderTop: `3px solid ${activeColor}` }}>
+              <div style={{
+                ...kpiCard,
+                background: cs4.bg,
+                borderColor: cs4.border,
+                borderTop: `3px solid ${activeColor}`,
+                boxShadow: `0 0 28px ${activeColor}10, 0 2px 12px rgba(0,0,0,0.3)`,
+              }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Structure analysée</div>
                 <div style={{ fontSize: '20px', fontWeight: 900, color: activeColor, letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: '10px' }}>
                   {activeResult.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' as const, marginBottom: '7px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, padding: '3px 10px', borderRadius: '8px', background: 'rgba(51,65,85,0.5)', color: '#fff' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 800, padding: '3px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
                     {activeResult.scoreTotal}/100
                   </span>
                   {activeRank === 1
@@ -783,7 +959,7 @@ export default function ExplorerPage() {
 
             {/* ── RESULT TABS ── */}
             <div style={{ padding: '0 16px 20px' }}>
-              <div style={{ display: 'flex', background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(51,65,85,0.2)', borderRadius: '12px', padding: '4px', gap: '3px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', background: 'rgba(8,16,30,0.9)', border: '1px solid rgba(30,58,95,0.25)', borderRadius: '12px', padding: '4px', gap: '3px', marginBottom: '16px' }}>
                 {([
                   { value: 'decomp', label: 'Décomposition' },
                   { value: 'compare', label: 'Comparaison' },
@@ -797,14 +973,17 @@ export default function ExplorerPage() {
               {/* ── DÉCOMPOSITION ── */}
               {rightTab === 'decomp' && (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '12px' }}>
-                  <div style={{ background: '#070f1f', border: '1px solid rgba(51,65,85,0.4)', borderRadius: '14px', padding: '20px' }}>
+                  <div style={{ background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', padding: '20px' }}>
                     {wfRows.map((row, ri) => {
                       const pct = (row.val / Math.max(params.ca, 1) * 100)
                       const isLast = ri === wfRows.length - 1
                       return (
-                        <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: ri < wfRows.length - 1 ? '12px' : 0 }}>
-                          <div style={{ width: '130px', flexShrink: 0, fontSize: '11px', color: '#64748b', textAlign: 'right' as const, fontWeight: 500 }}>{row.label}</div>
-                          <div style={{ flex: 1, height: isLast ? '14px' : '12px', background: '#0a1628', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: ri < wfRows.length - 1 ? '14px' : 0 }}>
+                          {/* Colored dot */}
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: row.color, flexShrink: 0, boxShadow: `0 0 6px ${row.color}60` }} />
+                          <div style={{ width: '116px', flexShrink: 0, fontSize: '11px', color: '#64748b', fontWeight: 500 }}>{row.label}</div>
+                          {/* Mini proportional bar */}
+                          <div style={{ flex: 1, height: isLast ? '14px' : '10px', background: '#08101e', borderRadius: '999px', overflow: 'hidden' }}>
                             <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: row.color, borderRadius: '999px', transition: 'width 300ms ease', minWidth: row.val > 0 ? '4px' : '0' }} />
                           </div>
                           <div style={{ width: '74px', flexShrink: 0, textAlign: 'right' as const, fontSize: '12px', fontWeight: isLast ? 800 : 600, color: row.color }}>
@@ -818,7 +997,7 @@ export default function ExplorerPage() {
                     })}
                   </div>
 
-                  <div style={{ background: '#070f1f', border: '1px solid rgba(51,65,85,0.4)', borderRadius: '14px', padding: '16px' }}>
+                  <div style={{ background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', padding: '16px' }}>
                     <WaterfallBar ca={params.ca} chargesE={params.charges} cotis={activeResult.charges}
                       ir={activeResult.ir} is={activeResult.is || 0} net={activeResult.netAnnuel} h={20} />
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '10px', marginTop: '12px' }}>
@@ -849,11 +1028,11 @@ export default function ExplorerPage() {
                 </div>
               )}
 
-              {/* ── COMPARAISON — FIX 4, 5, 6 ── */}
+              {/* ── COMPARAISON ── */}
               {rightTab === 'compare' && (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '16px' }}>
 
-                  {/* FIX 6 — STRUCTURE RECOMMANDÉE card */}
+                  {/* Structure recommandée card */}
                   <div style={{
                     background: `linear-gradient(135deg,${bestColor}20,${bestColor}08)`,
                     border: `1px solid ${bestColor}35`,
@@ -911,13 +1090,13 @@ export default function ExplorerPage() {
                     </div>
                   </div>
 
-                  {/* FIX 4 — 4-colonnes comparaison enrichie */}
+                  {/* 4-colonnes comparaison enrichie */}
                   <div>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: '10px' }}>
                       Comparaison détaillée
                     </div>
                     <div style={{ overflowX: 'auto' as const }}>
-                      <div style={{ display: 'flex', gap: '0', minWidth: 'max-content', background: '#070f1f', border: '1px solid rgba(51,65,85,0.4)', borderRadius: '14px', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', gap: '0', minWidth: 'max-content', background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', overflow: 'hidden' }}>
                         {results.scored.map((r, i) => {
                           const rsc = sc(r.forme)
                           const isActive = r.forme === activeResult.forme
@@ -930,7 +1109,7 @@ export default function ExplorerPage() {
                           return (
                             <div key={r.forme} style={{
                               width: '195px', padding: '16px', flexShrink: 0,
-                              borderRight: i < results.scored.length - 1 ? '1px solid rgba(51,65,85,0.3)' : 'none',
+                              borderRight: i < results.scored.length - 1 ? '1px solid rgba(30,58,95,0.4)' : 'none',
                               borderTop: `2px solid ${isActive ? rsc : 'transparent'}`,
                               background: isActive ? rsc + '08' : 'transparent',
                               opacity: isExcl ? 0.5 : 1,
@@ -947,7 +1126,7 @@ export default function ExplorerPage() {
                                 <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '999px', background: r.scoreTotal >= 60 ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.12)', color: r.scoreTotal >= 60 ? '#34d399' : '#fbbf24' }}>
                                   {r.scoreTotal}/100
                                 </span>
-                                <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: 'rgba(51,65,85,0.4)', color: '#94a3b8' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: 'rgba(30,41,59,0.8)', color: '#94a3b8' }}>
                                   {STRUCT_TYPE[r.forme] || ''}
                                 </span>
                               </div>
@@ -976,7 +1155,6 @@ export default function ExplorerPage() {
 
                                   {/* Coûts avec mini-barres */}
                                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '6px', marginBottom: '12px' }}>
-                                    {/* Cotisations */}
                                     <div>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                                         <span style={{ fontSize: '9px', color: '#64748b' }}>Cotisations</span>
@@ -986,7 +1164,6 @@ export default function ExplorerPage() {
                                       </div>
                                       <MiniBar val={r.charges} max={params.ca} color="#f97316" />
                                     </div>
-                                    {/* IR */}
                                     <div>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                                         <span style={{ fontSize: '9px', color: '#64748b' }}>IR</span>
@@ -996,7 +1173,6 @@ export default function ExplorerPage() {
                                       </div>
                                       <MiniBar val={r.ir} max={params.ca} color="#eab308" />
                                     </div>
-                                    {/* IS */}
                                     <div>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                                         <span style={{ fontSize: '9px', color: '#64748b' }}>IS</span>
@@ -1006,16 +1182,13 @@ export default function ExplorerPage() {
                                       </div>
                                       <MiniBar val={r.is || 0} max={params.ca} color="#a855f7" />
                                     </div>
-                                    {/* Divider */}
-                                    <div style={{ height: '1px', background: 'rgba(51,65,85,0.3)', margin: '2px 0' }} />
-                                    {/* Coût total */}
+                                    <div style={{ height: '1px', background: 'rgba(30,58,95,0.4)', margin: '2px 0' }} />
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                       <span style={{ fontSize: '9px', fontWeight: 600, color: '#94a3b8' }}>Coût total</span>
                                       <span style={{ fontSize: '9px', fontWeight: 800, color: '#f87171' }}>
                                         {fmt(rCout)} · {rCoutPct.toFixed(0)}%
                                       </span>
                                     </div>
-                                    {/* Net */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                       <span style={{ fontSize: '9px', fontWeight: 600, color: '#94a3b8' }}>Net</span>
                                       <span style={{ fontSize: '9px', fontWeight: 800, color: '#10b981' }}>
@@ -1024,12 +1197,10 @@ export default function ExplorerPage() {
                                     </div>
                                   </div>
 
-                                  {/* Description courte */}
                                   <p style={{ fontSize: '10px', color: '#475569', lineHeight: 1.5, margin: '0 0 10px' }}>
                                     {STRUCT_SHORT[r.forme] || ''}
                                   </p>
 
-                                  {/* Protection sociale */}
                                   <span style={{ fontSize: '9px', fontWeight: 600, padding: '2px 7px', borderRadius: '999px', background: ps.color + '20', color: ps.color, border: `1px solid ${ps.color}30` }}>
                                     {ps.label}
                                   </span>
@@ -1042,22 +1213,22 @@ export default function ExplorerPage() {
                     </div>
                   </div>
 
-                  {/* FIX 5 — ANALYSE COMPARATIVE (remplace "Ce que ça représente") */}
-                  <div style={{ background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(51,65,85,0.3)', borderRadius: '14px', padding: '18px' }}>
+                  {/* Analyse comparative */}
+                  <div style={{ background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.4)', borderRadius: '14px', padding: '18px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '14px' }}>
                       💡 Points clés de cette comparaison
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginBottom: '16px' }}>
                       {analyseCompBullets.map((bullet, i) => (
                         <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: `rgba(37,99,235,0.2)`, border: '1px solid rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
+                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(37,99,235,0.2)', border: '1px solid rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
                             <span style={{ fontSize: '10px', fontWeight: 800, color: '#60a5fa' }}>{i + 1}</span>
                           </div>
                           <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{bullet}</p>
                         </div>
                       ))}
                     </div>
-                    <div style={{ borderTop: '1px solid rgba(51,65,85,0.3)', paddingTop: '12px' }}>
+                    <div style={{ borderTop: '1px solid rgba(30,58,95,0.4)', paddingTop: '12px' }}>
                       <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
                         style={{ fontSize: '12px', fontWeight: 600, color: '#60a5fa', textDecoration: 'none' }}>
                         Affiner avec un expert →
@@ -1070,6 +1241,67 @@ export default function ExplorerPage() {
           </div>
         </div>
       </div>
+
+      {/* ── LOAD SIMULATION MODAL ── */}
+      {showLoadModal && (
+        <div className="load-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowLoadModal(false) }}>
+          <div className="load-modal">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: '#f1f5f9', marginBottom: '3px' }}>📂 Charger une simulation</div>
+                <div style={{ fontSize: '12px', color: '#475569' }}>Sélectionnez une simulation sauvegardée pour pré-remplir l&apos;explorateur</div>
+              </div>
+              <button onClick={() => setShowLoadModal(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: 'rgba(30,41,59,0.8)', color: '#64748b', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {loadingModal ? (
+              <div style={{ textAlign: 'center' as const, padding: '32px', color: '#475569', fontSize: '14px' }}>Chargement…</div>
+            ) : savedSims.length === 0 ? (
+              <div style={{ textAlign: 'center' as const, padding: '32px' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+                <div style={{ fontSize: '14px', color: '#475569', marginBottom: '8px' }}>Aucune simulation sauvegardée</div>
+                <div style={{ fontSize: '12px', color: '#334155' }}>Créez d&apos;abord une simulation via le <Link href="/simulateur" style={{ color: '#60a5fa', textDecoration: 'none' }}>simulateur complet</Link> ou enregistrez ce scénario explorateur.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+                {savedSims.map(sim => {
+                  const color = STRUCT_COLORS[sim.best_forme] ?? '#64748b'
+                  const date = new Date(sim.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })
+                  return (
+                    <button key={sim.id} onClick={() => applyLoadedSim(sim)} style={{
+                      background: '#080f1e', border: `1px solid ${color}30`,
+                      borderRadius: '12px', padding: '14px 16px',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px',
+                      transition: 'all 150ms', textAlign: 'left' as const,
+                    }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sim.name}</div>
+                        <div style={{ fontSize: '11px', color: '#475569' }}>
+                          {sim.best_forme?.replace(' / SARL (IS)', '').replace(' / SASU', '')} · CA {fmt(sim.ca)} · {date}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color, flexShrink: 0 }}>
+                        {fmt(sim.best_net_annuel)}/an
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(30,58,95,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Link href="/simulations" style={{ fontSize: '12px', color: '#60a5fa', textDecoration: 'none', fontWeight: 600 }}>
+                Gérer mes simulations →
+              </Link>
+              <button onClick={() => setShowLoadModal(false)} style={{ padding: '8px 16px', borderRadius: '9px', border: '1px solid rgba(30,58,95,0.5)', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   )
