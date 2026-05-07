@@ -37,6 +37,7 @@ const HORIZONS = [
 export default function SimulationsPage() {
   const [sims, setSims] = useState<SimRow[]>([])
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isCabinetMembre, setIsCabinetMembre] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [comparePdfLoading, setComparePdfLoading] = useState(false)
@@ -49,15 +50,25 @@ export default function SimulationsPage() {
 
         if (user) {
           setIsLoggedIn(true)
-          const { data } = await supabase
-            .from('simulations')
-            .select('id, name, created_at, best_forme, best_net_annuel, best_net_mois, best_ir, tmi, ca, situation, gain, params')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(20)
-          setSims(data || [])
+          // Charger simulations + vérifier appartenance cabinet en parallèle
+          const [simsResult, membreResult] = await Promise.all([
+            supabase
+              .from('simulations')
+              .select('id, name, created_at, best_forme, best_net_annuel, best_net_mois, best_ir, tmi, ca, situation, gain, params')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(20),
+            supabase
+              .from('cabinet_membres')
+              .select('id')
+              .eq('user_id', user.id)
+              .limit(1)
+          ])
+          setSims(simsResult.data || [])
+          setIsCabinetMembre((membreResult.data?.length ?? 0) > 0)
         } else {
           setIsLoggedIn(false)
+          setIsCabinetMembre(false)
           setSims(getLocalSims())
         }
       } catch {
@@ -197,8 +208,8 @@ export default function SimulationsPage() {
             </Link>
           </div>
 
-          {/* ── Selector pills (only when >2 sims) ── */}
-          {sims.length > 2 && (
+          {/* ── Selector pills + analyse comparative (membres cabinet uniquement) ── */}
+          {isCabinetMembre && sims.length > 2 && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -284,16 +295,16 @@ export default function SimulationsPage() {
             </div>
           )}
 
-          {/* ── Analysis + Table ── */}
-          {selectedSims.length >= 2 && (
+          {/* ── Analysis + Table (membres cabinet uniquement) ── */}
+          {isCabinetMembre && selectedSims.length >= 2 && (
             <>
               <NarrativeAnalysis simulations={selectedSims} />
               <EnrichedCompareTable simulations={selectedSims} />
             </>
           )}
 
-          {/* ── Projection 1/3/5/10 ans ── */}
-          {projSims.length >= 2 && (
+          {/* ── Projection 1/3/5/10 ans (membres cabinet uniquement) ── */}
+          {isCabinetMembre && projSims.length >= 2 && (
             <div style={{
               background: '#050d1a',
               border: '1px solid rgba(51,65,85,0.4)',

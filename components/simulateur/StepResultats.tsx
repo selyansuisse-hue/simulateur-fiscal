@@ -1,6 +1,5 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
-import Link from 'next/link'
 import { useSimulateur } from '@/hooks/useSimulateur'
 import { fmt } from '@/lib/utils'
 import { tmiRate, calcPartsTotal } from '@/lib/fiscal/ir'
@@ -85,6 +84,24 @@ function DotRating({ filled, color }: { filled: number; color: string }) {
 }
 
 /* ─────────────────────────────────────────────────────────
+   ScoreBadge — badge /100 avec tooltip explicatif
+───────────────────────────────────────────────────────── */
+const SCORE_TOOLTIP = 'Score multicritère /100 — pondère : revenu net (≥45%), flexibilité de rémunération, protection sociale et simplicité administrative selon votre priorité sélectionnée.'
+
+function ScoreBadge({ score, color }: { score: number; color: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-md bg-slate-800/80 border border-slate-700 px-2 py-0.5 text-[11px] font-mono tabular-nums cursor-help"
+      style={{ color }}
+      title={SCORE_TOOLTIP}
+    >
+      {score}<span className="text-slate-500">/100</span>
+      <span className="text-[9px] text-slate-400/60">ⓘ</span>
+    </span>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────
    ScoreDimBar — matches Step5Results.html ScoreBar
 ───────────────────────────────────────────────────────── */
 function ScoreDimBar({ label, score, max, color }: { label: string; score: number; max: number; color: string }) {
@@ -141,7 +158,7 @@ function SectionHeader({
    genAnalyse — inchangé
 ───────────────────────────────────────────────────────── */
 function genAnalyse(best: StructureResult, params: SimParams, tmi: number, gain: number, scored: StructureResult[]) {
-  const ben = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
+  const ben = Math.max(0, params.ca - params.charges - params.amort)
   const parts = calcPartsTotal(params.partsBase, params.nbEnfants)
   const partsStr = parts % 1 === 0 ? parts.toString() : parts.toFixed(1).replace('.', ',')
   const situStr = params.partsBase === 2
@@ -466,6 +483,8 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
   const diff = Math.round(bestNetAnnuel - r.netAnnuel)
   const rankLabels = ['★ Recommandée', '2ᵉ choix', '3ᵉ choix', '4ᵉ choix']
   const rankLabel = rankLabels[Math.min(rank, 3)]
+  const exploitCharges = params.charges + params.amort
+  const exploitPct = Math.min(100, exploitCharges / ca * 100)
 
   return (
     <div
@@ -495,12 +514,7 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
             {rankLabel}
           </span>
         )}
-        <span
-          className="inline-flex items-center gap-1 rounded-md bg-slate-800/80 border border-slate-700 px-2 py-0.5 text-[11px] font-mono tabular-nums"
-          style={{ color: accent }}
-        >
-          {r.scoreTotal}<span className="text-slate-500">/100</span>
-        </span>
+        <ScoreBadge score={r.scoreTotal} color={accent} />
       </div>
 
       {/* Structure name + desc */}
@@ -549,20 +563,22 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
         )}
       </div>
 
-      {/* Proportional CA bar */}
+      {/* Proportional CA bar — [Charges][Cotis.][IR][IS][Net] */}
       <div className="px-5 pb-4">
         <div className="flex rounded overflow-hidden h-1.5 mb-2 bg-slate-800">
-          <div style={{ width: `${netPct.toFixed(0)}%`, background: accent, transition: 'width 400ms' }} />
-          <div style={{ width: `${chargesPct.toFixed(0)}%`, background: '#f87171', transition: 'width 400ms' }} />
-          <div style={{ width: `${irPct.toFixed(0)}%`, background: '#fb923c', transition: 'width 400ms' }} />
-          {r.is > 0 && <div style={{ width: `${isPct.toFixed(0)}%`, background: '#818cf8', transition: 'width 400ms' }} />}
+          {exploitPct > 0 && <div style={{ width: `${exploitPct.toFixed(0)}%`, background: '#64748b', transition: 'width 400ms' }} />}
+          <div style={{ width: `${chargesPct.toFixed(0)}%`, background: '#f97316', transition: 'width 400ms' }} />
+          <div style={{ width: `${irPct.toFixed(0)}%`, background: '#f59e0b', transition: 'width 400ms' }} />
+          {r.is > 0 && <div style={{ width: `${isPct.toFixed(0)}%`, background: '#8b5cf6', transition: 'width 400ms' }} />}
+          <div style={{ width: `${netPct.toFixed(0)}%`, background: '#10b981', transition: 'width 400ms' }} />
         </div>
         <div className="flex gap-2 flex-wrap">
           {[
-            { dot: accent, label: 'Net' },
-            { dot: '#f87171', label: 'Cotis.' },
-            { dot: '#fb923c', label: 'IR' },
-            ...(r.is > 0 ? [{ dot: '#818cf8', label: 'IS' }] : []),
+            { dot: '#64748b', label: 'Charges' },
+            { dot: '#f97316', label: 'Cotis.' },
+            { dot: '#f59e0b', label: 'IR' },
+            ...(r.is > 0 ? [{ dot: '#8b5cf6', label: 'IS' }] : []),
+            { dot: '#10b981', label: 'Net' },
           ].map(l => (
             <div key={l.label} className="flex items-center gap-1 text-[9px] text-slate-500">
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: l.dot }} />
@@ -604,6 +620,19 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
             </div>
             <div className="text-sm font-mono tabular-nums text-rose-300 shrink-0" style={{ whiteSpace: 'nowrap' }}>
               −{fmt(r.is)}
+            </div>
+          </div>
+        )}
+        {r.is > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[12px] text-slate-300 font-medium">Résultat net société</div>
+              <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                {params.stratActif === 'max' ? 'À distribuer en dividendes' : 'En réserve dans la société'}
+              </div>
+            </div>
+            <div className="text-sm font-mono tabular-nums text-violet-300 shrink-0" style={{ whiteSpace: 'nowrap' }}>
+              {fmt(Math.max(0, r.ben - r.is))}
             </div>
           </div>
         )}
@@ -690,7 +719,7 @@ export function StepResultats() {
   const { scored, best, tmi, gain } = results
 
   const { pourquoi, attention } = genAnalyse(best, params, tmi, gain, scored)
-  const benBrut = Math.max(0, params.ca - params.charges - params.amort - params.deficit)
+  const benBrut = Math.max(0, params.ca - params.charges - params.amort)
 
   const scenarioOptimise = useMemo(() => {
     const perMax = Math.min(35194, benBrut * 0.10)
@@ -713,7 +742,6 @@ export function StepResultats() {
     'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
-  const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}&source=simulation`
   const tauxEffBest = params.ca > 0 ? Math.round((best.ir + best.charges) / params.ca * 100) : 0
   const bestAccent = structureAccent(best.forme)
 
@@ -1049,7 +1077,10 @@ export function StepResultats() {
                 >
                   {best.forme} · #1
                 </div>
-                <div className="text-2xl font-bold text-white tracking-tight">Score {best.scoreTotal}/100</div>
+                <div className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                  Score {best.scoreTotal}/100
+                  <span className="text-[11px] text-slate-500 font-normal cursor-help" title={SCORE_TOOLTIP}>ⓘ</span>
+                </div>
                 <p className="text-[13px] text-slate-400 mt-2 leading-relaxed">
                   Le meilleur compromis sur les 4 axes. Net élevé, flexibilité de rémunération,
                   bonne protection sociale et administratif maîtrisable.
@@ -1210,7 +1241,8 @@ export function StepResultats() {
               {fmt(Math.round(best.netAnnuel / 12))}/mois
             </div>
             <p className="text-[13px] leading-relaxed text-slate-300">
-              Revenu net avec <strong className="text-white">{best.forme}</strong> — TMI {tmi}% · Score {best.scoreTotal}/100
+              Revenu net avec <strong className="text-white">{best.forme}</strong> — TMI {tmi}%
+              {' '}· <span className="cursor-help" title={SCORE_TOOLTIP}>Score {best.scoreTotal}/100 ⓘ</span>
             </p>
             {gain > 500 && (
               <div className="mt-3 pt-3 border-t border-slate-800 text-[11px] text-emerald-400/70">
@@ -1366,47 +1398,6 @@ export function StepResultats() {
         </div>
         <p className="text-center text-slate-600 text-[11px] mt-5">* Estimations moyennes observées sur les clients Belho Xper — résultats variables selon situation</p>
       </section>
-
-      {/* ══════════════════════════════════════════════
-          7. PONT VERS L'EXPLORER
-      ══════════════════════════════════════════════ */}
-      <div
-        className="rounded-2xl border border-blue-500/20 bg-slate-950 p-6 flex justify-between items-center gap-6 flex-wrap"
-      >
-        <div>
-          <div className="text-[11px] font-bold text-blue-400 uppercase tracking-[0.08em] mb-1.5">
-            🔍 Module exploration
-          </div>
-          <div className="text-[15px] font-bold text-slate-100 mb-1">
-            Et si votre CA augmentait ? Et si vous vous mariez ?
-          </div>
-          <div className="text-[13px] text-slate-500 mb-3">
-            Vos chiffres sont pré-chargés dans l&apos;explorateur interactif.
-          </div>
-          <div className="flex gap-1.5 flex-wrap">
-            {[
-              `CA × 2 → ${fmt(params.ca * 2)}`,
-              'Se marier',
-              '2 enfants',
-              `PER max → ${fmt(Math.min(35194, Math.max(0, benBrut * 0.10)))}`,
-            ].map(preset => (
-              <span
-                key={preset}
-                className="text-[11px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full"
-              >
-                {preset}
-              </span>
-            ))}
-          </div>
-        </div>
-        <Link
-          href={explorerUrl}
-          className="shrink-0 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-px"
-          style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 4px 14px rgba(29,78,216,0.35)', textDecoration: 'none' }}
-        >
-          Ouvrir l&apos;explorateur →
-        </Link>
-      </div>
 
       {/* ══════════════════════════════════════════════
           8. CTA — 3 colonnes : Sauvegarder · PDF · RDV

@@ -35,7 +35,7 @@ export function calcMicro(p: SimParams): StructureResult | null {
 // EI régime réel
 export function calcEIReel(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
-  const bBrut = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+  const bBrut = Math.max(0, p.ca - p.charges - p.amort)
   const { cotis, bNet } = calcCotisTNS(bBrut, pc)
   const perDed = Math.min(p.perMontant || 0, bNet * 0.10 + Math.max(0, bNet - PASS) * 0.15)
   const ir = irMarginal(Math.max(0, bNet - perDed), p.autresRev, p.partsBase, p.nbEnfants)
@@ -66,7 +66,7 @@ export function calcEIReel(p: SimParams): StructureResult {
 // Bisection pour trouver rem max : rem + cotisSSI(rem) = capa
 export function calcEURL(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
-  const capa = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+  const capa = Math.max(0, p.ca - p.charges - p.amort)
   let lo = 0, hi = capa, rem = capa * 0.6
   for (let i = 0; i < 40; i++) {
     const c = cotisTNS_sur_revenu(rem, pc)
@@ -79,7 +79,9 @@ export function calcEURL(p: SimParams): StructureResult {
   const cotisObj = cotisTNS_sur_revenu(rem, pc)
   const cotis = cotisObj.total
   const resIS = Math.max(0, capa - rem - cotis)
-  const is = calcIS(resIS)
+  // Déficit antérieur : s'applique UNIQUEMENT sur la base IS (pas sur la capa de rémunération)
+  const resISforIS = Math.max(0, resIS - p.deficit)
+  const is = calcIS(resISforIS)
   const resNet = resIS - is
   const seuilCap = p.capital * 0.10
   const divBruts = (seuilCap > 300 && resNet > seuilCap) ? Math.min(resNet, seuilCap) : 0
@@ -131,13 +133,15 @@ export function calcEURL(p: SimParams): StructureResult {
 // Abattement 10% sur salaire net (Art.83 CGI), plafonné 14 171 €
 function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
-  const capa = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+  const capa = Math.max(0, p.ca - p.charges - p.amort)
   const pat = brutSal * 0.42
   const sal = brutSal * 0.22
   const netSal = brutSal - sal
   const prev = brutSal * pc
   const resIS = Math.max(0, capa - brutSal - pat - prev)
-  const is = calcIS(resIS)
+  // Déficit antérieur : s'applique UNIQUEMENT sur la base IS (pas sur la capa de rémunération)
+  const resISforIS = Math.max(0, resIS - p.deficit)
+  const is = calcIS(resISforIS)
   const resNet = resIS - is
   const div = resNet * (ratioDivPct / 100)
   const abat10 = Math.min(netSal * 0.10, 14171)
@@ -158,7 +162,7 @@ function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
 
 export function calcSASU(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
-  const capa = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+  const capa = Math.max(0, p.ca - p.charges - p.amort)
   const brutMax = capa / (1 + 0.42 + pc)
   const brutMin = Math.min(PASS, brutMax)
   let bestNet = -Infinity, bestBrut = brutMin, bestRatio = 0
@@ -285,7 +289,7 @@ export function scoreMulti(res: StructureResult[], priorite: Priorite): Structur
 export function swot(r: StructureResult, p: SimParams): SwotResult {
   const s: SwotResult = { pos: [], neg: [], opp: [], rsk: [] }
   const f = r.forme
-  const ben = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+  const ben = Math.max(0, p.ca - p.charges - p.amort)
 
   if (f === 'Micro-entreprise') {
     const plafond = p.secteur === 'commerce' ? 188700 : 77700
@@ -408,7 +412,7 @@ export function leviers(best: StructureResult, p: SimParams): Levier[] {
 
   // PER + prévoyance TNS
   if (isTNS) {
-    const bBase = Math.max(0, p.ca - p.charges - p.amort - p.deficit)
+    const bBase = Math.max(0, p.ca - p.charges - p.amort)
     const pcMad = p.prevoy === 'max' ? 0.10 : 0.05
     const madAnn = Math.min(bBase * pcMad, 37094)
     if (madAnn > 300) {
