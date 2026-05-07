@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { SimulationModal } from './SimulationModal'
 import type { Lead, LeadStatut } from '@/lib/types/cabinet'
@@ -23,9 +24,10 @@ function structColor(forme: string): string { return STRUCT_COLORS[forme] ?? '#6
 interface LeadTableProps {
   initialLeads: Lead[]
   cabinetId: string
+  cabinetSlug?: string
 }
 
-export function LeadTable({ initialLeads, cabinetId }: LeadTableProps) {
+export function LeadTable({ initialLeads, cabinetId, cabinetSlug }: LeadTableProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<LeadStatut | 'all'>('all')
@@ -152,7 +154,7 @@ export function LeadTable({ initialLeads, cabinetId }: LeadTableProps) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'rgba(15,23,42,0.5)' }}>
-                  {['Contact', 'CA simulé', 'Structure', 'Net/an', 'Score', 'Statut', 'Date', 'Actions'].map(h => (
+                  {['Contact', 'CA simulé', 'Structure', 'Net/an', 'Score', 'Statut', 'Dernière sim.', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -218,20 +220,44 @@ export function LeadTable({ initialLeads, cabinetId }: LeadTableProps) {
                           ))}
                         </select>
                       </td>
-                      {/* Date */}
-                      <td style={{ padding: '12px 14px', fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                        {new Date(lead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      {/* Dernière simulation */}
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                        {lead.derniere_simulation ? (
+                          <div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                              {new Date(lead.derniere_simulation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#475569' }}>
+                              {new Date(lead.derniere_simulation).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#334155' }}>
+                            {new Date(lead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
                       </td>
                       {/* Actions */}
                       <td style={{ padding: '12px 14px' }}>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => setSelectedLead(lead)} style={{
-                            padding: '4px 10px', borderRadius: '6px', cursor: 'pointer',
-                            background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)',
-                            color: '#60a5fa', fontSize: '11px', fontWeight: 600,
-                          }}>
-                            Voir
-                          </button>
+                          {cabinetSlug ? (
+                            <Link href={`/cabinet/${cabinetSlug}/leads/${lead.id}`}
+                              style={{
+                                padding: '4px 10px', borderRadius: '6px', cursor: 'pointer',
+                                background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)',
+                                color: '#60a5fa', fontSize: '11px', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+                              }}>
+                              Fiche
+                            </Link>
+                          ) : (
+                            <button onClick={() => setSelectedLead(lead)} style={{
+                              padding: '4px 10px', borderRadius: '6px', cursor: 'pointer',
+                              background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)',
+                              color: '#60a5fa', fontSize: '11px', fontWeight: 600,
+                            }}>
+                              Voir
+                            </button>
+                          )}
                           {lead.email && (
                             <a href={`mailto:${lead.email}?subject=Suite de votre simulation fiscale`}
                               style={{

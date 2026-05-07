@@ -57,10 +57,23 @@ export default function SignupPage() {
         } else {
           setError(signUpError.message)
         }
-      } else if (data.user && !data.session) {
-        setSuccess(true)
       } else {
-        router.push('/dashboard')
+        // Créer le lead B2B en arrière-plan (non-bloquant)
+        const userId = data.user?.id
+        fetch('/api/leads/from-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, fullName, userId }),
+        }).catch(() => {/* non-bloquant */})
+
+        if (!data.session) {
+          setSuccess(true)
+        } else {
+          // Connexion directe (email auto-confirm) — vérifier si retour simulateur
+          const searchParams = new URLSearchParams(window.location.search)
+          const next = searchParams.get('next') || '/dashboard'
+          router.push(next)
+        }
       }
     } catch (err) {
       setError(getAuthError(err))

@@ -90,24 +90,39 @@ export async function POST(req: NextRequest) {
             ?? emailUser.split('@')[0]
             ?? 'Prospect'
 
-          const { error: leadError } = await supabaseAdmin
+          const now = new Date().toISOString()
+
+          const { data: leadData, error: leadError } = await supabaseAdmin
             .from('leads')
             .upsert({
               cabinet_id: cabinet.id,
               email: emailUser,
               nom,
+              user_id: user.id,
               ca_simule: body.ca ?? null,
               structure_recommandee: body.best_forme ?? null,
               net_annuel: body.best_net_annuel ?? null,
               score: body.gain ?? null,
               simulation_data: { params: body.params ?? {}, results: body.results ?? {} },
               statut: 'nouveau',
-              source: 'direct',
-              updated_at: new Date().toISOString(),
+              source: 'simulation_enregistree',
+              derniere_simulation: now,
+              updated_at: now,
             }, { onConflict: 'cabinet_id,email', ignoreDuplicates: false })
+            .select('id')
+            .single()
 
           if (leadError) {
             console.error('[leads] Erreur upsert lead:', leadError)
+          } else if (leadData?.id && data?.id) {
+            // Lier la simulation au lead
+            const { error: lsError } = await supabaseAdmin
+              .from('lead_simulations')
+              .upsert(
+                { lead_id: leadData.id, simulation_id: data.id },
+                { onConflict: 'lead_id,simulation_id', ignoreDuplicates: true }
+              )
+            if (lsError) console.error('[lead_simulations] Erreur upsert:', lsError)
           }
         }
       }

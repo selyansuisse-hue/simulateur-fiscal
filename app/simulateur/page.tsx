@@ -6,21 +6,40 @@ import { StepActivite } from '@/components/simulateur/StepActivite'
 import { StepRemuneration } from '@/components/simulateur/StepRemuneration'
 import { StepFoyer } from '@/components/simulateur/StepFoyer'
 import { StepResultats } from '@/components/simulateur/StepResultats'
+import { ResultsGate } from '@/components/simulateur/ResultsGate'
 import { useSimulateur } from '@/hooks/useSimulateur'
-import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const STEPS = [StepSituation, StepActivite, StepRemuneration, StepFoyer, StepResultats]
 
 export default function SimulateurPage() {
-  const { step } = useSimulateur()
-  const [isAuth, setIsAuth] = useState(false)
+  const { step, setParams, setStep, calcul } = useSimulateur()
+  const [isAuth, setIsAuth] = useState<boolean | null>(null) // null = loading
   const StepComponent = STEPS[step]
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setIsAuth(!!data.user))
+    supabase.auth.getUser().then(({ data }) => {
+      const authenticated = !!data.user
+      setIsAuth(authenticated)
+
+      // Restore pending simulation params after auth redirect
+      if (authenticated) {
+        try {
+          const pending = localStorage.getItem('sim_gate_params')
+          if (pending && step === 0) {
+            const savedParams = JSON.parse(pending)
+            setParams(savedParams)
+            calcul()
+            setStep(4)
+            localStorage.removeItem('sim_gate_params')
+            localStorage.setItem('simulateurResultat', '1')
+          }
+        } catch {}
+      }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -28,6 +47,9 @@ export default function SimulateurPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [step])
+
+  // Show gate when unauthenticated and on results step
+  const showGate = step === 4 && isAuth === false
 
   return (
     <>
@@ -59,32 +81,9 @@ export default function SimulateurPage() {
 
       <ProgressStepper />
 
-      <div className={step === 4 ? 'w-full px-4 sm:px-8 py-9 pb-24' : 'max-w-[920px] mx-auto px-4 sm:px-8 py-9 pb-24'}>
-        <StepComponent />
+      <div className={step === 4 && !showGate ? 'w-full px-4 sm:px-8 py-9 pb-8' : 'max-w-[920px] mx-auto px-4 sm:px-8 py-9 pb-8'}>
+        {showGate ? <ResultsGate /> : <StepComponent />}
       </div>
-
-      {/* Bannière compte — visible uniquement si non connecté et sur l'étape résultats */}
-      {!isAuth && step === 4 && (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-700/50"
-          style={{ background: 'rgba(8,13,26,0.96)', backdropFilter: 'blur(16px)' }}>
-          <div className="max-w-[920px] mx-auto px-6 py-3.5 flex items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="font-display text-[13px] font-bold text-white mb-0.5">Enregistrez cette simulation</div>
-              <div className="text-xs text-slate-400">Créez un compte gratuit pour sauvegarder, comparer et télécharger vos simulations en PDF.</div>
-            </div>
-            <div className="flex gap-2.5 flex-shrink-0">
-              <Link href="/auth/signup" className="px-4 py-2 text-white text-xs font-bold rounded-lg whitespace-nowrap"
-                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
-                Créer un compte
-              </Link>
-              <Link href="/auth/login" className="px-4 py-2 text-slate-300 border border-slate-700 text-xs font-semibold rounded-lg whitespace-nowrap"
-                style={{ background: 'rgba(255,255,255,0.05)' }}>
-                Se connecter
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

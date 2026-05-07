@@ -93,27 +93,31 @@ export function PageHeader() {
             Simuler
           </Link>
 
-          <span className="text-white/20 text-xs px-1">→</span>
+          {cabinetSlug && (
+            <>
+              <span className="text-white/20 text-xs px-1">→</span>
 
-          <Link href="/explorer"
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
-              ${isOnExp ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
-            <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
-              ${isOnExp ? 'border-white/50 text-white/70' : 'border-white/25 text-white/35'}`}>2</span>
-            Explorer
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none
-              ${isOnExp ? 'bg-white/20 text-white/80' : 'bg-white/8 text-white/45'}`}>BÊTA</span>
-          </Link>
+              <Link href="/explorer"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+                  ${isOnExp ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
+                <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
+                  ${isOnExp ? 'border-white/50 text-white/70' : 'border-white/25 text-white/35'}`}>2</span>
+                Explorer
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none
+                  ${isOnExp ? 'bg-white/20 text-white/80' : 'bg-white/8 text-white/45'}`}>BÊTA</span>
+              </Link>
 
-          <span className="text-white/20 text-xs px-1">→</span>
+              <span className="text-white/20 text-xs px-1">→</span>
 
-          <Link href="/simulations"
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
-              ${isOnComp ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
-            <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
-              ${isOnComp ? 'border-white/50 text-white/70' : 'border-white/25 text-white/35'}`}>3</span>
-            Comparer
-          </Link>
+              <Link href="/simulations"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+                  ${isOnComp ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
+                <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
+                  ${isOnComp ? 'border-white/50 text-white/70' : 'border-white/25 text-white/35'}`}>3</span>
+                Comparer
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* CTA droite */}

@@ -1,6 +1,6 @@
 export type Plan = 'starter' | 'pro' | 'cabinet_plus'
 export type LeadStatut = 'nouveau' | 'contacté' | 'converti' | 'perdu'
-export type LeadSource = 'widget' | 'direct' | 'partage'
+export type LeadSource = 'widget' | 'direct' | 'partage' | 'inscription' | 'simulation_enregistree'
 export type MembreRole = 'admin' | 'membre'
 
 export interface Cabinet {
@@ -22,6 +22,7 @@ export interface Lead {
   nom: string | null
   email: string | null
   telephone: string | null
+  user_id: string | null
   ca_simule: number | null
   structure_recommandee: string | null
   net_annuel: number | null
@@ -29,6 +30,14 @@ export interface Lead {
   simulation_data: Record<string, unknown> | null
   statut: LeadStatut
   source: LeadSource
+  derniere_simulation: string | null
+  created_at: string
+}
+
+export interface LeadSimulation {
+  id: string
+  lead_id: string
+  simulation_id: string
   created_at: string
 }
 

@@ -32,7 +32,7 @@ export default async function CabinetLeadsPage({ params }: { params: { slug: str
           Prospects ayant utilisé votre simulateur
         </p>
       </div>
-      <LeadTable initialLeads={leads} cabinetId={cabinet?.id || ''} />
+      <LeadTable initialLeads={leads} cabinetId={cabinet?.id || ''} cabinetSlug={params.slug} />
     </div>
   )
 }
