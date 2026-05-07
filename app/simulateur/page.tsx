@@ -23,6 +23,12 @@ export default function SimulateurPage() {
     supabase.auth.getUser().then(({ data }) => setIsAuth(!!data.user))
   }, [])
 
+  useEffect(() => {
+    if (step === 4) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [step])
+
   return (
     <>
       <PageHeader />

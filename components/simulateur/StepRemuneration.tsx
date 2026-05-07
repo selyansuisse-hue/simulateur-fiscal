@@ -59,7 +59,7 @@ export function StepRemuneration() {
             onClick={() => setParam('stratActif', 'max')}
             className={`flex flex-col gap-2 p-5 rounded-2xl border-2 text-left transition-all duration-150
               ${params.stratActif === 'max'
-                ? 'border-blue bg-blue-bg shadow-[0_0_0_3px_rgba(59,130,246,.10)]'
+                ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_0_3px_rgba(59,130,246,.15)]'
                 : 'border-slate-700 bg-slate-900 hover:border-slate-500'}`}
           >
             <div className="text-2xl mb-0.5">💰</div>
@@ -70,7 +70,7 @@ export function StepRemuneration() {
             onClick={() => setParam('stratActif', 'reserve')}
             className={`flex flex-col gap-2 p-5 rounded-2xl border-2 text-left transition-all duration-150
               ${params.stratActif === 'reserve'
-                ? 'border-blue bg-blue-bg shadow-[0_0_0_3px_rgba(59,130,246,.10)]'
+                ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_0_3px_rgba(59,130,246,.15)]'
                 : 'border-slate-700 bg-slate-900 hover:border-slate-500'}`}
           >
             <div className="text-2xl mb-0.5">📈</div>

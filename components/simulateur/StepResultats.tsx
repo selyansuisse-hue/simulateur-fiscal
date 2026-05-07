@@ -7,7 +7,6 @@ import { tmiRate, calcPartsTotal } from '@/lib/fiscal/ir'
 import { StructureResult } from '@/lib/fiscal'
 import { SimParams } from '@/lib/fiscal/types'
 import { SaveSimulationModal } from '@/components/simulateur/SaveSimulationModal'
-import { createClient } from '@/lib/supabase/client'
 
 /* ─────────────────────────────────────────────────────────
    Helpers
@@ -261,6 +260,48 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
       )}
     </div>
   )
+}
+
+/* ─────────────────────────────────────────────────────────
+   getStructureDesc — description dynamique pour le hero
+───────────────────────────────────────────────────────── */
+function getStructureDesc(forme: string): { regime: string; bullets: string[]; protBadge: string } {
+  if (forme === 'SAS / SASU') return {
+    regime: 'Président assimilé-salarié + dividendes',
+    bullets: [
+      '✓ Cotisations salariales (~75% sur rémunération)',
+      '✓ IS 15% jusqu\'à 42 500 € de bénéfice',
+      '✓ Dividendes au PFU 30% sans cotisations sociales',
+    ],
+    protBadge: 'Régime général — meilleure couverture',
+  }
+  if (forme === 'EURL / SARL (IS)') return {
+    regime: 'Gérant TNS + dividendes IS',
+    bullets: [
+      '✓ Cotisations TNS (~35% sur rémunération)',
+      '✓ IS 15% jusqu\'à 42 500 € de bénéfice',
+      '✓ Dividendes > 10% capital soumis TNS',
+    ],
+    protBadge: 'Régime SSI — Niveau moyen',
+  }
+  if (forme === 'EI (réel normal)') return {
+    regime: 'Entrepreneur individuel au réel',
+    bullets: [
+      '✓ Cotisations SSI sur résultat net (~40%)',
+      '✓ IR progressif avec quotient familial',
+      '✓ Déduction totale des charges réelles',
+    ],
+    protBadge: 'Régime SSI — Niveau moyen',
+  }
+  return {
+    regime: 'Auto-entrepreneur — régime simplifié',
+    bullets: [
+      '✓ Cotisations sur CA (~22% services BIC)',
+      '✓ Abattement forfaitaire — comptabilité allégée',
+      '✓ Franchise TVA si sous les seuils',
+    ],
+    protBadge: 'Régime SSI simplifié — Protection minimale',
+  }
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -612,13 +653,7 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
 export function StepResultats() {
   const { results, params, prevStep } = useSimulateur()
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const [isSaved, setIsSaved] = useState(false)
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user))
-  }, [])
 
   if (!results) return null
   const { scored, best, tmi, gain } = results
@@ -643,8 +678,8 @@ export function StepResultats() {
   const count = scored.length
   const cardsGrid =
     count >= 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
-    count === 3 ? 'grid-cols-1 sm:grid-cols-3' :
-    'grid-cols-1 sm:grid-cols-2'
+    count === 3 ? 'grid-cols-1 md:grid-cols-3 max-w-4xl mx-auto' :
+    'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
   const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}&source=simulation`
@@ -652,7 +687,7 @@ export function StepResultats() {
   const bestAccent = structureAccent(best.forme)
 
   return (
-    <div className="animate-stepIn pb-28 space-y-6">
+    <div className="animate-stepIn pb-8 space-y-6">
 
       {/* ══════════════════════════════════════════════
           1. HERO — recommend-bg style
@@ -692,7 +727,31 @@ export function StepResultats() {
               <span className="text-2xl font-bold text-white tracking-tight">{best.forme}</span>
             </div>
 
-            <div className="mt-4 mb-3">
+            {/* Type de rémunération + bullets dynamiques */}
+            {(() => {
+              const desc = getStructureDesc(best.forme)
+              return (
+                <div className="mt-2 mb-5">
+                  <p className="text-[13px] text-slate-400 mb-3">{desc.regime}</p>
+                  <div className="flex flex-col gap-1.5 mb-3">
+                    {desc.bullets.map((b, i) => (
+                      <div key={i} className="text-[12px] text-slate-400 flex items-center gap-2">
+                        <span style={{ color: bestAccent }}>{b.slice(0, 1)}</span>
+                        <span>{b.slice(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: `${bestAccent}15`, border: `1px solid ${bestAccent}40`, color: bestAccent }}
+                  >
+                    🛡 {desc.protBadge}
+                  </span>
+                </div>
+              )
+            })()}
+
+            <div className="mt-2 mb-3">
               <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-1.5 font-semibold">
                 Revenu net après tout
               </div>
@@ -1046,14 +1105,22 @@ export function StepResultats() {
                 <span className="h-px w-6 bg-emerald-400/60" />
               </div>
               <h2 className="text-2xl font-bold text-white tracking-tight mb-1">
-                Ce que vous pourriez atteindre
+                Ce que vous laissez sur la table
               </h2>
-              <p className="text-sm text-slate-400">En activant tous les leviers disponibles pour {best.forme}</p>
+              <p className="text-sm text-slate-400">Sans optimisation, vous passez à côté de :</p>
             </div>
             <div className="text-right flex-shrink-0">
               <div className="text-[10px] text-slate-500 mb-1">Revenu net optimisé</div>
-              <div className="text-4xl font-black text-emerald-400 tracking-tight">{fmt(scenarioOptimise.netOptimise)}</div>
-              <div className="text-sm text-emerald-400/60 mt-0.5">+{fmt(scenarioOptimise.gainTotal)}/an supplémentaires</div>
+              <div
+                className="text-5xl font-black tracking-tight leading-none"
+                style={{ color: '#34d399', filter: 'drop-shadow(0 0 20px rgba(52,211,153,0.5))' }}
+              >
+                {fmt(scenarioOptimise.netOptimise)}
+              </div>
+              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
+                style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.35)', color: '#34d399', boxShadow: '0 0 16px rgba(52,211,153,0.25)' }}>
+                +{fmt(scenarioOptimise.gainTotal)}/an disponibles
+              </div>
             </div>
           </div>
         </div>
@@ -1153,7 +1220,7 @@ export function StepResultats() {
       </div>
 
       {/* ══════════════════════════════════════════════
-          8. CTA "Ces chiffres vous parlent ?"
+          8. CTA — 2 colonnes : Sauvegarder + Prendre RDV
       ══════════════════════════════════════════════ */}
       <div
         className="rounded-3xl border border-slate-700/60 overflow-hidden relative"
@@ -1161,83 +1228,78 @@ export function StepResultats() {
           background: 'radial-gradient(900px 320px at 100% 0%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(700px 280px at 0% 100%, rgba(139,92,246,0.14), transparent 60%), #0f172a',
         }}
       >
-        <div className="relative grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8 p-8 sm:p-10">
-          {/* Left */}
-          <div>
-            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-blue-300/90 font-semibold mb-4">
-              <span className="h-px w-6 bg-blue-400/60" />
-              Étape suivante
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-[1.1] mb-4">
-              Ces chiffres<br />
-              <span style={{ background: 'linear-gradient(90deg, #60a5fa, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                vous parlent ?
-              </span>
-            </h2>
-            <p className="text-slate-400 text-[15px] leading-relaxed max-w-xl mb-7">
-              Ces résultats sont des estimations certifiées barème 2025.
-              Nos experts affinent votre stratégie et vous accompagnent dans la mise en œuvre concrète.
-            </p>
-            <div className="flex gap-3 flex-wrap items-center">
-              <a
-                href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-6 py-3.5 font-semibold text-sm shadow-lg transition-all hover:-translate-y-px"
-                style={{ boxShadow: '0 6px 20px rgba(29,78,216,0.45)', textDecoration: 'none' }}
-              >
-                📅 Prendre RDV gratuitement →
-              </a>
-              <button
-                onClick={() => setShowSaveModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-600 hover:border-slate-500 bg-slate-800/60 hover:bg-slate-800 text-white px-5 py-3.5 font-medium text-sm transition"
-              >
-                💾 Enregistrer &amp; comparer
-              </button>
-            </div>
+        <div className="relative p-8 sm:p-10">
+          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-blue-300/90 font-semibold mb-6">
+            <span className="h-px w-6 bg-blue-400/60" />
+            Étape suivante
+            <span className="h-px w-6 bg-blue-400/60" />
           </div>
 
-          {/* Right summary card */}
-          <div className="rounded-2xl border border-slate-700/60 bg-slate-950/40 backdrop-blur p-6 self-center">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-semibold">Meilleur résultat simulé</div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: bestAccent }} />
-              <span className="text-base font-bold tracking-tight" style={{ color: bestAccent }}>{best.forme}</span>
-            </div>
-            <div className="mt-4 text-4xl font-black text-white tabular-nums tracking-tighter" style={{ whiteSpace: 'nowrap' }}>
-              {fmt(best.netAnnuel)}
-            </div>
-            <div className="text-xs text-slate-400 font-mono mt-1">{fmt(Math.round(best.netAnnuel / 12))}/mois net</div>
-
-            {gain > 500 && (
-              <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3">
-                <div className="text-[10px] uppercase tracking-wider text-emerald-400/80 font-semibold">Gain vs pire structure</div>
-                <div className="text-lg font-bold text-emerald-300 mt-0.5 tabular-nums" style={{ whiteSpace: 'nowrap' }}>
-                  +{fmt(gain)}/an
-                </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Gauche : Sauvegarder */}
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur p-6 flex flex-col gap-4">
+              <div className="text-2xl">💾</div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">Sauvegarder cette simulation</h3>
+                <p className="text-[13px] text-slate-400 leading-relaxed">
+                  Retrouvez vos résultats et comparez plusieurs scénarios dans &quot;Mes simulations&quot;. Gratuit, sans engagement.
+                </p>
               </div>
-            )}
+              <button
+                onClick={() => setShowSaveModal(true)}
+                className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 font-semibold text-sm transition-all hover:-translate-y-px"
+              >
+                💾 Enregistrer cette simulation
+              </button>
+            </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-slate-900 border border-slate-800 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">TMI</div>
-                <div
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color: tmi <= 11 ? '#34d399' : tmi <= 30 ? '#fbbf24' : '#f87171' }}
+            {/* Droite : Prendre RDV + social proof */}
+            <div
+              className="rounded-2xl border overflow-hidden flex flex-col"
+              style={{ borderColor: 'rgba(59,130,246,0.35)', background: 'linear-gradient(135deg, rgba(29,78,216,0.15), rgba(17,24,39,0.8))' }}
+            >
+              <div className="p-6 flex flex-col gap-4 flex-1">
+                <div className="text-2xl">📅</div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-1">Affiner avec un expert</h3>
+                  <p className="text-[13px] text-slate-300 leading-relaxed">
+                    Nos experts Belho Xper analysent votre situation réelle et mettent en place les leviers identifiés.
+                  </p>
+                </div>
+
+                {/* Social proof */}
+                <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4 flex flex-col gap-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-1">
+                    +500 dirigeants déjà optimisés
+                  </div>
+                  {[
+                    { init: 'T.M.', role: 'Consultant', gain: '+14 200€/an' },
+                    { init: 'A.L.', role: 'Dev indépendante', gain: '+8 900€/an' },
+                    { init: 'M.C.', role: 'Gain moyen client', gain: '+11 400€/an' },
+                  ].map((t, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                          style={{ background: `${bestAccent}30`, color: bestAccent }}
+                        >
+                          {t.init.split('.')[0]}
+                        </div>
+                        <span className="text-[11px] text-slate-400">{t.init} · {t.role}</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-400 flex-shrink-0">{t.gain}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <a
+                  href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+                  className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 px-6 py-3 font-bold text-sm transition-all hover:-translate-y-px shadow-lg"
+                  style={{ textDecoration: 'none', boxShadow: '0 6px 20px rgba(255,255,255,0.2)' }}
                 >
-                  {tmi}%
-                </div>
+                  Rejoindre les 500+ dirigeants optimisés →
+                </a>
               </div>
-              <div className="rounded-lg bg-slate-900 border border-slate-800 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">Eff.</div>
-                <div className="text-sm font-bold text-white tabular-nums">{tauxEffBest}%</div>
-              </div>
-              <div className="rounded-lg bg-slate-900 border border-slate-800 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">Score</div>
-                <div className="text-sm font-bold tabular-nums" style={{ color: bestAccent }}>{best.scoreTotal}</div>
-              </div>
-            </div>
-
-            <div className="text-[10px] text-slate-600 mt-4 text-center">
-              Simulation indicative · Barème 2025
             </div>
           </div>
         </div>
@@ -1255,69 +1317,10 @@ export function StepResultats() {
         </button>
       </div>
 
-      {/* ══════════════════════════════════════════════
-          10. STICKY SAVE BAR
-      ══════════════════════════════════════════════ */}
       <style>{`
-        @keyframes savePulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
-          50% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
-        }
-        .save-pulse { animation: savePulse 2.5s ease-in-out infinite; }
         .card-hover { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
         .card-hover:hover { transform: translateY(-2px); }
       `}</style>
-      <div
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800/80 backdrop-blur-xl"
-        style={{ background: 'rgba(2,6,23,0.95)', padding: '14px 24px' }}
-      >
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <div className="text-[14px] font-bold text-slate-100">
-              {best.forme} · {fmt(best.netAnnuel)}/an · {fmt(Math.round(best.netAnnuel / 12))}/mois
-            </div>
-            <div className="text-[12px] text-slate-500 mt-0.5">
-              Score {best.scoreTotal}/100 · TMI {tmi}%{gain > 500 ? ` · +${fmt(gain)}/an vs moins avantageuse` : ''}
-            </div>
-          </div>
-          <div className="flex gap-2.5 items-center shrink-0">
-            {isSaved ? (
-              <div className="text-[14px] font-bold text-emerald-400 flex items-center gap-2">
-                ✅ Simulation enregistrée
-              </div>
-            ) : isLoggedIn === false ? (
-              <>
-                <Link
-                  href="/auth/login"
-                  className="text-[13px] font-semibold text-slate-400 px-4 py-2 rounded-xl border border-slate-700 hover:border-slate-600 hover:text-slate-200 transition"
-                  style={{ textDecoration: 'none' }}
-                >
-                  Se connecter
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="text-[13px] font-bold text-white px-5 py-2 rounded-xl transition hover:-translate-y-px"
-                  style={{
-                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                    textDecoration: 'none',
-                    boxShadow: '0 4px 12px rgba(29,78,216,0.4)',
-                  }}
-                >
-                  Créer un compte gratuit →
-                </Link>
-              </>
-            ) : (
-              <button
-                className="save-pulse text-[14px] font-bold text-white px-6 py-2.5 rounded-xl cursor-pointer border-none"
-                onClick={() => setShowSaveModal(true)}
-                style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}
-              >
-                💾 Enregistrer cette simulation
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
 
       {showSaveModal && (
         <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={() => setIsSaved(true)} results={results} params={params} tmi={tmi} />
