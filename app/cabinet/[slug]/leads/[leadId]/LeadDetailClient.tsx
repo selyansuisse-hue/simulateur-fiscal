@@ -4,12 +4,18 @@ import { createClient } from '@/lib/supabase/client'
 import type { Lead, LeadStatut } from '@/lib/types/cabinet'
 
 const STATUT_CONFIG: Record<LeadStatut, { label: string; bg: string; color: string; border: string }> = {
-  nouveau:  { label: 'Nouveau',  bg: 'rgba(37,99,235,0.12)',   color: '#60a5fa', border: 'rgba(37,99,235,0.35)'  },
-  contacté: { label: 'Contacté', bg: 'rgba(245,158,11,0.12)',  color: '#fbbf24', border: 'rgba(245,158,11,0.35)' },
-  converti: { label: 'Converti', bg: 'rgba(16,185,129,0.12)',  color: '#34d399', border: 'rgba(16,185,129,0.35)' },
-  perdu:    { label: 'Perdu',    bg: 'rgba(239,68,68,0.12)',   color: '#f87171', border: 'rgba(239,68,68,0.35)'  },
+  nouveau:      { label: 'Nouveau',      bg: 'rgba(37,99,235,0.12)',   color: '#60a5fa', border: 'rgba(37,99,235,0.35)'  },
+  contacté:    { label: 'Contacté',     bg: 'rgba(245,158,11,0.12)',  color: '#fbbf24', border: 'rgba(245,158,11,0.35)' },
+  rdv_planifie: { label: 'RDV planifié', bg: 'rgba(139,92,246,0.12)',  color: '#a78bfa', border: 'rgba(139,92,246,0.35)' },
+  converti:    { label: 'Converti ✓',   bg: 'rgba(16,185,129,0.12)',  color: '#34d399', border: 'rgba(16,185,129,0.35)' },
+  perdu:       { label: 'Perdu',        bg: 'rgba(239,68,68,0.12)',   color: '#f87171', border: 'rgba(239,68,68,0.35)'  },
 }
-const STATUTS: LeadStatut[] = ['nouveau', 'contacté', 'converti', 'perdu']
+const STATUTS: LeadStatut[] = ['nouveau', 'contacté', 'rdv_planifie', 'converti', 'perdu']
+
+function fmtCurrency(n: number | null | undefined) {
+  if (n == null) return ''
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+}
 
 interface Props {
   lead: Lead
@@ -19,8 +25,11 @@ interface Props {
 export function LeadDetailClient({ lead, cabinetSlug }: Props) {
   const [statut, setStatut] = useState<LeadStatut>(lead.statut)
   const [notes, setNotes] = useState<string>(lead.notes || '')
+  const [honoraires, setHonoraires] = useState<number | null>(lead.honoraires ?? null)
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
+  const [savingHono, setSavingHono] = useState(false)
+  const [savedHonoMsg, setSavedHonoMsg] = useState('')
 
   const handleStatutChange = async (newStatut: LeadStatut) => {
     setStatut(newStatut)
@@ -35,6 +44,15 @@ export function LeadDetailClient({ lead, cabinetSlug }: Props) {
     setSavedMsg(error ? '❌ Erreur' : '✓ Sauvegardé')
     setSaving(false)
     setTimeout(() => setSavedMsg(''), 2500)
+  }
+
+  const handleSaveHonoraires = async () => {
+    setSavingHono(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('leads').update({ honoraires }).eq('id', lead.id)
+    setSavedHonoMsg(error ? '❌ Erreur' : '✓ Sauvegardé')
+    setSavingHono(false)
+    setTimeout(() => setSavedHonoMsg(''), 2500)
   }
 
   const st = STATUT_CONFIG[statut]
@@ -77,6 +95,59 @@ export function LeadDetailClient({ lead, cabinetSlug }: Props) {
           })}
         </div>
       </div>
+
+      {/* Honoraires — visible uniquement si converti */}
+      {statut === 'converti' && (
+        <div style={{
+          background: '#0f172a',
+          border: '1px solid rgba(16,185,129,0.3)',
+          borderRadius: '14px', padding: '18px 20px',
+        }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>
+            💼 Honoraires annuels
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <input
+              type="number"
+              value={honoraires ?? ''}
+              onChange={e => setHonoraires(e.target.value ? Number(e.target.value) : null)}
+              onBlur={handleSaveHonoraires}
+              placeholder="Ex : 1 200"
+              min={0}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: '8px',
+                background: '#1e293b', border: '1px solid rgba(51,65,85,0.6)',
+                color: '#f1f5f9', fontSize: '14px', fontWeight: 700,
+                outline: 'none', boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)' }}
+              /* onBlur above handles save + styling */
+            />
+            <span style={{ fontSize: '13px', color: '#64748b', flexShrink: 0 }}>€/an</span>
+          </div>
+          {honoraires != null && (
+            <div style={{ fontSize: '11px', color: '#34d399', marginBottom: '4px' }}>
+              = {fmtCurrency(honoraires / 12)}/mois
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {savedHonoMsg ? (
+              <span style={{ fontSize: '11px', color: savedHonoMsg.startsWith('✓') ? '#34d399' : '#f87171' }}>{savedHonoMsg}</span>
+            ) : <span style={{ fontSize: '11px', color: '#475569' }}>Sauvegarde auto à la sortie du champ</span>}
+            <button
+              onClick={handleSaveHonoraires}
+              disabled={savingHono}
+              style={{
+                padding: '5px 12px', borderRadius: '7px', border: 'none', cursor: savingHono ? 'not-allowed' : 'pointer',
+                background: 'rgba(16,185,129,0.15)', color: '#34d399',
+                fontSize: '11px', fontWeight: 600, opacity: savingHono ? 0.6 : 1,
+              }}
+            >
+              {savingHono ? 'Sauvegarde…' : 'Sauvegarder'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Notes internes */}
       <div style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)', borderRadius: '14px', padding: '18px 20px' }}>

@@ -9,6 +9,7 @@ import {
 } from 'chart.js'
 import { StatCard } from '@/components/cabinet/StatCard'
 import { fmt } from '@/lib/utils'
+import { calculateLeadScore, getTopStructure } from '@/lib/cabinet-utils'
 import type { Lead } from '@/lib/types/cabinet'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartTooltip, Legend)
@@ -16,6 +17,10 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartToolti
 const STRUCT_COLORS: Record<string, string> = {
   'EURL / SARL (IS)': '#3B82F6', 'SAS / SASU': '#8B5CF6',
   'EI (réel normal)': '#F59E0B', 'Micro-entreprise': '#94A3B8',
+}
+
+function fmtMoney(n: number) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 }
 
 export default function StatsPage() {
@@ -65,7 +70,7 @@ export default function StatsPage() {
       structMap[key] = (structMap[key] || 0) + 1
     })
 
-    // KPIs
+    // ── KPIs de base ──
     const withCA = leads.filter(l => l.ca_simule)
     const withNet = leads.filter(l => l.net_annuel)
     const withScore = leads.filter(l => l.score)
@@ -73,16 +78,42 @@ export default function StatsPage() {
     const avgNet = withNet.length ? Math.round(withNet.reduce((s, l) => s + (l.net_annuel || 0), 0) / withNet.length) : 0
     const avgScore = withScore.length ? Math.round(withScore.reduce((s, l) => s + (l.score || 0), 0) / withScore.length) : 0
     const convertis = leads.filter(l => l.statut === 'converti').length
-    const taux = Math.round(convertis / leads.length * 100)
+    const taux = leads.length > 0 ? Math.round(convertis / leads.length * 100) : 0
+
+    // ── Nouveaux KPIs ──
+    // Leads chauds (score ≥ 70)
+    const leadsChauds = leads.filter(l => calculateLeadScore(l) >= 70).length
+
+    // Gain moyen identifié (gain_vs_pire)
+    const withGain = leads.filter(l => (l.gain_vs_pire ?? 0) > 0)
+    const avgGain = withGain.length
+      ? Math.round(withGain.reduce((s, l) => s + (l.gain_vs_pire || 0), 0) / withGain.length)
+      : 0
+
+    // Structure la plus recommandée
+    const topStructure = getTopStructure(leads)
+
+    // Honoraires récurrents totaux (convertis avec honoraires renseignés)
+    const totalHonoraires = leads
+      .filter(l => l.statut === 'converti' && (l.honoraires ?? 0) > 0)
+      .reduce((s, l) => s + (l.honoraires || 0), 0)
+
+    // Convertis avec honoraires renseignés
+    const convertisAvecHono = leads.filter(l => l.statut === 'converti' && (l.honoraires ?? 0) > 0).length
 
     // Funnel
     const funnel = [
       { label: 'Total leads', count: leads.length, color: '#60a5fa' },
-      { label: 'Contactés', count: leads.filter(l => l.statut === 'contacté' || l.statut === 'converti').length, color: '#fbbf24' },
+      { label: 'Contactés', count: leads.filter(l => l.statut === 'contacté' || l.statut === 'rdv_planifie' || l.statut === 'converti').length, color: '#fbbf24' },
+      { label: 'RDV planifiés', count: leads.filter(l => l.statut === 'rdv_planifie' || l.statut === 'converti').length, color: '#a78bfa' },
       { label: 'Convertis', count: convertis, color: '#34d399' },
     ]
 
-    return { weeksData, structMap, avgCA, avgNet, avgScore, taux, funnel, total: leads.length }
+    return {
+      weeksData, structMap, avgCA, avgNet, avgScore, taux, funnel,
+      total: leads.length, leadsChauds, avgGain, topStructure,
+      totalHonoraires, convertisAvecHono, convertis,
+    }
   }, [leads])
 
   if (loading) return (
@@ -104,13 +135,51 @@ export default function StatsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* KPI cards */}
+
+          {/* ── KPI row 1 : pipeline ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-            <StatCard label="Total leads" value={stats.total} icon="👥" color="#60a5fa" />
-            <StatCard label="CA moyen simulé" value={fmt(stats.avgCA)} icon="💶" color="#a78bfa" />
-            <StatCard label="Net moyen/an" value={fmt(stats.avgNet)} icon="💰" color="#34d399" />
-            <StatCard label="Taux conversion" value={`${stats.taux}%`} icon="🎯" color="#fbbf24" />
+            <StatCard label="Total leads"      value={stats.total}           icon="👥" color="#60a5fa" />
+            <StatCard label="Leads chauds 🔥"  value={stats.leadsChauds}     icon="🔥" color="#f87171" />
+            <StatCard label="Convertis"        value={stats.convertis}       icon="✅" color="#34d399" />
+            <StatCard label="Taux conversion"  value={`${stats.taux}%`}      icon="🎯" color="#fbbf24" />
           </div>
+
+          {/* ── KPI row 2 : financier ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            <StatCard label="CA moyen simulé"     value={fmtMoney(stats.avgCA)}   icon="💶" color="#a78bfa" />
+            <StatCard label="Net moyen/an"        value={fmtMoney(stats.avgNet)}  icon="💰" color="#34d399" />
+            <StatCard label="Gain moyen identifié" value={stats.avgGain > 0 ? fmtMoney(stats.avgGain) : '—'} icon="📈" color="#fbbf24" />
+            <StatCard label="Honoraires annuels"  value={stats.totalHonoraires > 0 ? fmtMoney(stats.totalHonoraires) : '—'} icon="💼" color="#34d399" />
+          </div>
+
+          {/* ── Encart top structure ── */}
+          {stats.topStructure !== '—' && (
+            <div style={{
+              background: '#0f172a', border: '1px solid rgba(139,92,246,0.25)',
+              borderRadius: '14px', padding: '16px 20px',
+              display: 'flex', alignItems: 'center', gap: '14px',
+            }}>
+              <div style={{ fontSize: '28px' }}>🏆</div>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  Structure la plus recommandée
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#a78bfa', marginTop: '2px' }}>
+                  {stats.topStructure}
+                </div>
+              </div>
+              {stats.convertisAvecHono > 0 && (
+                <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                  <div style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                    Clients avec honoraires
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#34d399' }}>
+                    {stats.convertisAvecHono}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Charts row */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
@@ -168,7 +237,7 @@ export default function StatsPage() {
             </div>
           </div>
 
-          {/* Funnel */}
+          {/* Funnel (4 étapes avec rdv_planifie) */}
           <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', padding: '20px' }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', marginBottom: '16px' }}>Entonnoir de conversion</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -193,7 +262,7 @@ export default function StatsPage() {
           <div style={{ background: '#1e293b', borderRadius: '14px', border: '1px solid #334155', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ fontSize: '24px' }}>🏆</div>
             <div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Score moyen</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Score qualité moyen</div>
               <div style={{ fontSize: '22px', fontWeight: 900, color: '#34d399' }}>{stats.avgScore}/100</div>
             </div>
           </div>

@@ -16,13 +16,12 @@ interface Simulation {
   gain: number | null
   situation: string | null
   created_at: string
+  params: Record<string, unknown> | null
 }
 
 const STRUCT_COLORS: Record<string, string> = {
-  'EURL / SARL (IS)': '#3B82F6',
-  'SAS / SASU': '#8B5CF6',
-  'EI (réel normal)': '#F59E0B',
-  'Micro-entreprise': '#94A3B8',
+  'EURL / SARL (IS)': '#3B82F6', 'SAS / SASU': '#8B5CF6',
+  'EI (réel normal)': '#F59E0B', 'Micro-entreprise': '#94A3B8',
 }
 function structColor(forme: string | null): string {
   return forme ? (STRUCT_COLORS[forme] ?? '#64748B') : '#64748B'
@@ -32,12 +31,120 @@ function fmt(n: number | null | undefined) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 }
 
+/* ─────────────────────────────────────────────────────────
+   Insights intelligents — pure function
+───────────────────────────────────────────────────────── */
+interface Insight {
+  icon: string
+  message: string
+  priorite: 'urgente' | 'haute' | 'moyenne'
+  couleur: string
+  couleurBg: string
+  couleurBorder: string
+}
+
+const FORME_LABELS: Record<string, string> = {
+  micro: 'Micro-entreprise', ei: 'EI réel',
+  eurl_is: 'EURL/SARL IS', sas_sasu: 'SAS/SASU', none: '',
+}
+
+function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
+  if (!simulations.length) return []
+  const insights: Insight[] = []
+  const lastSim = simulations[0]
+  const joursDepuis = Math.floor((Date.now() - new Date(lastSim.created_at).getTime()) / 86_400_000)
+  const ca = lastSim.ca ?? 0
+  const formeActuelle = (lastSim.params?.formeActuelle as string | undefined) ?? ''
+
+  // 1 — Récence / timing
+  if (joursDepuis <= 3) {
+    insights.push({
+      icon: '🔥',
+      message: `Simulation effectuée il y a ${joursDepuis === 0 ? 'moins d\'un jour' : `${joursDepuis} jour${joursDepuis > 1 ? 's' : ''}`} — prospect chaud, contacter maintenant.`,
+      priorite: 'urgente',
+      couleur: '#f87171', couleurBg: 'rgba(239,68,68,0.08)', couleurBorder: 'rgba(239,68,68,0.25)',
+    })
+  } else if (joursDepuis <= 7) {
+    insights.push({
+      icon: '⏱️',
+      message: `Simulation effectuée il y a ${joursDepuis} jours — une relance maintenant augmente fortement les chances de conversion.`,
+      priorite: 'moyenne',
+      couleur: '#fbbf24', couleurBg: 'rgba(245,158,11,0.08)', couleurBorder: 'rgba(245,158,11,0.25)',
+    })
+  }
+
+  // 2 — Micro dépassant le plafond (urgence)
+  if (formeActuelle === 'micro' && ca > 77_700) {
+    insights.push({
+      icon: '🚨',
+      message: `CA ${fmt(ca)} dépasse le plafond micro (77 700€) — sortie du régime micro obligatoire à traiter en urgence.`,
+      priorite: 'urgente',
+      couleur: '#f87171', couleurBg: 'rgba(239,68,68,0.08)', couleurBorder: 'rgba(239,68,68,0.25)',
+    })
+  }
+
+  // 3 — Changement de structure recommandé
+  if ((lastSim.situation === 'existant' || lastSim.situation === 'changement') && formeActuelle && formeActuelle !== 'none') {
+    const currentLabel = FORME_LABELS[formeActuelle] || formeActuelle
+    if (lastSim.best_forme && currentLabel !== lastSim.best_forme) {
+      insights.push({
+        icon: '🔄',
+        message: `Actuellement en ${currentLabel} — passage en ${lastSim.best_forme} potentiellement intéressant${lastSim.gain ? ` (+${fmt(lastSim.gain)}/an estimé)` : ''}.`,
+        priorite: 'haute',
+        couleur: '#fbbf24', couleurBg: 'rgba(245,158,11,0.08)', couleurBorder: 'rgba(245,158,11,0.25)',
+      })
+    }
+  }
+
+  // 4 — CA élevé → IS très avantageux
+  if (ca > 80_000) {
+    insights.push({
+      icon: '📊',
+      message: `CA de ${fmt(ca)} — le régime IS à 15% devient très avantageux. Structure société fortement recommandée.`,
+      priorite: 'haute',
+      couleur: '#a78bfa', couleurBg: 'rgba(139,92,246,0.08)', couleurBorder: 'rgba(139,92,246,0.25)',
+    })
+  }
+
+  // 5 — TMI élevé → PER recommandé
+  const tmi = lastSim.tmi ?? 0
+  if (tmi >= 30) {
+    const economiePer = Math.round(ca * 0.1 * (tmi / 100))
+    insights.push({
+      icon: '💰',
+      message: `TMI à ${tmi}% — versement PER fortement recommandé. Économie estimée jusqu'à ${fmt(economiePer)}/an.`,
+      priorite: 'haute',
+      couleur: '#60a5fa', couleurBg: 'rgba(37,99,235,0.08)', couleurBorder: 'rgba(37,99,235,0.25)',
+    })
+  }
+
+  // 6 — Gain potentiel élevé
+  if ((lastSim.gain ?? 0) > 8_000) {
+    insights.push({
+      icon: '⚠️',
+      message: `Gain potentiel de ${fmt(lastSim.gain)}/an identifié vs structure la moins avantageuse — optimisation à fort impact.`,
+      priorite: 'haute',
+      couleur: '#fbbf24', couleurBg: 'rgba(245,158,11,0.08)', couleurBorder: 'rgba(245,158,11,0.25)',
+    })
+  }
+
+  // Trier par priorité
+  const ORDER: Record<string, number> = { urgente: 0, haute: 1, moyenne: 2 }
+  return insights.sort((a, b) => ORDER[a.priorite] - ORDER[b.priorite])
+}
+
+/* ─────────────────────────────────────────────────────────
+   Intention config
+───────────────────────────────────────────────────────── */
 const INTENTION_CONFIG = {
   urgent:    { label: '🔥 Chaud',  bg: 'rgba(239,68,68,0.15)',  color: '#f87171',  border: 'rgba(239,68,68,0.3)'  },
   reflechis: { label: '🟡 Tiède',  bg: 'rgba(245,158,11,0.15)', color: '#fbbf24',  border: 'rgba(245,158,11,0.3)' },
   info:      { label: '🔵 Info',   bg: 'rgba(59,130,246,0.15)', color: '#60a5fa',  border: 'rgba(59,130,246,0.3)' },
 } as const
 
+/* ─────────────────────────────────────────────────────────
+   Page
+───────────────────────────────────────────────────────── */
 export default async function LeadDetailPage({
   params,
 }: {
@@ -51,57 +158,44 @@ export default async function LeadDetailPage({
 
   // Vérifier appartenance cabinet
   const { data: cabinet } = await supabase
-    .from('cabinets')
-    .select('id, nom, slug')
-    .eq('slug', params.slug)
-    .single()
-
+    .from('cabinets').select('id, nom, slug').eq('slug', params.slug).single()
   if (!cabinet) notFound()
 
   const { data: membre } = await supabase
-    .from('cabinet_membres')
-    .select('id')
-    .eq('cabinet_id', cabinet.id)
-    .eq('user_id', user.id)
-    .maybeSingle()
-
+    .from('cabinet_membres').select('id')
+    .eq('cabinet_id', cabinet.id).eq('user_id', user.id).maybeSingle()
   if (!membre) redirect('/')
 
   // Charger le lead
   const { data: lead } = await supabase
-    .from('leads')
-    .select('*')
-    .eq('id', params.leadId)
-    .eq('cabinet_id', cabinet.id)
-    .single()
-
+    .from('leads').select('*')
+    .eq('id', params.leadId).eq('cabinet_id', cabinet.id).single()
   if (!lead) notFound()
 
-  // Charger les simulations liées via lead_simulations
+  // Charger les simulations liées
   const { data: leadSims = [] } = await supabase
-    .from('lead_simulations')
-    .select('simulation_id')
+    .from('lead_simulations').select('simulation_id')
     .eq('lead_id', params.leadId)
 
   const simulationIds = (leadSims || []).map((ls: { simulation_id: string }) => ls.simulation_id)
-
   let simulations: Simulation[] = []
   if (simulationIds.length > 0) {
     const { data: sims } = await supabase
       .from('simulations')
-      .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at')
+      .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
       .in('id', simulationIds)
       .order('created_at', { ascending: false })
     simulations = (sims || []) as Simulation[]
   }
 
   const typedLead = lead as Lead
+  const insights = generateInsights(typedLead, simulations)
 
   return (
     <div style={{ minHeight: '100vh', background: '#020617', padding: '28px 32px' }}>
       <div style={{ maxWidth: '960px', margin: '0 auto' }}>
 
-        {/* ── Breadcrumb / Retour ── */}
+        {/* ── Retour ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
           <Link
             href={`/cabinet/${params.slug}`}
@@ -110,7 +204,6 @@ export default async function LeadDetailPage({
               fontSize: '13px', fontWeight: 600, color: '#475569',
               textDecoration: 'none', padding: '6px 12px', borderRadius: '8px',
               background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(51,65,85,0.5)',
-              transition: 'all 150ms',
             }}
           >
             ← Retour aux leads
@@ -121,15 +214,14 @@ export default async function LeadDetailPage({
           </span>
         </div>
 
-        {/* ── Header lead ── */}
+        {/* ── Header ── */}
         <div style={{
-          background: 'linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(7,15,26,0.98) 100%)',
-          border: '1px solid rgba(51,65,85,0.6)',
-          borderRadius: '20px', padding: '28px 32px', marginBottom: '20px',
+          background: 'linear-gradient(135deg, #0f172a 0%, #070f1a 100%)',
+          border: '1px solid rgba(51,65,85,0.6)', borderRadius: '20px',
+          padding: '28px 32px', marginBottom: '20px',
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
-
-            {/* Avatar + nom + email + badges */}
+            {/* Avatar + identité */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
               <div style={{
                 width: '56px', height: '56px', borderRadius: '50%', flexShrink: 0,
@@ -149,8 +241,7 @@ export default async function LeadDetailPage({
                     {typedLead.email}
                   </a>
                 )}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {/* Source badge */}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span style={{
                     fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
                     background: 'rgba(100,116,139,0.15)', border: '1px solid rgba(100,116,139,0.3)', color: '#94a3b8',
@@ -158,7 +249,6 @@ export default async function LeadDetailPage({
                   }}>
                     {typedLead.source?.replace(/_/g, ' ')}
                   </span>
-                  {/* Intention badge */}
                   {typedLead.intention && INTENTION_CONFIG[typedLead.intention] && (
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
@@ -169,16 +259,11 @@ export default async function LeadDetailPage({
                       {INTENTION_CONFIG[typedLead.intention].label}
                     </span>
                   )}
-                  {/* Compte lié */}
                   {typedLead.user_id && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
-                      background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399',
-                    }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399' }}>
                       ✓ Compte lié
                     </span>
                   )}
-                  {/* Date inscription */}
                   <span style={{ fontSize: '10px', color: '#475569' }}>
                     Inscrit le {new Date(typedLead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
@@ -188,32 +273,26 @@ export default async function LeadDetailPage({
 
             {/* KPI pills */}
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <KpiPill label="CA simulé" value={fmt(typedLead.ca_simule)} color="#60a5fa" />
+              <KpiPill label="CA simulé"    value={fmt(typedLead.ca_simule)}  color="#60a5fa" />
               <KpiPill label="Net/an optimal" value={fmt(typedLead.net_annuel)} color="#34d399" />
               {typedLead.score != null && (
-                <KpiPill
-                  label="Score gain"
-                  value={`${typedLead.score}/100`}
-                  color={typedLead.score >= 60 ? '#34d399' : typedLead.score >= 40 ? '#fbbf24' : '#94a3b8'}
-                />
+                <KpiPill label="Score gain" value={`${typedLead.score}/100`}
+                  color={typedLead.score >= 60 ? '#34d399' : typedLead.score >= 40 ? '#fbbf24' : '#94a3b8'} />
               )}
             </div>
           </div>
 
-          {/* KPI bar — structure recommandée */}
+          {/* Structure + dernière sim */}
           {typedLead.structure_recommandee && (
-            <div style={{
-              marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(51,65,85,0.4)',
-              display: 'flex', alignItems: 'center', gap: '8px',
-            }}>
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(51,65,85,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: structColor(typedLead.structure_recommandee), flexShrink: 0 }} />
               <span style={{ fontSize: '12px', color: '#94a3b8' }}>Structure recommandée :</span>
               <span style={{ fontSize: '13px', fontWeight: 700, color: structColor(typedLead.structure_recommandee) }}>
                 {typedLead.structure_recommandee}
               </span>
               {typedLead.derniere_simulation && (
-                <span style={{ fontSize: '11px', color: '#475569', marginLeft: '8px' }}>
-                  · dernière sim. {new Date(typedLead.derniere_simulation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                <span style={{ fontSize: '11px', color: '#475569', marginLeft: '6px' }}>
+                  · sim. {new Date(typedLead.derniere_simulation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
                 </span>
               )}
             </div>
@@ -223,21 +302,52 @@ export default async function LeadDetailPage({
         {/* ── Grille principale ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
 
-          {/* Colonne gauche — simulations */}
+          {/* Colonne gauche */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* Simulations enregistrées */}
+            {/* ── Insights intelligents ── */}
+            {insights.length > 0 && (
+              <div style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)', borderRadius: '16px', padding: '20px 24px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '14px' }}>
+                  💡 Insights automatiques
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {insights.map((insight, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '12px',
+                      padding: '14px 16px', borderRadius: '12px',
+                      background: insight.couleurBg, border: `1px solid ${insight.couleurBorder}`,
+                    }}>
+                      <span style={{ fontSize: '18px', flexShrink: 0, lineHeight: 1.2 }}>{insight.icon}</span>
+                      <div>
+                        <div style={{
+                          fontSize: '9px', fontWeight: 800, textTransform: 'uppercase',
+                          letterSpacing: '0.1em', color: insight.couleur, marginBottom: '4px',
+                        }}>
+                          {insight.priorite}
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
+                          {insight.message}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Simulations ── */}
             <div style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)', borderRadius: '16px', padding: '22px 26px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>
                   Simulations effectuées
-                  <span style={{
-                    marginLeft: '8px', fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '999px',
-                    background: 'rgba(37,99,235,0.12)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.25)',
-                  }}>
-                    {simulations.length}
-                  </span>
                 </div>
+                <span style={{
+                  fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '999px',
+                  background: 'rgba(37,99,235,0.12)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.25)',
+                }}>
+                  {simulations.length}
+                </span>
               </div>
 
               {simulations.length === 0 ? (
@@ -256,8 +366,8 @@ export default async function LeadDetailPage({
                         borderRadius: '14px', padding: '16px 18px',
                       }}>
                         {/* Titre + date */}
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {idx === 0 && (
                               <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '999px', background: 'rgba(37,99,235,0.2)', color: '#60a5fa', flexShrink: 0 }}>
                                 Dernière
@@ -272,7 +382,7 @@ export default async function LeadDetailPage({
                           </span>
                         </div>
 
-                        {/* KPIs grille */}
+                        {/* KPIs */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
                           {[
                             { label: 'CA', value: fmt(sim.ca), color: '#60a5fa' },
@@ -289,32 +399,20 @@ export default async function LeadDetailPage({
                           ))}
                         </div>
 
-                        {/* Boutons d'action */}
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <Link
-                            href={`/simulations/${sim.id}`}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '5px',
-                              padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                              background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.3)',
-                              color: '#60a5fa', textDecoration: 'none',
-                            }}
-                          >
-                            🔍 Voir le détail
-                          </Link>
-                          <a
-                            href={`/api/simulations/${sim.id}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '5px',
-                              padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                              background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)',
-                              color: '#34d399', textDecoration: 'none',
-                            }}
-                          >
-                            📄 PDF
-                          </a>
+                        {/* Boutons */}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <Link href={`/simulations/${sim.id}`} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                            background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.3)',
+                            color: '#60a5fa', textDecoration: 'none',
+                          }}>🔍 Voir le détail</Link>
+                          <a href={`/api/simulations/${sim.id}/pdf`} target="_blank" rel="noopener noreferrer" style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                            background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)',
+                            color: '#34d399', textDecoration: 'none',
+                          }}>📄 PDF</a>
                         </div>
                       </div>
                     )
@@ -322,13 +420,11 @@ export default async function LeadDetailPage({
                 </div>
               )}
             </div>
-
           </div>
 
-          {/* Colonne droite — statut + notes + contact */}
+          {/* Colonne droite */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-            {/* Gestion statut + notes (client component) */}
             <LeadDetailClient lead={typedLead} cabinetSlug={params.slug} />
 
             {/* Infos contact */}
@@ -349,8 +445,7 @@ export default async function LeadDetailPage({
                 {typedLead.telephone && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '14px' }}>📞</span>
-                    <a href={`tel:${typedLead.telephone}`}
-                      style={{ fontSize: '12px', color: '#94a3b8', textDecoration: 'none' }}>
+                    <a href={`tel:${typedLead.telephone}`} style={{ fontSize: '12px', color: '#94a3b8', textDecoration: 'none' }}>
                       {typedLead.telephone}
                     </a>
                   </div>
@@ -374,7 +469,7 @@ export default async function LeadDetailPage({
               </div>
             </div>
 
-            {/* CTA email rapide */}
+            {/* CTA email */}
             {typedLead.email && (
               <a
                 href={`mailto:${typedLead.email}?subject=Votre simulation fiscale - Belho Xper&body=Bonjour ${typedLead.nom?.split(' ')[0] || ''},`}
@@ -388,7 +483,6 @@ export default async function LeadDetailPage({
               </a>
             )}
           </div>
-
         </div>
       </div>
     </div>

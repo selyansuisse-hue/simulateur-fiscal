@@ -1,5 +1,5 @@
 export type Plan = 'starter' | 'pro' | 'cabinet_plus'
-export type LeadStatut = 'nouveau' | 'contacté' | 'converti' | 'perdu'
+export type LeadStatut = 'nouveau' | 'contacté' | 'rdv_planifie' | 'converti' | 'perdu'
 export type LeadSource = 'widget' | 'direct' | 'partage' | 'inscription' | 'simulation_enregistree'
 export type LeadIntention = 'urgent' | 'reflechis' | 'info'
 export type MembreRole = 'admin' | 'membre'
@@ -36,6 +36,11 @@ export interface Lead {
   intention: LeadIntention | null
   updated_at: string | null
   created_at: string
+  // CRM enrichi
+  derniere_relance: string | null
+  honoraires: number | null
+  gain_vs_pire: number | null
+  nb_simulations: number | null
 }
 
 export interface LeadSimulation {
