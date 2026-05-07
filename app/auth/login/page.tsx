@@ -49,6 +49,13 @@ export default function LoginPage() {
             ? 'Le service est temporairement indisponible. Réessayez dans quelques instants.'
             : error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message)
         } else if (data.user) {
+          // Honorer le param ?next (ex: retour depuis gate simulateur)
+          const urlParams = new URLSearchParams(window.location.search)
+          const nextParam = urlParams.get('next') || urlParams.get('redirect')
+          if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+            router.push(nextParam)
+            return
+          }
           const { data: membre } = await supabase
             .from('cabinet_membres')
             .select('cabinets(slug)')

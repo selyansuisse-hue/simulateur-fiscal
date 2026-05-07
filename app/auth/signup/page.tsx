@@ -41,11 +41,12 @@ export default function SignupPage() {
     setError('')
     try {
       const supabase = createClient()
+      const nextParam = new URLSearchParams(window.location.search).get('next') || '/dashboard'
       const { data, error: signUpError } = await supabase.auth.signUp({
         email, password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard`,
+          emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`,
         },
       })
       if (signUpError) {

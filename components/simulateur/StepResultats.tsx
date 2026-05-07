@@ -654,6 +654,26 @@ export function StepResultats() {
   const { results, params, prevStep } = useSimulateur()
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  const [savedSimId, setSavedSimId] = useState<string | null>(null)
+  const [pendingPdf, setPendingPdf] = useState(false)
+
+  const handleSaved = (simId?: string) => {
+    setIsSaved(true)
+    if (simId) setSavedSimId(simId)
+    if (pendingPdf && simId) {
+      setPendingPdf(false)
+      window.open(`/api/simulations/${simId}/pdf`, '_blank')
+    }
+  }
+
+  const handlePDF = () => {
+    if (savedSimId) {
+      window.open(`/api/simulations/${savedSimId}/pdf`, '_blank')
+    } else {
+      setPendingPdf(true)
+      setShowSaveModal(true)
+    }
+  }
 
   if (!results) return null
   const { scored, best, tmi, gain } = results
@@ -1220,14 +1240,10 @@ export function StepResultats() {
       </div>
 
       {/* ══════════════════════════════════════════════
-          8. CTA — 2 colonnes : Sauvegarder + Prendre RDV
+          8. CTA — 3 colonnes : Sauvegarder · PDF · RDV
       ══════════════════════════════════════════════ */}
-      <div
-        className="rounded-3xl border border-slate-700/60 overflow-hidden relative"
-        style={{
-          background: 'radial-gradient(900px 320px at 100% 0%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(700px 280px at 0% 100%, rgba(139,92,246,0.14), transparent 60%), #0f172a',
-        }}
-      >
+      <div className="rounded-3xl border border-slate-700/60 overflow-hidden relative"
+        style={{ background: 'radial-gradient(900px 320px at 100% 0%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(700px 280px at 0% 100%, rgba(139,92,246,0.14), transparent 60%), #0f172a' }}>
         <div className="relative p-8 sm:p-10">
           <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-blue-300/90 font-semibold mb-6">
             <span className="h-px w-6 bg-blue-400/60" />
@@ -1235,72 +1251,66 @@ export function StepResultats() {
             <span className="h-px w-6 bg-blue-400/60" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Gauche : Sauvegarder */}
-            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur p-6 flex flex-col gap-4">
-              <div className="text-2xl">💾</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            {/* 1 — Sauvegarder */}
+            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
+              <div className="text-3xl">💾</div>
               <div>
-                <h3 className="text-lg font-bold text-white mb-1">Sauvegarder cette simulation</h3>
-                <p className="text-[13px] text-slate-400 leading-relaxed">
-                  Retrouvez vos résultats et comparez plusieurs scénarios dans &quot;Mes simulations&quot;. Gratuit, sans engagement.
+                <h3 className="text-white font-semibold text-[15px] mb-1">Sauvegarder</h3>
+                <p className="text-slate-400 text-[12.5px] leading-relaxed">
+                  Retrouvez cette analyse depuis votre espace
                 </p>
               </div>
               <button
                 onClick={() => setShowSaveModal(true)}
-                className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 font-semibold text-sm transition-all hover:-translate-y-px"
+                disabled={isSaved}
+                className="mt-auto w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-px disabled:opacity-60"
+                style={{ background: isSaved ? 'rgba(16,185,129,0.3)' : 'linear-gradient(135deg,#059669,#047857)', boxShadow: isSaved ? 'none' : '0 4px 14px rgba(5,150,105,0.35)' }}
               >
-                💾 Enregistrer cette simulation
+                {isSaved ? '✓ Enregistrée' : 'Enregistrer la simulation'}
               </button>
             </div>
 
-            {/* Droite : Prendre RDV + social proof */}
+            {/* 2 — Télécharger PDF */}
+            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
+              <div className="text-3xl">📄</div>
+              <div>
+                <h3 className="text-white font-semibold text-[15px] mb-1">Rapport PDF</h3>
+                <p className="text-slate-400 text-[12.5px] leading-relaxed">
+                  Téléchargez votre analyse complète en PDF
+                </p>
+              </div>
+              <button
+                onClick={handlePDF}
+                className="mt-auto w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-px"
+                style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', boxShadow: '0 4px 14px rgba(29,78,216,0.35)' }}
+              >
+                {savedSimId ? 'Télécharger le rapport' : 'Enregistrer + PDF →'}
+              </button>
+            </div>
+
+            {/* 3 — Prendre RDV */}
             <div
-              className="rounded-2xl border overflow-hidden flex flex-col"
+              className="rounded-2xl border p-5 flex flex-col items-center text-center gap-3"
               style={{ borderColor: 'rgba(59,130,246,0.35)', background: 'linear-gradient(135deg, rgba(29,78,216,0.15), rgba(17,24,39,0.8))' }}
             >
-              <div className="p-6 flex flex-col gap-4 flex-1">
-                <div className="text-2xl">📅</div>
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-1">Affiner avec un expert</h3>
-                  <p className="text-[13px] text-slate-300 leading-relaxed">
-                    Nos experts Belho Xper analysent votre situation réelle et mettent en place les leviers identifiés.
-                  </p>
-                </div>
-
-                {/* Social proof */}
-                <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4 flex flex-col gap-3">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-1">
-                    +500 dirigeants déjà optimisés
-                  </div>
-                  {[
-                    { init: 'T.M.', role: 'Consultant', gain: '+14 200€/an' },
-                    { init: 'A.L.', role: 'Dev indépendante', gain: '+8 900€/an' },
-                    { init: 'M.C.', role: 'Gain moyen client', gain: '+11 400€/an' },
-                  ].map((t, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                          style={{ background: `${bestAccent}30`, color: bestAccent }}
-                        >
-                          {t.init.split('.')[0]}
-                        </div>
-                        <span className="text-[11px] text-slate-400">{t.init} · {t.role}</span>
-                      </div>
-                      <span className="text-[11px] font-bold text-emerald-400 flex-shrink-0">{t.gain}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <a
-                  href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                  className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 px-6 py-3 font-bold text-sm transition-all hover:-translate-y-px shadow-lg"
-                  style={{ textDecoration: 'none', boxShadow: '0 6px 20px rgba(255,255,255,0.2)' }}
-                >
-                  Rejoindre les 500+ dirigeants optimisés →
-                </a>
+              <div className="text-3xl">📅</div>
+              <div>
+                <h3 className="text-white font-semibold text-[15px] mb-1">Affiner avec un expert</h3>
+                <p className="text-slate-400 text-[12.5px] leading-relaxed">
+                  Belho Xper valide votre stratégie réelle
+                </p>
               </div>
+              <a
+                href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+                className="mt-auto w-full py-2.5 rounded-xl font-bold text-sm text-center block transition-all hover:-translate-y-px"
+                style={{ background: '#fff', color: '#0f172a', boxShadow: '0 4px 16px rgba(255,255,255,0.15)', textDecoration: 'none' }}
+              >
+                Prendre RDV — gratuit
+              </a>
             </div>
+
           </div>
         </div>
       </div>
@@ -1323,7 +1333,7 @@ export function StepResultats() {
       `}</style>
 
       {showSaveModal && (
-        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={() => setIsSaved(true)} results={results} params={params} tmi={tmi} />
+        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={handleSaved} results={results} params={params} tmi={tmi} />
       )}
     </div>
   )

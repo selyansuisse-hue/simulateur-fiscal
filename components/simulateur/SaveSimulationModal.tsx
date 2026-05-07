@@ -9,7 +9,7 @@ const LOCAL_KEY = 'belhoxper_simulations'
 
 interface Props {
   onClose: () => void
-  onSaved?: () => void
+  onSaved?: (simId?: string) => void
   results: { scored: StructureResult[]; best: StructureResult; tmi: number; gain: number }
   params: SimParams
   tmi: number
@@ -81,8 +81,9 @@ export function SaveSimulationModal({ onClose, onSaved, results, params, tmi }: 
           console.error('[SaveSimulation] API error:', data)
           setError(data.error || 'Erreur lors de la sauvegarde.')
         } else {
+          const saved = await res.json()
           setSaved(true)
-          onSaved?.()
+          onSaved?.(saved?.id)
           setTimeout(onClose, 1800)
         }
       } else {
