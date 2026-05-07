@@ -31,6 +31,8 @@ export interface Lead {
   statut: LeadStatut
   source: LeadSource
   derniere_simulation: string | null
+  notes: string | null
+  updated_at: string | null
   created_at: string
 }
 

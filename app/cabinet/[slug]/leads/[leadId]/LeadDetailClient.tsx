@@ -18,7 +18,7 @@ interface Props {
 
 export function LeadDetailClient({ lead, cabinetSlug }: Props) {
   const [statut, setStatut] = useState<LeadStatut>(lead.statut)
-  const [notes, setNotes] = useState<string>((lead as Lead & { notes?: string }).notes || '')
+  const [notes, setNotes] = useState<string>(lead.notes || '')
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
 
