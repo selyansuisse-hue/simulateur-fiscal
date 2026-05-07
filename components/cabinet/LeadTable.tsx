@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { SimulationModal } from './SimulationModal'
 import type { Lead, LeadStatut } from '@/lib/types/cabinet'
@@ -28,6 +29,7 @@ interface LeadTableProps {
 }
 
 export function LeadTable({ initialLeads, cabinetId, cabinetSlug }: LeadTableProps) {
+  const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<LeadStatut | 'all'>('all')
@@ -164,7 +166,17 @@ export function LeadTable({ initialLeads, cabinetId, cabinetSlug }: LeadTablePro
                   const st = STATUT_CONFIG[lead.statut]
                   const sc = lead.structure_recommandee ? structColor(lead.structure_recommandee) : '#64748b'
                   return (
-                    <tr key={lead.id} style={{ borderTop: '1px solid rgba(51,65,85,0.5)', transition: 'background 150ms' }}>
+                    <tr
+                      key={lead.id}
+                      onClick={() => cabinetSlug && router.push(`/cabinet/${cabinetSlug}/leads/${lead.id}`)}
+                      style={{
+                        borderTop: '1px solid rgba(51,65,85,0.5)',
+                        transition: 'background 150ms',
+                        cursor: cabinetSlug ? 'pointer' : 'default',
+                      }}
+                      onMouseOver={e => { if (cabinetSlug) (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(30,41,59,0.6)' }}
+                      onMouseOut={e => { (e.currentTarget as HTMLTableRowElement).style.background = '' }}
+                    >
                       {/* Contact */}
                       <td style={{ padding: '12px 14px', minWidth: '160px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1px' }}>
@@ -214,7 +226,7 @@ export function LeadTable({ initialLeads, cabinetId, cabinetSlug }: LeadTablePro
                         ) : '—'}
                       </td>
                       {/* Statut */}
-                      <td style={{ padding: '12px 14px' }}>
+                      <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
                         <select
                           value={lead.statut}
                           onChange={e => updateStatut(lead.id, e.target.value as LeadStatut)}
@@ -250,7 +262,7 @@ export function LeadTable({ initialLeads, cabinetId, cabinetSlug }: LeadTablePro
                         )}
                       </td>
                       {/* Actions */}
-                      <td style={{ padding: '12px 14px' }}>
+                      <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           {cabinetSlug ? (
                             <Link href={`/cabinet/${cabinetSlug}/leads/${lead.id}`}
