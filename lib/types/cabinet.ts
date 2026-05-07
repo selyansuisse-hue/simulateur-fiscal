@@ -1,6 +1,7 @@
 export type Plan = 'starter' | 'pro' | 'cabinet_plus'
 export type LeadStatut = 'nouveau' | 'contacté' | 'converti' | 'perdu'
 export type LeadSource = 'widget' | 'direct' | 'partage' | 'inscription' | 'simulation_enregistree'
+export type LeadIntention = 'urgent' | 'reflechis' | 'info'
 export type MembreRole = 'admin' | 'membre'
 
 export interface Cabinet {
@@ -32,6 +33,7 @@ export interface Lead {
   source: LeadSource
   derniere_simulation: string | null
   notes: string | null
+  intention: LeadIntention | null
   updated_at: string | null
   created_at: string
 }

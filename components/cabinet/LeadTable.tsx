@@ -167,8 +167,20 @@ export function LeadTable({ initialLeads, cabinetId, cabinetSlug }: LeadTablePro
                     <tr key={lead.id} style={{ borderTop: '1px solid rgba(51,65,85,0.5)', transition: 'background 150ms' }}>
                       {/* Contact */}
                       <td style={{ padding: '12px 14px', minWidth: '160px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>{lead.nom || '—'}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>{lead.email || '—'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>{lead.nom || '—'}</span>
+                          {lead.intention && (
+                            <span style={{
+                              fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '999px',
+                              background: lead.intention === 'urgent' ? 'rgba(239,68,68,0.15)' : lead.intention === 'reflechis' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
+                              color: lead.intention === 'urgent' ? '#f87171' : lead.intention === 'reflechis' ? '#fbbf24' : '#60a5fa',
+                              border: `1px solid ${lead.intention === 'urgent' ? 'rgba(239,68,68,0.3)' : lead.intention === 'reflechis' ? 'rgba(245,158,11,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                            }}>
+                              {lead.intention === 'urgent' ? '🔥 Chaud' : lead.intention === 'reflechis' ? '🟡 Tiède' : '🔵 Info'}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{lead.email || '—'}</div>
                       </td>
                       {/* CA */}
                       <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: '#60a5fa', whiteSpace: 'nowrap' }}>

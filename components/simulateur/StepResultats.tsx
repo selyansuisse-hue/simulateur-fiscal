@@ -656,6 +656,7 @@ export function StepResultats() {
   const [isSaved, setIsSaved] = useState(false)
   const [savedSimId, setSavedSimId] = useState<string | null>(null)
   const [pendingPdf, setPendingPdf] = useState(false)
+  const [intention, setIntention] = useState<'urgent' | 'reflechis' | 'info' | null>(null)
 
   const handleSaved = (simId?: string) => {
     setIsSaved(true)
@@ -673,6 +674,16 @@ export function StepResultats() {
       setPendingPdf(true)
       setShowSaveModal(true)
     }
+  }
+
+  const handleIntention = (val: 'urgent' | 'reflechis' | 'info') => {
+    setIntention(val)
+    // Envoyer au backend en arrière-plan (non-bloquant)
+    fetch('/api/leads/intention', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ simulationId: savedSimId, intention: val }),
+    }).catch(() => {/* non-bloquant */})
   }
 
   if (!results) return null
@@ -705,6 +716,23 @@ export function StepResultats() {
   const explorerUrl = `/explorer?ca=${params.ca}&charges=${params.charges}&amort=${params.amort}&capital=${params.capital}&sitfam=${params.partsBase === 2 ? 'marie' : 'celib'}&enfants=${params.nbEnfants}&per=${params.perMontant}&autresrev=${params.autresRev}&secteur=${params.secteur}&source=simulation`
   const tauxEffBest = params.ca > 0 ? Math.round((best.ir + best.charges) / params.ca * 100) : 0
   const bestAccent = structureAccent(best.forme)
+
+  // ── Coût de l'inaction ──
+  const FORME_ACTUELLE_MAP: Record<string, string> = {
+    micro: 'Micro-entreprise',
+    ei: 'EI (réel normal)',
+    eurl_is: 'EURL / SARL (IS)',
+    sas_sasu: 'SAS / SASU',
+    none: '',
+  }
+  const showInaction = params.situation === 'existant' || params.situation === 'changement'
+  const formeActuelleLabel = FORME_ACTUELLE_MAP[params.formeActuelle] || ''
+  const currentResult = scored.find(r => r.forme === formeActuelleLabel)
+  const netActuel = currentResult?.netAnnuel ?? null
+  const perteParAn = showInaction && netActuel != null && best.netAnnuel > netActuel
+    ? Math.round(best.netAnnuel - netActuel)
+    : 0
+  const perteParMois = Math.round(perteParAn / 12)
 
   return (
     <div className="animate-stepIn pb-8 space-y-6">
@@ -915,6 +943,87 @@ export function StepResultats() {
           ))}
         </div>
       </section>
+
+      {/* ══════════════════════════════════════════════
+          2b. COÛT DE L'INACTION
+      ══════════════════════════════════════════════ */}
+      {showInaction && perteParAn > 500 ? (
+        <section className="rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(127,29,29,0.25) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <div className="p-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-red-400 mb-3">
+                <span className="h-px w-5 bg-red-500/60" />⚠ Coût de l&apos;inaction<span className="h-px w-5 bg-red-500/60" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">
+                Chaque mois sans optimisation<span className="text-red-400"> vous coûte</span>
+              </h2>
+              <p className="text-slate-400 text-[13px]">
+                Comparé à votre structure actuelle ({formeActuelleLabel || 'structure existante'})
+              </p>
+            </div>
+
+            {/* Compteur principal */}
+            <div className="text-center my-8">
+              <div
+                className="text-[5rem] sm:text-[6rem] font-black text-red-400 leading-none tabular-nums"
+                style={{ textShadow: '0 0 30px rgba(239,68,68,0.5)' }}
+              >
+                -{fmt(perteParMois)}
+              </div>
+              <div className="text-slate-400 text-base mt-2">par mois laissé sur la table</div>
+            </div>
+
+            {/* Timeline pertes */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              {[
+                { label: 'Dans 3 mois', val: perteParMois * 3, highlight: false },
+                { label: 'Dans 1 an', val: perteParAn, highlight: true },
+                { label: 'Dans 5 ans', val: perteParAn * 5, highlight: false },
+              ].map(item => (
+                <div key={item.label} className="rounded-xl p-4 text-center"
+                  style={{ background: 'rgba(15,23,42,0.7)', border: item.highlight ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(51,65,85,0.5)' }}>
+                  <div className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold mb-2">{item.label}</div>
+                  <div className={`font-black tabular-nums ${item.highlight ? 'text-2xl text-red-400' : 'text-xl text-red-400/80'}`}>
+                    -{fmt(item.val)}
+                  </div>
+                  {item.highlight && params.ca > 0 && (
+                    <div className="text-red-500/70 text-[10px] mt-1">
+                      soit {Math.round(item.val / (params.ca / 12))} mois de CA nets perdus
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <p className="text-slate-400 text-center text-[13px] leading-relaxed">
+              Ces pertes sont évitables. Un changement de structure peut se faire en 3 à 6 semaines avec le bon accompagnement.
+            </p>
+          </div>
+        </section>
+      ) : showInaction && perteParAn <= 500 ? (
+        /* Structure actuelle déjà optimale */
+        <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.04] p-6 text-center">
+          <div className="text-2xl mb-3">🎯</div>
+          <div className="font-bold text-emerald-300 text-[15px] mb-1">Votre structure actuelle est déjà optimale</div>
+          <p className="text-slate-400 text-[13px]">
+            Les gains d&apos;un changement seraient marginaux. Un expert peut valider ce constat et identifier d&apos;autres leviers fiscaux.
+          </p>
+        </section>
+      ) : (
+        /* Création */
+        <section className="rounded-2xl border border-blue-500/25 bg-blue-500/[0.04] p-6">
+          <div className="flex items-start gap-4">
+            <div className="text-3xl flex-shrink-0">🚀</div>
+            <div>
+              <div className="font-bold text-blue-300 text-[15px] mb-1">Vous partez sur de bonnes bases</div>
+              <p className="text-slate-400 text-[13px] leading-relaxed">
+                Vous choisissez la bonne structure dès le départ — c&apos;est exactement le bon moment pour se faire accompagner.
+                Un expert sécurise votre création et met en place les leviers fiscaux dès J+1.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ══════════════════════════════════════════════
           3. SCORE MULTICRITÈRE
@@ -1199,6 +1308,66 @@ export function StepResultats() {
       </section>
 
       {/* ══════════════════════════════════════════════
+          6b. CE QU'UN EXPERT FAIT EN PLUS
+      ══════════════════════════════════════════════ */}
+      <section className="rounded-3xl border border-slate-700/50 bg-slate-950 p-8">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-400 mb-3">
+            <span className="h-px w-5 bg-blue-400/60" />💡 Ce que le simulateur ne peut pas faire<span className="h-px w-5 bg-blue-400/60" />
+          </div>
+          <h2 className="text-2xl font-black text-white tracking-tight mb-2">
+            Ce qu&apos;un expert Belho Xper fait en plus
+          </h2>
+          <p className="text-slate-400 text-[13px] leading-relaxed max-w-lg mx-auto">
+            Ces optimisations ne sont pas calculables en ligne — elles nécessitent une analyse de votre dossier réel.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            {
+              icon: '🎯',
+              titre: 'Optimisation du ratio rémunération / dividendes',
+              texte: `Selon votre TMI réel de ${tmi}%, nous calculons le mix exact gérance + dividendes qui maximise votre net en tenant compte de votre situation patrimoniale complète.`,
+              gain: 'Gain moyen observé : +2 000 à +5 000€/an',
+            },
+            {
+              icon: '📋',
+              titre: 'Audit de vos charges déductibles',
+              texte: `En ${params.secteur.replace(/_/g, ' ')}, il existe souvent des charges sous-utilisées : quote-part domicile, frais de formation, matériel, véhicule. Nous identifions ce que vous oubliez.`,
+              gain: 'Gain moyen observé : +1 500 à +3 000€/an',
+            },
+            {
+              icon: '🛡',
+              titre: 'Stratégie prévoyance sur mesure',
+              texte: tmi >= 30
+                ? `Avec un TMI à ${tmi}%, un contrat Madelin ou PER bien calibré peut réduire significativement votre impôt tout en préparant votre retraite.`
+                : `Nous dimensionnons votre protection sociale pour éviter les cotisations inutiles tout en gardant une couverture suffisante.`,
+              gain: 'Gain fiscal observé : jusqu\'à −30% d\'IR',
+            },
+            {
+              icon: '⚡',
+              titre: 'Mise en place en 3 semaines',
+              texte: 'Statuts, immatriculation, compte pro, paramétrage comptable — nous gérons tout. Vous signez, nous faisons.',
+              gain: '0 démarche administrative de votre côté',
+            },
+          ].map((item, i) => (
+            <div key={i} className="rounded-xl border border-slate-700/30 bg-slate-800/50 p-5">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-white text-[14px] mb-1.5">{item.titre}</div>
+                  <p className="text-slate-400 text-[12.5px] leading-relaxed mb-2.5">{item.texte}</p>
+                  <div className="text-emerald-400 text-[11.5px] font-semibold">{item.gain}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-slate-600 text-[11px] mt-5">* Estimations moyennes observées sur les clients Belho Xper — résultats variables selon situation</p>
+      </section>
+
+      {/* ══════════════════════════════════════════════
           7. PONT VERS L'EXPLORER
       ══════════════════════════════════════════════ */}
       <div
@@ -1314,6 +1483,128 @@ export function StepResultats() {
           </div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════
+          8b. QUALIFICATION + RDV
+      ══════════════════════════════════════════════ */}
+      <section className="rounded-3xl border border-blue-500/20 overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, rgba(29,78,216,0.18) 0%, rgba(109,40,217,0.12) 50%, rgba(15,23,42,0.95) 100%)' }}>
+        <div className="p-8 sm:p-10">
+
+          {/* Question de qualification */}
+          {!intention ? (
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">
+                Où en êtes-vous dans votre projet ?
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl mx-auto">
+                {([
+                  { value: 'urgent'   as const, label: '🔥 Je veux changer dans les 3 mois',  border: 'rgba(239,68,68,0.5)',   hover: 'rgba(239,68,68,0.08)'   },
+                  { value: 'reflechis'as const, label: '🤔 Je réfléchis, dans 6 mois peut-être', border: 'rgba(245,158,11,0.5)', hover: 'rgba(245,158,11,0.08)' },
+                  { value: 'info'     as const, label: '📚 Je me renseigne pour l\'instant', border: 'rgba(59,130,246,0.5)',   hover: 'rgba(59,130,246,0.08)'  },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleIntention(opt.value)}
+                    className="rounded-xl p-4 text-white text-sm font-medium transition-all text-left cursor-pointer"
+                    style={{ border: `1px solid ${opt.border}`, background: 'rgba(15,23,42,0.6)' }}
+                    onMouseOver={e => { e.currentTarget.style.background = opt.hover }}
+                    onMouseOut={e => { e.currentTarget.style.background = 'rgba(15,23,42,0.6)' }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Réponse contextuelle selon intention */
+            <div className="text-center mb-8">
+              {intention === 'urgent' && (
+                <>
+                  <div className="text-emerald-400 font-bold text-lg mb-2">✅ Parfait — vous êtes au bon endroit</div>
+                  <p className="text-slate-300 mb-2 text-[14px]">
+                    Nos experts peuvent vous accompagner dès cette semaine. Première consultation gratuite, sans engagement.
+                  </p>
+                  {perteParMois > 0 && (
+                    <p className="text-amber-400 text-sm font-semibold">
+                      ⏱ Chaque semaine supplémentaire = −{fmt(Math.round(perteParMois / 4))} de manqués
+                    </p>
+                  )}
+                </>
+              )}
+              {intention === 'reflechis' && (
+                <>
+                  <div className="text-blue-400 font-bold text-lg mb-2">💡 Un RDV exploratoire vous aidera à décider</div>
+                  <p className="text-slate-300 mb-2 text-[14px]">
+                    30 minutes avec un expert pour valider si les chiffres de cette simulation correspondent à votre situation réelle. Aucune obligation.
+                  </p>
+                </>
+              )}
+              {intention === 'info' && (
+                <>
+                  <div className="text-slate-300 font-bold text-lg mb-2">📄 On vous envoie votre rapport PDF complet</div>
+                  <p className="text-slate-400 mb-2 text-[14px]">
+                    Votre analyse détaillée avec les recommandations pour votre situation — à lire à votre rythme. Revenez nous voir quand vous êtes prêt.
+                  </p>
+                </>
+              )}
+              {/* Changer d'avis */}
+              <button
+                onClick={() => setIntention(null)}
+                className="text-slate-600 text-xs hover:text-slate-400 transition-colors mt-2"
+              >
+                ← Changer ma réponse
+              </button>
+            </div>
+          )}
+
+          {/* CTAs */}
+          <div className="flex flex-col md:flex-row gap-3 justify-center max-w-lg mx-auto">
+            {(intention !== 'info') && (
+              <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+                className="flex-1 py-4 px-6 rounded-xl text-center font-black text-[16px] transition-all hover:-translate-y-0.5"
+                style={{ background: '#fff', color: '#0f172a', boxShadow: '0 8px 24px rgba(255,255,255,0.15)', textDecoration: 'none' }}>
+                📅 Prendre RDV — 30min offertes
+              </a>
+            )}
+            <button
+              onClick={handlePDF}
+              className="flex-1 py-4 px-6 rounded-xl font-semibold text-[14px] transition-all hover:-translate-y-0.5 border border-slate-600 hover:border-slate-500"
+              style={{ background: 'rgba(30,41,59,0.8)', color: '#f1f5f9' }}
+            >
+              📄 Télécharger mon rapport PDF
+            </button>
+          </div>
+
+          {/* Social proof */}
+          <div className="mt-8 pt-6 border-t border-slate-700/30 text-center">
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.12em] mb-4">
+              ILS ONT OPTIMISÉ LEUR STRUCTURE AVEC BELHO XPER
+            </p>
+            <div className="flex justify-center gap-6 flex-wrap">
+              {[
+                { initiales: 'T.M.', metier: 'Consultant', gain: '+14 200€/an' },
+                { initiales: 'A.L.', metier: 'Dev indépendante', gain: '+8 900€/an' },
+                { initiales: 'M.C.', metier: 'Architecte', gain: '+11 400€/an' },
+              ].map((t, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                    style={{ background: `${bestAccent}25`, color: bestAccent }}>
+                    {t.initiales.replace('.', '').slice(0, 2)}
+                  </div>
+                  <div>
+                    <div className="text-slate-400 text-[11px]">{t.metier}</div>
+                    <div className="text-emerald-400 text-[11px] font-semibold">{t.gain}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-slate-600 text-[11px] mt-4">
+              Lyon · Montluel · contact@belhoxper.fr
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ══════════════════════════════════════════════
           9. Bouton retour
