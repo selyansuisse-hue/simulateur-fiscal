@@ -108,9 +108,9 @@ function generateActions(sim: SimData): Action[] {
 }
 
 const PRIORITY_STYLE: Record<string, { border: string; bg: string }> = {
-  high: { border: 'rgba(239,68,68,0.2)', bg: 'rgba(239,68,68,0.03)' },
-  medium: { border: 'rgba(245,158,11,0.2)', bg: 'rgba(245,158,11,0.03)' },
-  low: { border: 'rgba(203,213,225,0.8)', bg: '#FAFBFF' },
+  high: { border: 'rgba(239,68,68,0.25)', bg: 'rgba(239,68,68,0.06)' },
+  medium: { border: 'rgba(245,158,11,0.25)', bg: 'rgba(245,158,11,0.06)' },
+  low: { border: 'rgba(100,116,139,0.3)', bg: 'rgba(30,41,59,0.5)' },
 }
 
 interface Props { sim: SimData }
@@ -119,31 +119,31 @@ export function ActionsSuggested({ sim }: Props) {
   const actions = generateActions(sim)
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+    <div className="bg-slate-900 rounded-2xl border border-slate-700/50 p-5">
       <div className="flex items-center gap-2 mb-5">
         <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs">✦</div>
-        <h3 className="text-sm font-bold text-slate-900">Actions recommandées</h3>
+        <h3 className="text-sm font-bold text-slate-100">Actions recommandées</h3>
       </div>
       <div className="space-y-3">
         {actions.map((action, i) => {
           const style = PRIORITY_STYLE[action.priority]
           return (
-            <div key={i} className="rounded-xl p-4 border transition-all hover:shadow-sm"
+            <div key={i} className="rounded-xl p-4 border transition-all"
               style={{ borderColor: style.border, background: style.bg }}>
               <div className="flex items-start gap-3">
                 <span className="text-lg flex-shrink-0">{action.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <div className="text-sm font-bold text-slate-900">{action.titre}</div>
+                    <div className="text-sm font-bold text-slate-100">{action.titre}</div>
                     {action.gain && (
-                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
                         +{fmt(action.gain)}/an
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed mb-3">{action.desc}</p>
+                  <p className="text-xs text-slate-400 leading-relaxed mb-3">{action.desc}</p>
                   <Link href={action.href}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+                    className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">
                     {action.cta} →
                   </Link>
                 </div>

@@ -103,33 +103,34 @@ export function SaveSimulationModal({ onClose, onSaved, results, params, tmi }: 
   }
 
   return (
-    <div className="fixed inset-0 bg-ink/50 z-50 flex items-center justify-center p-5" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl max-w-md w-full p-7 shadow-[0_24px_60px_rgba(0,0,0,.2)]"
+        className="rounded-2xl max-w-md w-full p-7 border border-slate-700 shadow-[0_24px_60px_rgba(0,0,0,.6)]"
+        style={{ background: '#0f172a' }}
         onClick={e => e.stopPropagation()}
       >
         {saved ? (
           <div className="text-center py-4">
             <div className="text-4xl mb-3">✅</div>
-            <div className="font-display text-lg font-bold text-ink">Simulation enregistrée !</div>
-            <div className="text-sm text-ink3 mt-1">Retrouvez-la dans &quot;Mes simulations&quot;.</div>
+            <div className="font-display text-lg font-bold text-slate-100">Simulation enregistrée !</div>
+            <div className="text-sm text-slate-400 mt-1">Retrouvez-la dans &quot;Mes simulations&quot;.</div>
           </div>
         ) : savedLocally ? (
           <div className="text-center py-4">
             <div className="text-4xl mb-3">💾</div>
-            <div className="font-display text-lg font-bold text-ink mb-1">Simulation enregistrée localement !</div>
-            <p className="text-sm text-ink3 leading-relaxed mb-4">
+            <div className="font-display text-lg font-bold text-slate-100 mb-1">Simulation enregistrée localement !</div>
+            <p className="text-sm text-slate-400 leading-relaxed mb-4">
               Retrouvez-la dans &quot;Mes simulations&quot;. Créez un compte pour la sauvegarder définitivement.
             </p>
             <Link href="/auth/signup"
-              className="text-xs font-bold bg-blue text-white px-4 py-2 rounded-lg hover:bg-blue-dark transition-all">
+              className="text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all">
               Créer un compte gratuitement →
             </Link>
           </div>
         ) : (
           <>
-            <h3 className="font-display text-lg font-bold text-ink mb-1.5">Enregistrer cette simulation</h3>
-            <p className="text-sm text-ink3 mb-5 leading-relaxed">
+            <h3 className="font-display text-lg font-bold text-slate-100 mb-1.5">Enregistrer cette simulation</h3>
+            <p className="text-sm text-slate-400 mb-5 leading-relaxed">
               Donnez un nom à cette simulation pour la retrouver facilement dans &quot;Mes simulations&quot;.
             </p>
             <input
@@ -138,23 +139,23 @@ export function SaveSimulationModal({ onClose, onSaved, results, params, tmi }: 
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
-              className="w-full px-3.5 py-2.5 text-sm border-[1.5px] border-surface2 rounded-lg text-ink mb-4
-                focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10"
+              className="w-full px-3.5 py-2.5 text-sm border-[1.5px] border-slate-600 rounded-lg bg-slate-800 text-slate-100 mb-4
+                focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500"
               placeholder="Ex : Création services 120k€ — SASU"
             />
-            {error && <p className="text-red-600 text-xs mb-3">{error}</p>}
+            {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
             <div className="flex gap-2.5 justify-end">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-semibold text-ink3 border border-surface2 rounded-lg hover:bg-surface transition-all"
+                className="px-4 py-2 text-sm font-semibold text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-800 transition-all"
               >
                 Annuler
               </button>
               <button
                 onClick={handleSave}
                 disabled={loading || !name.trim()}
-                className="px-5 py-2 bg-blue text-white text-sm font-bold rounded-lg
-                  shadow-[0_2px_6px_rgba(29,78,216,.3)] hover:bg-blue-dark transition-all disabled:opacity-60"
+                className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg
+                  shadow-[0_2px_6px_rgba(29,78,216,.3)] hover:bg-blue-700 transition-all disabled:opacity-60"
               >
                 {loading ? 'Enregistrement…' : '💾 Enregistrer'}
               </button>

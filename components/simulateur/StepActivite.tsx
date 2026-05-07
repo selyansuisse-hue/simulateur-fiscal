@@ -3,8 +3,8 @@ import { useSimulateur } from '@/hooks/useSimulateur'
 import { Label } from '@/components/ui/label'
 import { MICRO_PLAFONDS } from '@/lib/fiscal'
 
-const INPUT_CLS = `px-4 py-3.5 text-sm border-[1.5px] border-surface2 rounded-xl bg-white text-ink font-medium
-  hover:border-slate-300 focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all placeholder:text-ink4`
+const INPUT_CLS = `px-4 py-3.5 text-sm border-[1.5px] border-slate-600 rounded-xl bg-slate-800 text-slate-100 font-medium
+  hover:border-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-500`
 
 export function StepActivite() {
   const { params, setParam, nextStep, prevStep } = useSimulateur()
@@ -23,9 +23,9 @@ export function StepActivite() {
         <p className="text-[14.5px] text-ink3 leading-relaxed max-w-md">Saisissez vos chiffres réels ou prévisionnels — nous comparons toutes les structures sur cette base.</p>
       </div>
 
-      <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
+      <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-7 mb-5">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <rect x="1.5" y="3.5" width="12" height="9" rx="1.5" stroke="#2563EB" strokeWidth="1.5"/>
               <path d="M5 3.5V2.5M10 3.5V2.5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
@@ -33,14 +33,14 @@ export function StepActivite() {
             </svg>
           </div>
           <div>
-            <div className="text-sm font-bold text-ink">Résultat d&apos;activité</div>
-            <div className="text-[11.5px] text-ink4">Chiffre d&apos;affaires et charges réelles ou estimées</div>
+            <div className="text-sm font-bold text-slate-100">Résultat d&apos;activité</div>
+            <div className="text-[11.5px] text-slate-500">Chiffre d&apos;affaires et charges réelles ou estimées</div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium text-slate-700">CA annuel HT (€)</Label>
+            <Label className="text-sm font-medium text-slate-300">CA annuel HT (€)</Label>
             <input
               type="number"
               value={params.ca}
@@ -49,10 +49,10 @@ export function StepActivite() {
               onChange={e => setParam('ca', Math.max(1, parseFloat(e.target.value) || 0))}
               className={INPUT_CLS}
             />
-            <p className="text-[11.5px] text-ink4 leading-relaxed">CA hors taxes — base identique pour toutes les structures</p>
+            <p className="text-[11.5px] text-slate-500 leading-relaxed">CA hors taxes — base identique pour toutes les structures</p>
           </div>
           <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium text-slate-700">Charges d&apos;exploitation (€)</Label>
+            <Label className="text-sm font-medium text-slate-300">Charges d&apos;exploitation (€)</Label>
             <input
               type="number"
               value={params.charges}
@@ -61,13 +61,13 @@ export function StepActivite() {
               onChange={e => setParam('charges', Math.max(0, parseFloat(e.target.value) || 0))}
               className={INPUT_CLS}
             />
-            <p className="text-[11.5px] text-ink4 leading-relaxed">Loyer, matériel, assurances, sous-traitance, logiciels…</p>
+            <p className="text-[11.5px] text-slate-500 leading-relaxed">Loyer, matériel, assurances, sous-traitance, logiciels…</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium text-slate-700">Amortissements annuels (€)</Label>
+            <Label className="text-sm font-medium text-slate-300">Amortissements annuels (€)</Label>
             <input
               type="number"
               value={params.amort}
@@ -79,7 +79,7 @@ export function StepActivite() {
           </div>
           {params.situation !== 'creation' && (
             <div className="flex flex-col gap-2">
-              <Label className="text-sm font-medium text-slate-700">Déficit reportable N-1 (€)</Label>
+              <Label className="text-sm font-medium text-slate-300">Déficit reportable N-1 (€)</Label>
               <input
                 type="number"
                 value={params.deficit}
@@ -93,7 +93,7 @@ export function StepActivite() {
         </div>
 
         {microEligible ? (
-          <div className="mt-5 flex gap-3 bg-blue-bg border border-blue-border rounded-xl p-4 text-[13px] text-blue-dark">
+          <div className="mt-5 flex gap-3 bg-blue-500/10 border border-blue-500/25 rounded-xl p-4 text-[13px] text-blue-300">
             <span className="text-base flex-shrink-0">ℹ️</span>
             <div className="leading-relaxed">
               <strong>{cfg.label}</strong> — abattement {Math.round(cfg.abat * 100)}% sur le CA.
@@ -101,7 +101,7 @@ export function StepActivite() {
             </div>
           </div>
         ) : (
-          <div className="mt-5 flex gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-[13px] text-amber-800">
+          <div className="mt-5 flex gap-3 bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 text-[13px] text-amber-300">
             <span className="text-base flex-shrink-0">⚠</span>
             <div className="leading-relaxed">
               <strong>Plafond micro dépassé</strong> — votre CA ({params.ca.toLocaleString('fr-FR')} €)
@@ -112,21 +112,21 @@ export function StepActivite() {
         )}
       </div>
 
-      <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
+      <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-7 mb-5">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <path d="M7.5 1.5v12M3.5 5.5h8M3.5 9.5h8" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
           <div>
-            <div className="text-sm font-bold text-ink">Paramètres société &amp; régime</div>
-            <div className="text-[11.5px] text-ink4">Capital social pour les structures IS</div>
+            <div className="text-sm font-bold text-slate-100">Paramètres société &amp; régime</div>
+            <div className="text-[11.5px] text-slate-500">Capital social pour les structures IS</div>
           </div>
         </div>
         <div className="max-w-xs">
           <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium text-slate-700">Capital social si société IS (€)</Label>
+            <Label className="text-sm font-medium text-slate-300">Capital social si société IS (€)</Label>
             <input
               type="number"
               value={params.capital}
@@ -135,15 +135,15 @@ export function StepActivite() {
               onChange={e => setParam('capital', Math.max(1, parseFloat(e.target.value) || 1))}
               className={INPUT_CLS}
             />
-            <p className="text-[11.5px] text-ink4 leading-relaxed">En EURL : dividendes &gt; 10% du capital → cotisations TNS 45%</p>
+            <p className="text-[11.5px] text-slate-500 leading-relaxed">En EURL : dividendes &gt; 10 % du capital → cotisations TNS 45 %</p>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-surface2">
+      <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-800">
         <button
           onClick={prevStep}
-          className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold text-ink4 hover:text-ink3 transition-all rounded-xl hover:bg-surface"
+          className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold text-slate-500 hover:text-slate-300 transition-all rounded-xl hover:bg-slate-800"
         >
           ← Précédent
         </button>

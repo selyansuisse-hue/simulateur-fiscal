@@ -44,7 +44,7 @@ export function LastSimulationCard({ sim }: Props) {
   ]
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-slate-900 border border-slate-700/50 rounded-2xl overflow-hidden">
       {/* Header dark */}
       <div className="px-6 py-5 flex items-start justify-between gap-4"
         style={{ background: 'linear-gradient(135deg, #050c1a, #0d1f3c)' }}>
@@ -84,7 +84,7 @@ export function LastSimulationCard({ sim }: Props) {
 
       {/* Décomposition CA */}
       {sim.ca > 0 && (
-        <div className="px-6 py-4 border-b border-slate-50">
+        <div className="px-6 py-4 border-b border-slate-800">
           <div className="text-[10px] uppercase tracking-wide text-slate-400 mb-3">
             Décomposition de votre CA de {fmt(sim.ca)}
           </div>
@@ -92,7 +92,7 @@ export function LastSimulationCard({ sim }: Props) {
             {decompRows.map(row => (
               <div key={row.label} className="flex items-center gap-3">
                 <div className="w-24 text-xs text-slate-500 flex-shrink-0">{row.label}</div>
-                <div className="flex-1 h-2 bg-slate-100 rounded-full">
+                <div className="flex-1 h-2 bg-slate-800 rounded-full">
                   <div className="h-2 rounded-full" style={{
                     width: `${Math.max(1, Math.min(100, (row.val / sim.ca) * 100)).toFixed(0)}%`,
                     backgroundColor: row.color,
@@ -119,14 +119,14 @@ export function LastSimulationCard({ sim }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {scored.map((s, i) => (
               <div key={s.forme}
-                className={`rounded-xl p-3 text-center border transition-all ${i === 0 ? 'border-blue-200 bg-blue-50' : 'border-slate-100 bg-slate-50'}`}>
-                <div className={`text-[10px] font-bold mb-1 ${i === 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                className={`rounded-xl p-3 text-center border transition-all ${i === 0 ? 'border-blue-500/40 bg-blue-500/10' : 'border-slate-700 bg-slate-800'}`}>
+                <div className={`text-[10px] font-bold mb-1 ${i === 0 ? 'text-blue-400' : 'text-slate-500'}`}>
                   {i === 0 ? '★ REC.' : `${i + 1}ème`}
                 </div>
-                <div className={`text-[11px] font-semibold mb-1 ${i === 0 ? 'text-blue-800' : 'text-slate-600'}`}>
+                <div className={`text-[11px] font-semibold mb-1 ${i === 0 ? 'text-blue-300' : 'text-slate-400'}`}>
                   {s.forme.replace(' / SARL (IS)', '').replace(' / SASU', '').replace('SAS', 'SASU')}
                 </div>
-                <div className={`text-sm font-black ${i === 0 ? 'text-blue-700' : 'text-slate-700'}`}>
+                <div className={`text-sm font-black ${i === 0 ? 'text-blue-400' : 'text-slate-300'}`}>
                   {fmt(s.netAnnuel)}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">

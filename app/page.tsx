@@ -290,13 +290,13 @@ export default function LandingPage() {
 
           {/* 3 mini-aperçus */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+            <div className="bg-slate-900 rounded-2xl p-5 border border-slate-700/50">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Décomposition de votre CA</div>
               {[
                 { label: 'Revenu net', pct: 54, color: 'bg-emerald-500', val: '54 200 €' },
                 { label: 'Charges sociales', pct: 27, color: 'bg-red-400', val: '27 300 €' },
                 { label: 'IR + IS', pct: 11, color: 'bg-blue-400', val: '11 200 €' },
-                { label: 'Charges exploit.', pct: 8, color: 'bg-slate-300', val: '8 000 €' },
+                { label: 'Charges exploit.', pct: 8, color: 'bg-slate-500', val: '8 000 €' },
               ].map(row => (
                 <div key={row.label} className="mb-2.5">
                   <div className="flex justify-between text-xs mb-1">
@@ -304,15 +304,15 @@ export default function LandingPage() {
                       <span className={`w-2 h-2 rounded-full ${row.color}`} />
                       {row.label}
                     </span>
-                    <span className="font-bold text-slate-700">{row.val}</span>
+                    <span className="font-bold text-slate-300">{row.val}</span>
                   </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full">
+                  <div className="h-1.5 bg-slate-800 rounded-full">
                     <div className={`h-1.5 rounded-full ${row.color}`} style={{ width: `${row.pct}%` }} />
                   </div>
                 </div>
               ))}
             </div>
-            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+            <div className="bg-slate-900 rounded-2xl p-5 border border-slate-700/50">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Votre situation fiscale</div>
               <div className="space-y-1.5">
                 {[
@@ -323,14 +323,14 @@ export default function LandingPage() {
                   { t: '45%', range: '> 180 294 €', active: false },
                 ].map(row => (
                   <div key={row.t} className={`flex justify-between text-xs px-3 py-1.5 rounded-lg font-medium
-                    ${row.active ? 'bg-blue-600 text-white' : 'text-slate-400 bg-white border border-slate-100'}`}>
+                    ${row.active ? 'bg-blue-600 text-white' : 'text-slate-500 bg-slate-800 border border-slate-700'}`}>
                     <span>{row.range}</span>
                     <span>{row.t}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 text-xs text-slate-500 bg-blue-50 rounded-lg p-2 text-center">
-                Votre TMI : <strong className="text-blue-600">30%</strong> · Taux effectif : <strong className="text-blue-600">14,2%</strong>
+              <div className="mt-3 text-xs text-slate-400 bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center">
+                Votre TMI : <strong className="text-blue-400">30%</strong> · Taux effectif : <strong className="text-blue-400">14,2%</strong>
               </div>
             </div>
             <div className="bg-emerald-900 rounded-2xl p-5">

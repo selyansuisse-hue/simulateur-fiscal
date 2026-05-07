@@ -25,8 +25,8 @@ export function StepRemuneration() {
           <div className="w-1.5 h-1.5 rounded-full bg-blue" />
           <span className="text-[11px] font-bold tracking-wider uppercase text-blue">Étape 3 sur 4</span>
         </div>
-        <h2 className="font-display text-3xl font-black text-ink tracking-tight mb-2">Stratégie de rémunération</h2>
-        <p className="text-[14.5px] text-ink3 leading-relaxed max-w-md">Comment souhaitez-vous utiliser le bénéfice généré par votre activité ?</p>
+        <h2 className="font-display text-3xl font-black text-slate-100 tracking-tight mb-2">Stratégie de rémunération</h2>
+        <p className="text-[14.5px] text-slate-400 leading-relaxed max-w-md">Comment souhaitez-vous utiliser le bénéfice généré par votre activité ?</p>
       </div>
 
       {/* Résumé bénéfice */}
@@ -40,17 +40,17 @@ export function StepRemuneration() {
         </div>
       </div>
 
-      <div className="bg-white border border-black/[0.07] rounded-2xl p-7 mb-5 shadow-card-md">
+      <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-7 mb-5">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
               <path d="M7.5 1.5C4.186 1.5 1.5 4.186 1.5 7.5S4.186 13.5 7.5 13.5 13.5 10.814 13.5 7.5 10.814 1.5 7.5 1.5z" stroke="#2563EB" strokeWidth="1.5"/>
               <path d="M7.5 4.5v3l2 1.5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
           <div>
-            <div className="text-sm font-bold text-ink">Objectif de rémunération</div>
-            <div className="text-[11.5px] text-ink4">Choisissez votre stratégie pour ce bénéfice</div>
+            <div className="text-sm font-bold text-slate-100">Objectif de rémunération</div>
+            <div className="text-[11.5px] text-slate-500">Choisissez votre stratégie pour ce bénéfice</div>
           </div>
         </div>
 
@@ -60,28 +60,28 @@ export function StepRemuneration() {
             className={`flex flex-col gap-2 p-5 rounded-2xl border-2 text-left transition-all duration-150
               ${params.stratActif === 'max'
                 ? 'border-blue bg-blue-bg shadow-[0_0_0_3px_rgba(59,130,246,.10)]'
-                : 'border-surface2 bg-white hover:border-ink4/50 hover:shadow-card'}`}
+                : 'border-slate-700 bg-slate-900 hover:border-slate-500'}`}
           >
             <div className="text-2xl mb-0.5">💰</div>
-            <div className="font-display text-[14px] font-bold text-ink">Maximiser le revenu net</div>
-            <div className="text-[12.5px] text-ink3 leading-relaxed">Optimise la combinaison rémunération / dividendes pour maximiser votre revenu disponible</div>
+            <div className="font-display text-[14px] font-bold text-slate-100">Maximiser le revenu net</div>
+            <div className="text-[12.5px] text-slate-400 leading-relaxed">Optimise la combinaison rémunération / dividendes pour maximiser votre revenu disponible</div>
           </button>
           <button
             onClick={() => setParam('stratActif', 'reserve')}
             className={`flex flex-col gap-2 p-5 rounded-2xl border-2 text-left transition-all duration-150
               ${params.stratActif === 'reserve'
                 ? 'border-blue bg-blue-bg shadow-[0_0_0_3px_rgba(59,130,246,.10)]'
-                : 'border-surface2 bg-white hover:border-ink4/50 hover:shadow-card'}`}
+                : 'border-slate-700 bg-slate-900 hover:border-slate-500'}`}
           >
             <div className="text-2xl mb-0.5">📈</div>
-            <div className="font-display text-[14px] font-bold text-ink">Conserver des réserves</div>
-            <div className="text-[12.5px] text-ink3 leading-relaxed">Laissez une partie du résultat en réserves pour investir ou constituer un capital</div>
+            <div className="font-display text-[14px] font-bold text-slate-100">Conserver des réserves</div>
+            <div className="text-[12.5px] text-slate-400 leading-relaxed">Laissez une partie du résultat en réserves pour investir ou constituer un capital</div>
           </button>
         </div>
 
         {params.stratActif === 'reserve' && (
-          <div className="flex flex-col gap-4 mb-6 p-5 bg-surface rounded-2xl border border-surface2">
-            <Label className="text-sm font-medium text-slate-700">Montant à conserver en réserves (brut avant IS)</Label>
+          <div className="flex flex-col gap-4 mb-6 p-5 bg-slate-800/50 rounded-2xl border border-slate-700">
+            <Label className="text-sm font-medium text-slate-300">Montant à conserver en réserves (brut avant IS)</Label>
 
             <div className="flex flex-wrap gap-2">
               {[10, 20, 30, 50].map(pct => {
@@ -95,7 +95,7 @@ export function StepRemuneration() {
                     className={`px-3.5 py-2 text-xs font-bold rounded-lg border transition-all duration-150
                       ${isActive
                         ? 'bg-blue text-white border-blue shadow-[0_2px_8px_rgba(29,78,216,.3)]'
-                        : 'bg-white border-surface2 text-ink3 hover:border-blue-mid hover:text-blue'}`}
+                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-400'}`}
                   >
                     {pct}% — {fmt(amount)}
                   </button>
@@ -121,14 +121,14 @@ export function StepRemuneration() {
                 max={benefice}
                 step={1000}
                 onChange={e => setParam('reserveVoulue', Math.min(benefice, Math.max(0, parseFloat(e.target.value) || 0)))}
-                className="px-4 py-3 text-sm border-[1.5px] border-surface2 rounded-xl bg-white text-ink font-medium
-                  focus:outline-none focus:border-blue-mid focus:ring-2 focus:ring-blue-mid/10 transition-all w-36"
+                className="px-4 py-3 text-sm border-[1.5px] border-slate-600 rounded-xl bg-slate-800 text-slate-100 font-medium
+                  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all w-36"
               />
               {params.reserveVoulue > 0 && (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-ink4">→</span>
-                  <span className="font-black text-ink text-base">{fmt(reserveNet)}</span>
-                  <span className="text-ink4 text-xs">net après IS ({reserveTaux}%)</span>
+                  <span className="text-slate-500">→</span>
+                  <span className="font-black text-slate-100 text-base">{fmt(reserveNet)}</span>
+                  <span className="text-slate-500 text-xs">net après IS ({reserveTaux}%)</span>
                 </div>
               )}
             </div>
@@ -138,7 +138,7 @@ export function StepRemuneration() {
         {showPrevoyance && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <Label className="text-sm font-medium text-slate-700">Niveau de prévoyance TNS</Label>
+              <Label className="text-sm font-medium text-slate-300">Niveau de prévoyance TNS</Label>
               <Select value={params.prevoy} onValueChange={v => setParam('prevoy', v as typeof params.prevoy)}>
                 <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -147,16 +147,16 @@ export function StepRemuneration() {
                   <SelectItem value="max">Maximum (10% — protection optimale)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11.5px] text-ink4 leading-relaxed">Taux de prévoyance facultative Madelin / PER sur le bénéfice</p>
+              <p className="text-[11.5px] text-slate-500 leading-relaxed">Taux de prévoyance facultative Madelin / PER sur le bénéfice</p>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-surface2">
+      <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-800">
         <button
           onClick={prevStep}
-          className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold text-ink4 hover:text-ink3 transition-all rounded-xl hover:bg-surface"
+          className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold text-slate-500 hover:text-slate-300 transition-all rounded-xl hover:bg-slate-800"
         >
           ← Précédent
         </button>

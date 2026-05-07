@@ -32,7 +32,7 @@ export function SimulationsGrid({ initialSimulations, onPersistDelete }: Simulat
 
   if (sims.length === 0) {
     return (
-      <div className="text-center py-14 bg-white border-2 border-dashed border-surface2 rounded-xl text-ink3">
+      <div className="text-center py-14 bg-slate-900 border-2 border-dashed border-slate-700 rounded-xl text-slate-400">
         <div className="text-4xl mb-4">📊</div>
         <p className="text-[14px] leading-relaxed mb-6">
           Aucune simulation enregistrée.<br />

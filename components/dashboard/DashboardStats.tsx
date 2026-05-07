@@ -80,20 +80,20 @@ export function DashboardStats({ simulations }: Props) {
       {stats.map(({ label, value, sub, accent, bg, icon, small }) => (
         <div
           key={label}
-          className="bg-white border border-black/[0.07] rounded-2xl p-5 shadow-card hover:shadow-card-md transition-shadow"
+          className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 transition-shadow"
         >
           <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4 flex-shrink-0"
             style={{ background: bg }}>
             {icon}
           </div>
           <div
-            className={`font-display font-black text-ink tracking-tight leading-none mb-1.5 ${small ? 'text-lg' : 'text-[1.7rem]'}`}
+            className={`font-display font-black text-white tracking-tight leading-none mb-1.5 ${small ? 'text-lg' : 'text-[1.7rem]'}`}
             style={value !== '—' && !small ? { color: accent } : {}}
           >
             {value}
           </div>
-          <div className="text-[11.5px] font-bold text-ink mb-0.5">{label}</div>
-          <div className="text-[11px] text-ink4 leading-relaxed">{sub}</div>
+          <div className="text-[11.5px] font-bold text-slate-200 mb-0.5">{label}</div>
+          <div className="text-[11px] text-slate-500 leading-relaxed">{sub}</div>
         </div>
       ))}
     </div>

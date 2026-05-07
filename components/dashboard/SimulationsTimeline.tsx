@@ -34,17 +34,17 @@ export function SimulationsTimeline({ simulations }: Props) {
   const polyline = points.map(p => `${p.x},${p.y}`).join(' ')
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-900">Historique de vos simulations</h3>
-        <Link href="/simulations" className="text-xs text-blue-600 hover:text-blue-700 transition-colors">
+    <div className="bg-slate-900 border border-slate-700/50 rounded-2xl overflow-hidden">
+      <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-100">Historique de vos simulations</h3>
+        <Link href="/simulations" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
           Voir tout →
         </Link>
       </div>
 
       {/* Sparkline */}
       {simulations.length >= 2 && (
-        <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/50">
+        <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/50">
           <div className="text-[10px] text-slate-400 uppercase tracking-wide mb-2">
             Évolution de votre revenu net optimal
           </div>
@@ -58,7 +58,7 @@ export function SimulationsTimeline({ simulations }: Props) {
               points={polyline}
             />
             {points.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#3B82F6" stroke="white" strokeWidth="1.5" />
+              <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#3B82F6" stroke="#0f172a" strokeWidth="1.5" />
             ))}
           </svg>
           <div className="flex justify-between text-[10px] text-slate-300 mt-1">
@@ -73,16 +73,16 @@ export function SimulationsTimeline({ simulations }: Props) {
 
       {/* Liste */}
       {simulations.length > 0 ? (
-        <div className="divide-y divide-slate-50">
+        <div className="divide-y divide-slate-800">
           {simulations.slice(0, 5).map((sim, i) => (
             <Link key={sim.id} href={`/simulations/${sim.id}`}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group">
+              className="flex items-center gap-4 px-6 py-4 hover:bg-slate-800 transition-colors group">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
-                style={{ background: i === 0 ? '#1D4ED8' : '#F1F5F9', color: i === 0 ? '#fff' : '#64748B' }}>
+                style={{ background: i === 0 ? '#1D4ED8' : '#1e293b', color: i === 0 ? '#fff' : '#64748B' }}>
                 {i === 0 ? '★' : i + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-slate-800 truncate">{sim.name}</div>
+                <div className="text-sm font-semibold text-slate-200 truncate">{sim.name}</div>
                 <div className="text-xs text-slate-400 mt-0.5">
                   {new Date(sim.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
                   {' · '}{sim.best_forme}
@@ -90,22 +90,22 @@ export function SimulationsTimeline({ simulations }: Props) {
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <div className="text-sm font-bold text-slate-900">{fmt(sim.best_net_annuel)}</div>
+                <div className="text-sm font-bold text-white">{fmt(sim.best_net_annuel)}</div>
                 <div className="text-[10px] text-slate-400">TMI {sim.tmi}%</div>
               </div>
-              <div className="text-slate-300 group-hover:text-slate-500 transition-colors text-xs">→</div>
+              <div className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs">→</div>
             </Link>
           ))}
         </div>
       ) : (
         <div className="px-6 py-12 text-center">
           <div className="text-3xl mb-3">📊</div>
-          <div className="text-sm font-semibold text-slate-600 mb-1">Aucune simulation enregistrée</div>
+          <div className="text-sm font-semibold text-slate-300 mb-1">Aucune simulation enregistrée</div>
           <div className="text-xs text-slate-400 mb-4">
             Faites votre première simulation et enregistrez-la pour la retrouver ici.
           </div>
           <Link href="/simulateur"
-            className="text-xs font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors">
+            className="text-xs font-semibold text-blue-400 bg-blue-500/10 px-4 py-2 rounded-lg hover:bg-blue-500/20 transition-colors">
             Lancer une simulation →
           </Link>
         </div>

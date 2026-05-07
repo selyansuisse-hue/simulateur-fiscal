@@ -45,8 +45,8 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: #F0F4FA;
-  color: #0B1627;
+  background: #020617 !important;
+  color: #f1f5f9;
   min-height: 100vh;
   line-height: 1.6;
 }

@@ -83,7 +83,7 @@ export function PersonalKPIs({ simulations }: Props) {
     <div className="max-w-6xl mx-auto px-6 -mt-5 mb-6 relative z-10">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map(kpi => (
-          <div key={kpi.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div key={kpi.label} className="bg-slate-900 rounded-2xl p-5 border border-slate-700/50">
             <div className="flex items-center justify-between mb-3">
               <span className="text-lg">{kpi.icon}</span>
               <span className="text-[10px] text-slate-400 uppercase tracking-wide text-right leading-tight max-w-[90px]">
