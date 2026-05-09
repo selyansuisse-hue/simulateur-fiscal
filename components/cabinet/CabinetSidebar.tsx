@@ -5,19 +5,63 @@ import { createClient } from '@/lib/supabase/client'
 import { PlanBadge } from './PlanBadge'
 import type { Cabinet } from '@/lib/types/cabinet'
 
-const NAV = [
-  { href: '', label: 'Leads', icon: '👥' },
-  { href: '/stats', label: 'Statistiques', icon: '📊' },
-  { href: '/widget', label: 'Widget', icon: '🔌' },
-  { href: '/settings', label: 'Paramètres', icon: '⚙️' },
+const PROSPECTS = [
+  { subpath: '',       label: 'Leads',        icon: '👥' },
+  { subpath: '/stats', label: 'Statistiques', icon: '📊' },
 ]
 
 const OUTILS = [
-  { href: '/simulateur',           label: 'Simulateur',      icon: '🧮' },
+  { href: '/simulateur',           label: 'Simulateur',      icon: '✦' },
   { href: '/explorer',             label: 'Explorateur',     icon: '🔍' },
   { href: '/simulations',          label: 'Mes simulations', icon: '📁' },
-  { href: '/simulations/comparer', label: 'Comparer',        icon: '⇄'  },
+  { href: '/simulations/comparer', label: 'Comparaison',     icon: '⇄' },
 ]
+
+const CABINET = [
+  { subpath: '/widget',   label: 'Widget',     icon: '🔌' },
+  { subpath: '/settings', label: 'Paramètres', icon: '⚙️' },
+]
+
+const SECTION_LABEL: React.CSSProperties = {
+  padding: '4px 12px 5px',
+  fontSize: '9.5px', fontWeight: 700, color: '#2d3f58',
+  textTransform: 'uppercase', letterSpacing: '0.11em',
+}
+
+const DIVIDER: React.CSSProperties = {
+  margin: '6px 8px',
+  borderTop: '1px solid rgba(51,65,85,0.4)',
+}
+
+function NavItem({ href, label, icon, active }: { href: string; label: string; icon: string; active: boolean }) {
+  return (
+    <Link href={href} style={{
+      display: 'flex', alignItems: 'center', gap: '10px',
+      padding: '8px 12px', borderRadius: '9px',
+      fontSize: '13px', fontWeight: active ? 700 : 500,
+      color: active ? '#f1f5f9' : '#64748b',
+      background: active ? 'rgba(37,99,235,0.15)' : 'transparent',
+      border: active ? '1px solid rgba(37,99,235,0.3)' : '1px solid transparent',
+      textDecoration: 'none', transition: 'all 150ms',
+    }}
+      onMouseOver={e => {
+        if (!active) {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+          e.currentTarget.style.color = '#94a3b8'
+        }
+      }}
+      onMouseOut={e => {
+        if (!active) {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = '#64748b'
+        }
+      }}
+    >
+      <span style={{ fontSize: '15px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+      {label}
+    </Link>
+  )
+}
 
 export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
   const pathname = usePathname()
@@ -61,76 +105,63 @@ export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {cabinet.nom}
             </div>
-            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>Tableau de bord</div>
+            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>Espace cabinet</div>
           </div>
         </div>
+
+        {/* Lien Accueil app */}
+        <Link href="/app" style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          marginTop: '12px', padding: '7px 10px', borderRadius: '8px',
+          background: pathname === '/app' ? 'rgba(37,99,235,0.18)' : 'rgba(255,255,255,0.04)',
+          border: pathname === '/app' ? '1px solid rgba(37,99,235,0.35)' : '1px solid rgba(51,65,85,0.3)',
+          fontSize: '12px', fontWeight: 600,
+          color: pathname === '/app' ? '#93c5fd' : '#475569',
+          textDecoration: 'none', transition: 'all 150ms',
+        }}>
+          <span style={{ fontSize: '14px' }}>🏠</span>
+          Accueil
+        </Link>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {NAV.map(item => {
-          const href = `${base}${item.href}`
-          const isActive = item.href === ''
+      <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: '1px', overflowY: 'auto' }}>
+
+        {/* PROSPECTS */}
+        <div style={SECTION_LABEL}>Prospects</div>
+        {PROSPECTS.map(item => {
+          const href = `${base}${item.subpath}`
+          const isActive = item.subpath === ''
             ? pathname === base || pathname === `${base}/`
             : pathname.startsWith(href)
-          return (
-            <Link key={item.href} href={href} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '9px 12px', borderRadius: '9px',
-              fontSize: '13px', fontWeight: isActive ? 700 : 500,
-              color: isActive ? '#f1f5f9' : '#64748b',
-              background: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
-              border: isActive ? '1px solid rgba(37,99,235,0.3)' : '1px solid transparent',
-              textDecoration: 'none', transition: 'all 150ms',
-            }}>
-              <span style={{ fontSize: '16px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-              {item.label}
-            </Link>
-          )
+          return <NavItem key={item.subpath} href={href} label={item.label} icon={item.icon} active={isActive} />
+        })}
+
+        <div style={DIVIDER} />
+
+        {/* OUTILS */}
+        <div style={SECTION_LABEL}>Outils</div>
+        {OUTILS.map(item => {
+          const isActive = item.href === '/simulations'
+            ? pathname === '/simulations'
+            : item.href === '/simulateur'
+              ? pathname === '/simulateur'
+              : item.href === '/explorer'
+                ? pathname === '/explorer'
+                : pathname.startsWith(item.href)
+          return <NavItem key={item.href} href={item.href} label={item.label} icon={item.icon} active={isActive} />
+        })}
+
+        <div style={DIVIDER} />
+
+        {/* CABINET */}
+        <div style={SECTION_LABEL}>Cabinet</div>
+        {CABINET.map(item => {
+          const href = `${base}${item.subpath}`
+          const isActive = pathname.startsWith(href)
+          return <NavItem key={item.subpath} href={href} label={item.label} icon={item.icon} active={isActive} />
         })}
       </nav>
-
-      {/* Séparateur + Outils */}
-      <div style={{ margin: '4px 8px 0', borderTop: '1px solid rgba(51,65,85,0.5)' }} />
-      <div style={{ padding: '8px 8px 4px' }}>
-        <div style={{ padding: '4px 12px 6px', fontSize: '10px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
-          Outils
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {OUTILS.map(item => {
-            const isActiveOutil = item.href === '/simulations'
-              ? pathname === '/simulations'
-              : pathname === item.href
-            return (
-              <Link key={item.href} href={item.href} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '8px 12px', borderRadius: '9px',
-                fontSize: '13px', fontWeight: isActiveOutil ? 600 : 500,
-                color: isActiveOutil ? '#94a3b8' : '#64748b',
-                background: isActiveOutil ? 'rgba(255,255,255,0.05)' : 'transparent',
-                border: '1px solid transparent',
-                textDecoration: 'none', transition: 'all 150ms',
-              }}
-                onMouseOver={e => {
-                  if (!isActiveOutil) {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                    e.currentTarget.style.color = '#94a3b8'
-                  }
-                }}
-                onMouseOut={e => {
-                  if (!isActiveOutil) {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = '#64748b'
-                  }
-                }}
-              >
-                <span style={{ fontSize: '15px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
-        </div>
-      </div>
 
       {/* Bottom: plan + logout */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>

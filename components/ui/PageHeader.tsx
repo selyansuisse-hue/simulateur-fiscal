@@ -5,14 +5,21 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
+// Routes where the public navbar is hidden for cabinet members
+const TOOL_PATHS = ['/simulateur', '/explorer', '/simulations']
+
 export function PageHeader() {
   const [user, setUser] = useState<User | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hasSimulated, setHasSimulated] = useState(false)
   const [cabinetSlug, setCabinetSlug] = useState<string | null>(null)
   const [cabinetNom, setCabinetNom] = useState<string | null>(null)
+  // null = check in progress, false = not a member, string = cabinet slug
+  const [cabinetCheckDone, setCabinetCheckDone] = useState(false)
   const pathname = usePathname()
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const isToolPage = TOOL_PATHS.some(p => pathname.startsWith(p))
 
   useEffect(() => {
     const supabase = createClient()
@@ -31,6 +38,7 @@ export function PageHeader() {
           : (rawCabs as unknown as { slug: string; nom: string } | null) ?? null
         if (cab) { setCabinetSlug(cab.slug); setCabinetNom(cab.nom) }
       }
+      setCabinetCheckDone(true)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
@@ -56,6 +64,9 @@ export function PageHeader() {
     await supabase.auth.signOut()
     window.location.href = '/'
   }
+
+  // On tool pages: hide until check is done, then hide permanently for cabinet members
+  if (isToolPage && (!cabinetCheckDone || cabinetSlug)) return null
 
   const isOnSim = pathname === '/simulateur'
   const isOnExp = pathname === '/explorer'

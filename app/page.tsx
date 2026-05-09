@@ -1,5 +1,5 @@
-export const dynamic = 'force-static'
-
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Footer } from '@/components/ui/Footer'
@@ -26,7 +26,19 @@ const TESTIMONIALS = [
   },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Redirect cabinet members to the app shell
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: membre } = await supabase
+      .from('cabinet_membres')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (membre) redirect('/app')
+  }
+
   return (
     <>
       <PageHeader />

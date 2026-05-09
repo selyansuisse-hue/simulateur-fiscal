@@ -55,6 +55,12 @@ body {
   font-family: var(--font-display);
 }
 
+/* Cabinet app shell — suppress public nav/footer inside tool pages */
+[data-cabinet-main] header.sticky,
+[data-cabinet-main] footer {
+  display: none !important;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
