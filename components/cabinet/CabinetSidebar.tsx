@@ -13,9 +13,10 @@ const NAV = [
 ]
 
 const OUTILS = [
-  { href: '/simulateur', label: 'Simulateur', icon: '🧮' },
-  { href: '/explorer', label: 'Explorateur', icon: '🔍' },
-  { href: '/simulations', label: 'Mes simulations', icon: '📁' },
+  { href: '/simulateur',           label: 'Simulateur',      icon: '🧮' },
+  { href: '/explorer',             label: 'Explorateur',     icon: '🔍' },
+  { href: '/simulations',          label: 'Mes simulations', icon: '📁' },
+  { href: '/simulations/comparer', label: 'Comparer',        icon: '⇄'  },
 ]
 
 export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
@@ -96,29 +97,38 @@ export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
           Outils
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {OUTILS.map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '8px 12px', borderRadius: '9px',
-              fontSize: '13px', fontWeight: 500,
-              color: '#64748b',
-              background: 'transparent',
-              border: '1px solid transparent',
-              textDecoration: 'none', transition: 'all 150ms',
-            }}
-              onMouseOver={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                e.currentTarget.style.color = '#94a3b8'
+          {OUTILS.map(item => {
+            const isActiveOutil = item.href === '/simulations'
+              ? pathname === '/simulations'
+              : pathname === item.href
+            return (
+              <Link key={item.href} href={item.href} style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '8px 12px', borderRadius: '9px',
+                fontSize: '13px', fontWeight: isActiveOutil ? 600 : 500,
+                color: isActiveOutil ? '#94a3b8' : '#64748b',
+                background: isActiveOutil ? 'rgba(255,255,255,0.05)' : 'transparent',
+                border: '1px solid transparent',
+                textDecoration: 'none', transition: 'all 150ms',
               }}
-              onMouseOut={e => {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = '#64748b'
-              }}
-            >
-              <span style={{ fontSize: '15px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+                onMouseOver={e => {
+                  if (!isActiveOutil) {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                    e.currentTarget.style.color = '#94a3b8'
+                  }
+                }}
+                onMouseOut={e => {
+                  if (!isActiveOutil) {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = '#64748b'
+                  }
+                }}
+              >
+                <span style={{ fontSize: '15px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                {item.label}
+              </Link>
+            )
+          })}
         </div>
       </div>
 

@@ -59,7 +59,7 @@ export function PageHeader() {
 
   const isOnSim = pathname === '/simulateur'
   const isOnExp = pathname === '/explorer'
-  const isOnComp = pathname === '/simulations'
+  const isOnComp = pathname.startsWith('/simulations')
 
   const firstName = user
     ? ((user.user_metadata?.full_name as string | undefined) || user.email || '')
@@ -114,7 +114,7 @@ export function PageHeader() {
                   ${isOnComp ? 'bg-blue text-white' : 'text-white/60 hover:text-white/80 hover:bg-white/5'}`}>
                 <span className={`w-5 h-5 rounded-full border text-[10px] flex items-center justify-center flex-shrink-0
                   ${isOnComp ? 'border-white/50 text-white/70' : 'border-white/25 text-white/35'}`}>3</span>
-                Comparer
+                Mes simulations
               </Link>
             </>
           )}
