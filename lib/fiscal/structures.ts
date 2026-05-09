@@ -6,14 +6,25 @@ function fmt(n: number): string {
   return Math.round(n).toLocaleString('fr-FR') + '\u00a0€'
 }
 
+// Taux de cotisations forfaitaires micro-entrepreneur 2025 (URSSAF)
+// Ces taux incluent SSI + CSG/CRDS + formation pro — ne pas ajouter CSG en plus
+const TAUX_COTIS_MICRO: Record<string, number> = {
+  services_bic: 0.211,  // Prestations de services BIC
+  liberal_bnc:  0.211,  // Professions libérales (SSI/CIPAV)
+  commerce:     0.123,  // Vente de marchandises
+  btp:          0.211,  // Prestations artisanales
+}
+
 // Micro-entreprise
-// Base IR = CA × (1 - abat) ; cotisations = CA × 24.6%
+// Base IR = CA × (1 - abat) uniquement (abattement fiscal, pas de décaissement)
+// Net = CA encaissé - cotisations_payées - IR_payé
 export function calcMicro(p: SimParams): StructureResult | null {
   if (!p.abat) return null
-  const ben = p.ca * (1 - p.abat)
-  const cotis = p.ca * 0.246
+  const ben = p.ca * (1 - p.abat)   // base IR uniquement (abattement forfaitaire fiscal)
+  const tauxCotis = TAUX_COTIS_MICRO[p.secteur] ?? 0.211
+  const cotis = p.ca * tauxCotis     // cotisations sur CA brut encaissé
   const ir = irMarginal(ben, p.autresRev, p.partsBase, p.nbEnfants)
-  const net = ben - cotis - ir
+  const net = p.ca - cotis - ir      // CA encaissé - cotisations - IR (BUG1 FIX)
   return {
     forme: 'Micro-entreprise',
     netAnnuel: net,
@@ -22,21 +33,33 @@ export function calcMicro(p: SimParams): StructureResult | null {
     is: 0,
     ben,
     div: 0,
-    remBrute: ben,
+    remBrute: p.ca,
     remNet: net,
     ratioDivPct: 0,
     strat: 'Revenu micro forfaitaire',
     scoreTotal: 0,
-    prot: protTNS(Math.max(0, ben - cotis)),
+    prot: protTNS(Math.max(0, net)),
     methDiv: '—',
+    tauxCotis,
   }
 }
 
 // EI régime réel
+// Art.L.131-6 CSS : cotisations SSI calculées sur le revenu professionnel NET (après cotisations)
+// → résolution itérative : cotis = f(bNet), bNet = bBrut - cotis
 export function calcEIReel(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const bBrut = Math.max(0, p.ca - p.charges - p.amort)
-  const { cotis, bNet } = calcCotisTNS(bBrut, pc)
+  // Iteration : cotisations sur bNet (BUG4 FIX)
+  let bNet = bBrut * 0.65   // estimation initiale ~65% du brut
+  let cotis = cotisTNS_sur_revenu(bNet, pc).total
+  for (let i = 0; i < 40; i++) {
+    const newBNet = Math.max(0, bBrut - cotis)
+    if (Math.abs(newBNet - bNet) < 0.50) { bNet = newBNet; break }
+    bNet = newBNet
+    cotis = cotisTNS_sur_revenu(bNet, pc).total
+  }
+  bNet = Math.max(0, bBrut - cotis)
   const perDed = Math.min(p.perMontant || 0, bNet * 0.10 + Math.max(0, bNet - PASS) * 0.15)
   const ir = irMarginal(Math.max(0, bNet - perDed), p.autresRev, p.partsBase, p.nbEnfants)
   const net = bNet - ir - (p.perMontant || 0)
