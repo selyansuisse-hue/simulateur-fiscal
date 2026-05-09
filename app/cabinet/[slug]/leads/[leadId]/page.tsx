@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LeadDetailClient } from './LeadDetailClient'
@@ -172,15 +172,17 @@ export default async function LeadDetailPage({
     .eq('id', params.leadId).eq('cabinet_id', cabinet.id).single()
   if (!lead) notFound()
 
-  // Charger les simulations liées
-  const { data: leadSims = [] } = await supabase
-    .from('lead_simulations').select('simulation_id')
+  // Charger les simulations liées — client admin pour contourner la RLS sur lead_simulations
+  const supabaseAdmin = await createAdminClient()
+  const { data: leadSimRows } = await supabaseAdmin
+    .from('lead_simulations')
+    .select('simulation_id')
     .eq('lead_id', params.leadId)
 
-  const simulationIds = (leadSims || []).map((ls: { simulation_id: string }) => ls.simulation_id)
+  const simulationIds = (leadSimRows || []).map((ls: { simulation_id: string }) => ls.simulation_id)
   let simulations: Simulation[] = []
   if (simulationIds.length > 0) {
-    const { data: sims } = await supabase
+    const { data: sims } = await supabaseAdmin
       .from('simulations')
       .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
       .in('id', simulationIds)
