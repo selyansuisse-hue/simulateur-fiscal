@@ -1,8 +1,18 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LeadDetailClient } from './LeadDetailClient'
 import type { Lead } from '@/lib/types/cabinet'
+
+// Client admin inline — bypass total de la RLS, ne dépend pas du cookie session
+function makeAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 interface Simulation {
   id: string
@@ -166,28 +176,36 @@ export default async function LeadDetailPage({
     .eq('cabinet_id', cabinet.id).eq('user_id', user.id).maybeSingle()
   if (!membre) redirect('/')
 
-  // Charger le lead
-  const { data: lead } = await supabase
+  // Client admin — bypass total de la RLS pour leads + lead_simulations + simulations
+  const supabaseAdmin = makeAdminClient()
+
+  // Charger le lead via admin (évite tout problème RLS sur leads aussi)
+  const { data: lead } = await supabaseAdmin
     .from('leads').select('*')
     .eq('id', params.leadId).eq('cabinet_id', cabinet.id).single()
   if (!lead) notFound()
 
-  // Charger les simulations liées — client admin pour contourner la RLS sur lead_simulations
-  const supabaseAdmin = await createAdminClient()
-  const { data: leadSimRows } = await supabaseAdmin
+  // Charger les simulations liées
+  console.log('[lead-detail] leadId:', params.leadId)
+  const { data: leadSimRows, error: lsErr } = await supabaseAdmin
     .from('lead_simulations')
-    .select('simulation_id')
+    .select('simulation_id, created_at')
     .eq('lead_id', params.leadId)
+
+  console.log('[lead-detail] leadSimRows:', leadSimRows?.length ?? 0, 'error:', lsErr?.message)
 
   const simulationIds = (leadSimRows || []).map((ls: { simulation_id: string }) => ls.simulation_id)
   let simulations: Simulation[] = []
   if (simulationIds.length > 0) {
-    const { data: sims } = await supabaseAdmin
+    const { data: sims, error: simErr } = await supabaseAdmin
       .from('simulations')
       .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
       .in('id', simulationIds)
       .order('created_at', { ascending: false })
+    console.log('[lead-detail] simulations:', sims?.length ?? 0, 'error:', simErr?.message)
     simulations = (sims || []) as Simulation[]
+  } else {
+    console.log('[lead-detail] no simulationIds found — lead_simulations empty or query failed')
   }
 
   const typedLead = lead as Lead
