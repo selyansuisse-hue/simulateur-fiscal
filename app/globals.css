@@ -235,6 +235,9 @@ body {
 .ld-input:focus, .ld-textarea:focus { outline:none; border-color:rgba(59,130,246,0.5); box-shadow:0 0 0 3px rgba(59,130,246,0.12); }
 .ld-textarea { resize:vertical; }
 
+/* Email link hover in lead detail (server component — no JS handlers) */
+.ld-email-link:hover { color: #93c5fd !important; }
+
 /* Ring animation (CSS-only, server-renderable) */
 @keyframes ld-ring-in { from { stroke-dashoffset: var(--circ); } }
 .ld-ring-anim { animation: ld-ring-in 1.1s cubic-bezier(.22,1,.36,1) both; }

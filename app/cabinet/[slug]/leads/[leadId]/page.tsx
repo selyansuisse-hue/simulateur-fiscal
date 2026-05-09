@@ -307,9 +307,7 @@ export default async function LeadDetailPage({
                 {displayName}
               </h1>
               {typedLead.email && (
-                <a href={`mailto:${typedLead.email}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#94a3b8', textDecoration: 'none', marginTop: '6px', fontFamily: 'JetBrains Mono, monospace' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
+                <a href={`mailto:${typedLead.email}`} className="ld-email-link" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#94a3b8', textDecoration: 'none', marginTop: '6px', fontFamily: 'JetBrains Mono, monospace' }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   {typedLead.email}
