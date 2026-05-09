@@ -4,8 +4,14 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LeadDetailClient } from './LeadDetailClient'
 import type { Lead } from '@/lib/types/cabinet'
+import { runSimulation } from '@/lib/fiscal'
+import type { SimParams, StructureResult } from '@/lib/fiscal'
+import {
+  type Simulation, type ComparisonRow, type Insight,
+  structColor, fmt, avatarGrad, initials,
+} from './types'
 
-// Client admin inline — bypass total de la RLS, ne dépend pas du cookie session
+/* ─── Admin client (bypass RLS) ─── */
 function makeAdminClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,50 +20,12 @@ function makeAdminClient() {
   )
 }
 
-interface Simulation {
-  id: string
-  name: string
-  ca: number | null
-  best_forme: string | null
-  best_net_annuel: number | null
-  best_net_mois: number | null
-  tmi: number | null
-  score: number | null
-  gain: number | null
-  situation: string | null
-  created_at: string
-  params: Record<string, unknown> | null
-}
-
-const STRUCT_COLORS: Record<string, string> = {
-  'EURL / SARL (IS)': '#3B82F6', 'SAS / SASU': '#8B5CF6',
-  'EI (réel normal)': '#F59E0B', 'Micro-entreprise': '#94A3B8',
-}
-function structColor(forme: string | null): string {
-  return forme ? (STRUCT_COLORS[forme] ?? '#64748B') : '#64748B'
-}
-function fmt(n: number | null | undefined) {
-  if (n == null) return '—'
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
-}
-
-/* ─────────────────────────────────────────────────────────
-   Insights intelligents — pure function
-───────────────────────────────────────────────────────── */
-interface Insight {
-  icon: string
-  message: string
-  priorite: 'urgente' | 'haute' | 'moyenne'
-  couleur: string
-  couleurBg: string
-  couleurBorder: string
-}
-
 const FORME_LABELS: Record<string, string> = {
   micro: 'Micro-entreprise', ei: 'EI réel',
   eurl_is: 'EURL/SARL IS', sas_sasu: 'SAS/SASU', none: '',
 }
 
+/* ─── Insights ─── */
 function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
   if (!simulations.length) return []
   const insights: Insight[] = []
@@ -66,7 +34,6 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
   const ca = lastSim.ca ?? 0
   const formeActuelle = (lastSim.params?.formeActuelle as string | undefined) ?? ''
 
-  // 1 — Récence / timing
   if (joursDepuis <= 3) {
     insights.push({
       icon: '🔥',
@@ -83,17 +50,15 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
     })
   }
 
-  // 2 — Micro dépassant le plafond (urgence)
   if (formeActuelle === 'micro' && ca > 77_700) {
     insights.push({
       icon: '🚨',
-      message: `CA ${fmt(ca)} dépasse le plafond micro (77 700€) — sortie du régime micro obligatoire à traiter en urgence.`,
+      message: `CA ${fmt(ca)} dépasse le plafond micro (77 700 €) — sortie du régime micro obligatoire à traiter en urgence.`,
       priorite: 'urgente',
       couleur: '#f87171', couleurBg: 'rgba(239,68,68,0.08)', couleurBorder: 'rgba(239,68,68,0.25)',
     })
   }
 
-  // 3 — Changement de structure recommandé
   if ((lastSim.situation === 'existant' || lastSim.situation === 'changement') && formeActuelle && formeActuelle !== 'none') {
     const currentLabel = FORME_LABELS[formeActuelle] || formeActuelle
     if (lastSim.best_forme && currentLabel !== lastSim.best_forme) {
@@ -106,7 +71,6 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
     }
   }
 
-  // 4 — CA élevé → IS très avantageux
   if (ca > 80_000) {
     insights.push({
       icon: '📊',
@@ -116,7 +80,6 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
     })
   }
 
-  // 5 — TMI élevé → PER recommandé
   const tmi = lastSim.tmi ?? 0
   if (tmi >= 30) {
     const economiePer = Math.round(ca * 0.1 * (tmi / 100))
@@ -128,7 +91,6 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
     })
   }
 
-  // 6 — Gain potentiel élevé
   if ((lastSim.gain ?? 0) > 8_000) {
     insights.push({
       icon: '⚠️',
@@ -138,35 +100,52 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
     })
   }
 
-  // Trier par priorité
   const ORDER: Record<string, number> = { urgente: 0, haute: 1, moyenne: 2 }
   return insights.sort((a, b) => ORDER[a.priorite] - ORDER[b.priorite])
 }
 
-/* ─────────────────────────────────────────────────────────
-   Intention config
-───────────────────────────────────────────────────────── */
-const INTENTION_CONFIG = {
-  urgent:    { label: '🔥 Chaud',  bg: 'rgba(239,68,68,0.15)',  color: '#f87171',  border: 'rgba(239,68,68,0.3)'  },
-  reflechis: { label: '🟡 Tiède',  bg: 'rgba(245,158,11,0.15)', color: '#fbbf24',  border: 'rgba(245,158,11,0.3)' },
-  info:      { label: '🔵 Info',   bg: 'rgba(59,130,246,0.15)', color: '#60a5fa',  border: 'rgba(59,130,246,0.3)' },
-} as const
+/* ─── Calcul du score de chaleur ─── */
+function calculateHeatScore(lead: Lead, simulations: Simulation[]): number {
+  let score = 0
+  const lastSim = simulations[0]
+  if (!lastSim) return 0
 
-/* ─────────────────────────────────────────────────────────
-   Page
-───────────────────────────────────────────────────────── */
+  const joursDepuis = Math.floor((Date.now() - new Date(lastSim.created_at).getTime()) / 86_400_000)
+  if (joursDepuis === 0) score += 30
+  else if (joursDepuis <= 1) score += 25
+  else if (joursDepuis <= 3) score += 15
+  else if (joursDepuis <= 7) score += 5
+
+  const ca = lastSim.ca ?? 0
+  if (ca > 100_000) score += 20
+  else if (ca > 70_000) score += 15
+  else if (ca > 40_000) score += 10
+  else score += 5
+
+  if ((lastSim.gain ?? 0) > 8_000) score += 20
+  else if ((lastSim.gain ?? 0) > 4_000) score += 12
+  else if ((lastSim.gain ?? 0) > 1_000) score += 6
+
+  if (lead.user_id) score += 15
+  if (simulations.length >= 2) score += 5
+  if (simulations.length >= 3) score += 5
+
+  const formeActuelle = (lastSim.params?.formeActuelle as string | undefined) ?? ''
+  if (formeActuelle === 'micro' && ca > 77_700) score += 20
+
+  return Math.min(100, score)
+}
+
+/* ─── Page ─── */
 export default async function LeadDetailPage({
   params,
 }: {
   params: { slug: string; leadId: string }
 }) {
   const supabase = await createClient()
-
-  // Auth guard
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/auth/login?next=/cabinet/${params.slug}/leads/${params.leadId}`)
 
-  // Vérifier appartenance cabinet
   const { data: cabinet } = await supabase
     .from('cabinets').select('id, nom, slug').eq('slug', params.slug).single()
   if (!cabinet) notFound()
@@ -176,23 +155,17 @@ export default async function LeadDetailPage({
     .eq('cabinet_id', cabinet.id).eq('user_id', user.id).maybeSingle()
   if (!membre) redirect('/')
 
-  // Client admin — bypass total de la RLS pour leads + lead_simulations + simulations
   const supabaseAdmin = makeAdminClient()
 
-  // Charger le lead via admin (évite tout problème RLS sur leads aussi)
   const { data: lead } = await supabaseAdmin
     .from('leads').select('*')
     .eq('id', params.leadId).eq('cabinet_id', cabinet.id).single()
   if (!lead) notFound()
 
-  // ── Charger les simulations liées ──────────────────────────────────────
-  // Stratégie 1 : via lead_simulations (table de jointure)
+  /* Simulations */
   console.log('[lead-detail] leadId:', params.leadId)
   const { data: leadSimRows, error: lsErr } = await supabaseAdmin
-    .from('lead_simulations')
-    .select('simulation_id')
-    .eq('lead_id', params.leadId)
-
+    .from('lead_simulations').select('simulation_id').eq('lead_id', params.leadId)
   console.log('[lead-detail] lead_simulations rows:', leadSimRows?.length ?? 0, 'error:', lsErr?.message)
 
   let simulations: Simulation[] = []
@@ -207,8 +180,6 @@ export default async function LeadDetailPage({
     console.log('[lead-detail] sims via lead_simulations:', sims?.length ?? 0, 'error:', simErr?.message)
     simulations = (sims || []) as Simulation[]
   } else if (lead.user_id) {
-    // Stratégie 2 (fallback) : lead_simulations vide → chercher directement par user_id
-    // C'est le cas quand la simulation a été faite avant le rattachement au cabinet
     console.log('[lead-detail] fallback: querying simulations by user_id:', lead.user_id)
     const { data: sims, error: simErr } = await supabaseAdmin
       .from('simulations')
@@ -217,316 +188,255 @@ export default async function LeadDetailPage({
       .order('created_at', { ascending: false })
     console.log('[lead-detail] sims via user_id:', sims?.length ?? 0, 'error:', simErr?.message)
     simulations = (sims || []) as Simulation[]
-  } else {
-    console.log('[lead-detail] no lead_simulations rows AND no user_id — cannot load simulations')
   }
 
   const typedLead = lead as Lead
   const insights = generateInsights(typedLead, simulations)
 
+  /* Score de chaleur */
+  const heatScore = typedLead.score ?? calculateHeatScore(typedLead, simulations)
+  const lastSim = simulations[0] ?? null
+
+  /* Comparison table from fiscal lib */
+  let comparisonData: ComparisonRow[] = []
+  if (lastSim?.params) {
+    try {
+      const p = lastSim.params as unknown as SimParams
+      const { scored } = runSimulation(p)
+      comparisonData = scored.map((r: StructureResult) => ({
+        forme: r.forme,
+        netAnnuel: r.netAnnuel,
+        charges: r.charges,
+        ir: r.ir,
+        is: r.is,
+        score: r.scoreTotal,
+        ineligible: r.netAnnuel < 0 && r.forme === 'Micro-entreprise',
+        isRecommended: r.forme === scored[0].forme,
+      }))
+    } catch { /* ignore — missing params fields */ }
+  }
+
+  /* Avatar */
+  const displayName = typedLead.nom || typedLead.email || 'Prospect'
+  const avatarBg = avatarGrad(displayName)
+  const avatarIni = initials(displayName)
+
+  /* Heat ring SVG */
+  const R = 36, CIRC = 2 * Math.PI * R
+  const heatDashOffset = CIRC * (1 - heatScore / 100)
+  const heatGradStop1 = heatScore >= 70
+    ? { a: '#EF4444', b: '#F59E0B' }
+    : heatScore >= 40
+      ? { a: '#F59E0B', b: '#FBBF24' }
+      : { a: '#64748B', b: '#94A3B8' }
+  const heatGlowColor = heatScore >= 70
+    ? 'rgba(239,68,68,0.55)'
+    : heatScore >= 40
+      ? 'rgba(245,158,11,0.55)'
+      : 'rgba(100,116,139,0.35)'
+  const heatLabel = heatScore >= 70 ? '🔥 Chaud' : heatScore >= 40 ? '🌤 Tiède' : '❄ Froid'
+  const heatPillCls = heatScore >= 70 ? 'ld-pill-red' : heatScore >= 40 ? 'ld-pill-amber' : 'ld-pill-slate'
+
+  /* Source badge */
+  const sourceCls = typedLead.source === 'inscription' ? 'ld-pill-violet' : 'ld-pill-slate'
+  const sourceLabel = typedLead.source === 'inscription'
+    ? 'Inscription'
+    : typedLead.source === 'widget' ? 'Widget' : typedLead.source?.replace(/_/g, ' ') || 'Direct'
+
+  /* TMI from last sim */
+  const tmi = lastSim?.tmi ?? null
+
+  /* User info for notes */
+  const userName = (user.user_metadata?.full_name as string | undefined) || user.email?.split('@')[0] || 'EC'
+  const userIni = userName.split(/\s+/).map((p: string) => p[0]).slice(0, 2).join('').toUpperCase() || 'EC'
+
   return (
-    <div style={{ minHeight: '100vh', background: '#020617', padding: '28px 32px' }}>
-      <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: `
+        radial-gradient(900px 500px at 80% -10%, rgba(59,130,246,0.06), transparent 60%),
+        radial-gradient(600px 400px at 0% 110%, rgba(139,92,246,0.05), transparent 60%),
+        #080d1a
+      `,
+      padding: '24px 32px 48px',
+    }}>
 
-        {/* ── Retour ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
-          <Link
-            href={`/cabinet/${params.slug}`}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              fontSize: '13px', fontWeight: 600, color: '#475569',
-              textDecoration: 'none', padding: '6px 12px', borderRadius: '8px',
-              background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(51,65,85,0.5)',
-            }}
-          >
-            ← Retour aux leads
-          </Link>
-          <span style={{ color: '#334155', fontSize: '13px' }}>›</span>
-          <span style={{ fontSize: '13px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {typedLead.nom || typedLead.email || 'Prospect'}
-          </span>
-        </div>
+      {/* ── Breadcrumb ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
+        <Link
+          href={`/cabinet/${params.slug}`}
+          className="ld-btn ld-btn-ghost"
+          style={{ fontSize: '13px', padding: '7px 12px' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+          </svg>
+          Retour aux leads
+        </Link>
+        <span style={{ color: '#334155', fontSize: '13px' }}>/</span>
+        <span style={{ color: '#94a3b8', fontSize: '13px' }}>Pipeline</span>
+        <span style={{ color: '#334155', fontSize: '13px' }}>/</span>
+        <span style={{ color: '#fff', fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+          {displayName}
+        </span>
+      </div>
 
-        {/* ── Header ── */}
-        <div style={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #070f1a 100%)',
-          border: '1px solid rgba(51,65,85,0.6)', borderRadius: '20px',
-          padding: '28px 32px', marginBottom: '20px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
-            {/* Avatar + identité */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-              <div style={{
-                width: '56px', height: '56px', borderRadius: '50%', flexShrink: 0,
-                background: 'linear-gradient(135deg, rgba(37,99,235,0.3), rgba(139,92,246,0.3))',
-                border: '2px solid rgba(37,99,235,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '22px', fontWeight: 800, color: '#93c5fd',
-              }}>
-                {(typedLead.nom || typedLead.email || 'P')[0]?.toUpperCase()}
+      {/* ── Hero card ── */}
+      <div className="ld-card-glow" style={{ padding: '24px 28px', marginBottom: '24px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '5fr 3fr 4fr', gap: '24px', alignItems: 'start' }}>
+
+          {/* Identity */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+            <div
+              className="ld-avatar-xl"
+              style={{ background: avatarBg, boxShadow: '0 12px 32px rgba(139,92,246,0.35), inset 0 0 0 1px rgba(255,255,255,0.10)' }}
+            >
+              {avatarIni}
+              <span style={{
+                position: 'absolute', inset: '-2px', borderRadius: '20px',
+                background: avatarBg, zIndex: -1, filter: 'blur(14px)', opacity: 0.55,
+                pointerEvents: 'none',
+              }} />
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                <span className={`ld-pill ${sourceCls}`}>{sourceLabel}</span>
+                {typedLead.user_id && <span className="ld-pill ld-pill-green">✓ Compte lié</span>}
               </div>
-              <div>
-                <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f1f5f9', margin: 0, lineHeight: 1.2 }}>
-                  {typedLead.nom || 'Prospect sans nom'}
-                </h1>
-                {typedLead.email && (
-                  <a href={`mailto:${typedLead.email}`} style={{ fontSize: '13px', color: '#60a5fa', textDecoration: 'none', display: 'block', marginTop: '3px' }}>
-                    {typedLead.email}
-                  </a>
+              <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.1, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {displayName}
+              </h1>
+              {typedLead.email && (
+                <a href={`mailto:${typedLead.email}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#94a3b8', textDecoration: 'none', marginTop: '6px', fontFamily: 'JetBrains Mono, monospace' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  {typedLead.email}
+                </a>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px', fontSize: '11px', color: '#64748b', flexWrap: 'wrap', fontFamily: 'JetBrains Mono, monospace' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {new Date(typedLead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+                {simulations.length > 0 && (
+                  <>
+                    <span style={{ color: '#1e293b' }}>·</span>
+                    <span>{simulations.length} simulation{simulations.length > 1 ? 's' : ''}</span>
+                  </>
                 )}
-                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
-                    background: 'rgba(100,116,139,0.15)', border: '1px solid rgba(100,116,139,0.3)', color: '#94a3b8',
-                    textTransform: 'uppercase', letterSpacing: '0.05em',
-                  }}>
-                    {typedLead.source?.replace(/_/g, ' ')}
-                  </span>
-                  {typedLead.intention && INTENTION_CONFIG[typedLead.intention] && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
-                      background: INTENTION_CONFIG[typedLead.intention].bg,
-                      border: `1px solid ${INTENTION_CONFIG[typedLead.intention].border}`,
-                      color: INTENTION_CONFIG[typedLead.intention].color,
-                    }}>
-                      {INTENTION_CONFIG[typedLead.intention].label}
-                    </span>
-                  )}
-                  {typedLead.user_id && (
-                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399' }}>
-                      ✓ Compte lié
-                    </span>
-                  )}
-                  <span style={{ fontSize: '10px', color: '#475569' }}>
-                    Inscrit le {new Date(typedLead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </span>
-                </div>
               </div>
             </div>
+          </div>
 
-            {/* KPI pills */}
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <KpiPill label="CA simulé"    value={fmt(typedLead.ca_simule)}  color="#60a5fa" />
-              <KpiPill label="Net/an optimal" value={fmt(typedLead.net_annuel)} color="#34d399" />
-              {typedLead.score != null && (
-                <KpiPill label="Score gain" value={`${typedLead.score}/100`}
-                  color={typedLead.score >= 60 ? '#34d399' : typedLead.score >= 40 ? '#fbbf24' : '#94a3b8'} />
+          {/* Heat ring */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <svg width="86" height="86" viewBox="0 0 86 86">
+                <circle cx="43" cy="43" r={R} fill="none" stroke="rgba(148,163,184,0.10)" strokeWidth="6"/>
+                <circle
+                  className="ld-ring-anim"
+                  cx="43" cy="43" r={R} fill="none"
+                  stroke="url(#heatG)" strokeWidth="6"
+                  strokeLinecap="round"
+                  transform="rotate(-90 43 43)"
+                  strokeDasharray={CIRC.toFixed(1)}
+                  strokeDashoffset={heatDashOffset.toFixed(1)}
+                  style={{ ['--circ' as string]: CIRC.toFixed(1), filter: `drop-shadow(0 0 6px ${heatGlowColor})` }}
+                />
+                <defs>
+                  <linearGradient id="heatG" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor={heatGradStop1.a}/>
+                    <stop offset="100%" stopColor={heatGradStop1.b}/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                <span className="ld-big-num" style={{ color: '#fff', fontSize: '20px', lineHeight: 1 }}>{heatScore}</span>
+                <span style={{ fontSize: '9px', color: '#64748b', fontFamily: 'JetBrains Mono, monospace' }}>/100</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b', fontWeight: 600 }}>Chaleur</div>
+              <div style={{ marginTop: '6px' }}>
+                <span className={`ld-pill ${heatPillCls}`}>{heatLabel}</span>
+              </div>
+              {tmi != null && (
+                <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748b', fontFamily: 'JetBrains Mono, monospace' }}>
+                  TMI : <span style={{ color: '#fbbf24', fontWeight: 600 }}>{tmi}%</span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Structure + dernière sim */}
-          {typedLead.structure_recommandee && (
-            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(51,65,85,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: structColor(typedLead.structure_recommandee), flexShrink: 0 }} />
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Structure recommandée :</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: structColor(typedLead.structure_recommandee) }}>
+          {/* KPI 2×2 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {[
+              { label: 'CA simulé', value: fmt(typedLead.ca_simule), accent: '#3B82F6', sub: 'annuel déclaré' },
+              { label: 'Net / an optimal', value: fmt(typedLead.net_annuel), accent: '#10B981', sub: lastSim?.gain ? `▲ +${fmt(lastSim.gain)} vs pire` : 'net annuel' },
+              { label: 'TMI', value: tmi != null ? `${tmi}%` : '—', accent: '#F59E0B', sub: 'taux marginal' },
+              { label: 'Score chaleur', value: `${heatScore}`, accent: heatScore >= 70 ? '#EF4444' : heatScore >= 40 ? '#F59E0B' : '#64748B', sub: heatLabel },
+            ].map(kpi => (
+              <div key={kpi.label} style={{
+                borderRadius: '12px', padding: '12px 14px',
+                background: `${kpi.accent}0f`,
+                border: `1px solid ${kpi.accent}38`,
+              }}>
+                <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.18em', color: `${kpi.accent}b0`, fontWeight: 600, marginBottom: '6px' }}>
+                  {kpi.label}
+                </div>
+                <div className="ld-big-num" style={{ color: '#fff', fontSize: '20px', lineHeight: 1.1, textShadow: `0 0 18px ${kpi.accent}66` }}>
+                  {kpi.value}
+                </div>
+                <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontFamily: 'JetBrains Mono, monospace' }}>{kpi.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recommended strip */}
+        {typedLead.structure_recommandee && (
+          <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid rgba(148,163,184,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3B82F6', boxShadow: '0 0 10px #3B82F6', display: 'inline-block' }} className="cabinet-pulse-dot" />
+              <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b', fontWeight: 600 }}>Structure recommandée</span>
+              <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.01em', background: `linear-gradient(90deg,${structColor(typedLead.structure_recommandee)},#A78BFA)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 {typedLead.structure_recommandee}
               </span>
-              {typedLead.derniere_simulation && (
-                <span style={{ fontSize: '11px', color: '#475569', marginLeft: '6px' }}>
-                  · sim. {new Date(typedLead.derniere_simulation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
-                </span>
+              {lastSim?.score != null && (
+                <span className="ld-pill ld-pill-blue">Confiance {lastSim.score}%</span>
               )}
             </div>
-          )}
-        </div>
-
-        {/* ── Grille principale ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
-
-          {/* Colonne gauche */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* ── Insights intelligents ── */}
-            {insights.length > 0 && (
-              <div style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)', borderRadius: '16px', padding: '20px 24px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '14px' }}>
-                  💡 Insights automatiques
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {insights.map((insight, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '12px',
-                      padding: '14px 16px', borderRadius: '12px',
-                      background: insight.couleurBg, border: `1px solid ${insight.couleurBorder}`,
-                    }}>
-                      <span style={{ fontSize: '18px', flexShrink: 0, lineHeight: 1.2 }}>{insight.icon}</span>
-                      <div>
-                        <div style={{
-                          fontSize: '9px', fontWeight: 800, textTransform: 'uppercase',
-                          letterSpacing: '0.1em', color: insight.couleur, marginBottom: '4px',
-                        }}>
-                          {insight.priorite}
-                        </div>
-                        <p style={{ fontSize: '13px', color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
-                          {insight.message}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── Simulations ── */}
-            <div style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)', borderRadius: '16px', padding: '22px 26px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>
-                  Simulations effectuées
-                </div>
-                <span style={{
-                  fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '999px',
-                  background: 'rgba(37,99,235,0.12)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.25)',
-                }}>
-                  {simulations.length}
-                </span>
-              </div>
-
-              {simulations.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px', color: '#475569', fontSize: '13px' }}>
-                  <div style={{ fontSize: '32px', marginBottom: '10px' }}>📊</div>
-                  Ce lead n&apos;a pas encore de simulation enregistrée.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {simulations.map((sim, idx) => {
-                    const color = structColor(sim.best_forme)
-                    return (
-                      <div key={sim.id} style={{
-                        background: idx === 0 ? 'rgba(37,99,235,0.05)' : '#1e293b',
-                        border: `1px solid ${idx === 0 ? 'rgba(37,99,235,0.25)' : 'rgba(51,65,85,0.5)'}`,
-                        borderRadius: '14px', padding: '16px 18px',
-                      }}>
-                        {/* Titre + date */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {idx === 0 && (
-                              <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '999px', background: 'rgba(37,99,235,0.2)', color: '#60a5fa', flexShrink: 0 }}>
-                                Dernière
-                              </span>
-                            )}
-                            <span style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>
-                              {sim.name || 'Simulation sans titre'}
-                            </span>
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#475569', flexShrink: 0 }}>
-                            {new Date(sim.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
-                          </span>
-                        </div>
-
-                        {/* KPIs */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
-                          {[
-                            { label: 'CA', value: fmt(sim.ca), color: '#60a5fa' },
-                            { label: 'Net/an', value: fmt(sim.best_net_annuel), color: '#34d399' },
-                            { label: 'Net/mois', value: fmt(sim.best_net_mois), color: '#34d399' },
-                            { label: 'Structure', value: sim.best_forme?.replace(' / SARL (IS)', '').replace(' / SASU', '') || '—', color },
-                            { label: 'TMI', value: sim.tmi != null ? `${sim.tmi}%` : '—', color: '#94a3b8' },
-                            { label: 'Score', value: sim.score != null ? `${sim.score}/100` : '—', color: '#fbbf24' },
-                          ].map(kpi => (
-                            <div key={kpi.label} style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(51,65,85,0.3)' }}>
-                              <div style={{ fontSize: '9px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{kpi.label}</div>
-                              <div style={{ fontSize: '12px', fontWeight: 700, color: kpi.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{kpi.value}</div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Boutons */}
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <Link href={`/simulations/${sim.id}`} style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '5px',
-                            padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                            background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.3)',
-                            color: '#60a5fa', textDecoration: 'none',
-                          }}>🔍 Voir le détail</Link>
-                          <a href={`/api/simulations/${sim.id}/pdf`} target="_blank" rel="noopener noreferrer" style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '5px',
-                            padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                            background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)',
-                            color: '#34d399', textDecoration: 'none',
-                          }}>📄 PDF</a>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {lastSim && (
+                <a
+                  href={`/api/simulations/${lastSim.id}/pdf`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="ld-btn ld-btn-ghost"
+                  style={{ fontSize: '12px', padding: '7px 12px' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Rapport PDF
+                </a>
               )}
             </div>
           </div>
-
-          {/* Colonne droite */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-            <LeadDetailClient lead={typedLead} cabinetSlug={params.slug} />
-
-            {/* Infos contact */}
-            <div style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)', borderRadius: '14px', padding: '18px 20px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '12px' }}>
-                Contact
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {typedLead.email && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px' }}>✉️</span>
-                    <a href={`mailto:${typedLead.email}?subject=Suite de votre simulation fiscale`}
-                      style={{ fontSize: '12px', color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {typedLead.email}
-                    </a>
-                  </div>
-                )}
-                {typedLead.telephone && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px' }}>📞</span>
-                    <a href={`tel:${typedLead.telephone}`} style={{ fontSize: '12px', color: '#94a3b8', textDecoration: 'none' }}>
-                      {typedLead.telephone}
-                    </a>
-                  </div>
-                )}
-                <div style={{ paddingTop: '6px', borderTop: '1px solid rgba(51,65,85,0.4)', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', color: '#475569' }}>Inscrit le</span>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      {new Date(typedLead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
-                    </span>
-                  </div>
-                  {typedLead.derniere_simulation && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#475569' }}>Dernière sim.</span>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>
-                        {new Date(typedLead.derniere_simulation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* CTA email */}
-            {typedLead.email && (
-              <a
-                href={`mailto:${typedLead.email}?subject=Votre simulation fiscale - Belho Xper&body=Bonjour ${typedLead.nom?.split(' ')[0] || ''},`}
-                style={{
-                  display: 'block', textAlign: 'center', padding: '11px 16px', borderRadius: '10px',
-                  background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
-                  color: '#34d399', fontSize: '13px', fontWeight: 700, textDecoration: 'none',
-                }}
-              >
-                ✉️ Envoyer un email
-              </a>
-            )}
-          </div>
-        </div>
+        )}
       </div>
-    </div>
-  )
-}
 
-function KpiPill({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div style={{ textAlign: 'center', minWidth: '90px' }}>
-      <div style={{ fontSize: '9px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>{label}</div>
-      <div style={{ fontSize: '18px', fontWeight: 800, color, letterSpacing: '-0.02em' }}>{value}</div>
+      {/* ── Grid: tabs + sidebar ── */}
+      <LeadDetailClient
+        lead={typedLead}
+        simulations={simulations}
+        insights={insights}
+        comparisonData={comparisonData}
+        cabinetSlug={params.slug}
+        lastSimId={lastSim?.id ?? null}
+        userName={userName}
+        userInitials={userIni}
+        heatScore={heatScore}
+      />
     </div>
   )
 }
