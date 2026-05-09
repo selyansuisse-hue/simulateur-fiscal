@@ -85,35 +85,51 @@ function SliderField({ label, value, onChange, min, max, step, hint, hintColor, 
   const sv = Math.min(value, safeMax)
   const pct = safeMax > min ? ((sv - min) / (safeMax - min) * 100) : 0
   const fill = fillColor || '#3B82F6'
+  const monoFont = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace"
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <label style={{ fontSize: '12px', fontWeight: 600, color: '#7896b8' }}>{label}</label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <label style={{ fontSize: '12px', fontWeight: 500, color: '#cbd5e1' }}>{label}</label>
         <div style={{
-          background: '#08101e', border: '1px solid #1a2540', borderRadius: '6px',
-          padding: '3px 10px', fontSize: '13px', fontWeight: 700, color: '#e2e8f0',
-          minWidth: '90px', textAlign: 'right' as const,
-          fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', monospace",
-          letterSpacing: '-0.02em',
+          background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(99,131,196,0.25)', borderRadius: '8px',
+          padding: '4px 12px', fontSize: '13px', fontWeight: 700, color: '#e2e8f0',
+          minWidth: '110px', textAlign: 'right' as const,
+          fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' as const, letterSpacing: '-0.02em',
         }}>
           {fmt(value)}
         </div>
       </div>
-      <div style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center' }}>
+      {hint && (
         <div style={{
-          position: 'absolute', left: 0, right: 0, height: '4px', borderRadius: '999px',
-          background: `linear-gradient(to right, ${fill} 0%, ${fill} ${pct}%, #1a2540 ${pct}%, #1a2540 100%)`,
+          fontSize: '11px', marginBottom: '8px',
+          color: hintColor || 'rgba(96,165,250,0.70)',
+          fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' as const,
+        }}>{hint}</div>
+      )}
+      <div style={{ position: 'relative', height: '30px', display: 'flex', alignItems: 'center' }}>
+        {/* Track background */}
+        <div style={{
+          position: 'absolute', left: 0, right: 0, height: '12px', borderRadius: '999px',
+          background: '#1a2540', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)',
+        }} />
+        {/* Fill */}
+        <div style={{
+          position: 'absolute', left: 0, width: `${pct}%`, height: '12px', borderRadius: '999px',
+          background: `linear-gradient(90deg, ${fill}cc, ${fill})`,
+          boxShadow: `0 0 12px ${fill}80`,
+          minWidth: pct > 0 ? '8px' : '0',
         }} />
         <input type="range" min={min} max={safeMax} step={step} value={sv}
           onChange={e => onChange(parseFloat(e.target.value))}
-          style={{ position: 'absolute', left: 0, right: 0, width: '100%', height: '28px', opacity: 0, cursor: 'pointer', zIndex: 1 }} />
+          style={{ position: 'absolute', left: 0, right: 0, width: '100%', height: '30px', opacity: 0, cursor: 'pointer', zIndex: 1 }} />
+        {/* Thumb */}
         <div style={{
           position: 'absolute', left: `calc(${pct}% - 12px)`, width: '24px', height: '24px',
           borderRadius: '50%', background: '#fff', border: `2px solid ${fill}`,
-          boxShadow: `0 2px 10px rgba(0,0,0,0.5), 0 0 0 4px ${fill}22`, pointerEvents: 'none',
+          boxShadow: `0 0 0 4px ${fill}33, 0 2px 10px rgba(0,0,0,0.5)`, pointerEvents: 'none',
+          transition: 'left 100ms ease',
         }} />
       </div>
-      {hint && <div style={{ fontSize: '11px', marginTop: '8px', color: hintColor || '#64748b', fontWeight: 500 }}>{hint}</div>}
     </div>
   )
 }
@@ -133,13 +149,18 @@ function WaterfallBar({ ca, chargesE, cotis, ir, is: isV, net, h = 24 }: {
 }) {
   const total = Math.max(ca, 1)
   const p = (v: number) => `${Math.max(0, Math.min(72, v / total * 100)).toFixed(1)}%`
+  const seg = (bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
+    background: `linear-gradient(180deg, ${bg}, ${bg}d0)`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 0 12px ${bg}55`,
+    minWidth: '2px', ...extra,
+  })
   return (
-    <div style={{ display: 'flex', height: `${h}px`, borderRadius: '6px', overflow: 'hidden', gap: '1px' }}>
-      {chargesE > 0 && <div style={{ width: p(chargesE), background: '#64748b', minWidth: '2px' }} />}
-      <div style={{ width: p(cotis), background: '#f97316', minWidth: '2px' }} />
-      <div style={{ width: p(ir), background: '#eab308', minWidth: '2px' }} />
-      {isV > 0 && <div style={{ width: p(isV), background: '#a855f7', minWidth: '2px' }} />}
-      <div style={{ flex: 1, background: '#10b981', minWidth: '4px' }} />
+    <div style={{ display: 'flex', height: `${h}px`, borderRadius: '12px', overflow: 'hidden', background: 'rgba(8,17,38,0.6)', boxShadow: 'inset 0 1px 0 rgba(0,0,0,0.3)' }}>
+      {chargesE > 0 && <div style={{ width: p(chargesE), ...seg('#64748b') }} />}
+      <div style={{ width: p(cotis), ...seg('#f97316') }} />
+      <div style={{ width: p(ir), ...seg('#eab308') }} />
+      {isV > 0 && <div style={{ width: p(isV), ...seg('#a855f7') }} />}
+      <div style={{ flex: 1, ...seg('#10b981', { minWidth: '4px' }) }} />
     </div>
   )
 }
@@ -153,24 +174,25 @@ function TmiTranchesBar({ tmi }: { tmi: number }) {
     { label: '41%', w: 24, color: '#f97316' },
     { label: '45%', w: 14, color: '#ef4444' },
   ]
+  const activeIdx = tmi === 0 ? 0 : tmi <= 11 ? 1 : tmi <= 30 ? 2 : tmi <= 41 ? 3 : 4
   const pos = tmi === 0 ? 3 : tmi <= 11 ? 16 : tmi <= 30 ? 44 : tmi <= 41 ? 74 : 92
   const dotColor = tmi <= 11 ? '#10b981' : tmi <= 30 ? '#f59e0b' : tmi <= 41 ? '#f97316' : '#ef4444'
   return (
     <div style={{ position: 'relative', marginTop: '10px', paddingBottom: '18px' }}>
-      <div style={{ display: 'flex', height: '8px', borderRadius: '6px', overflow: 'hidden', gap: '1px' }}>
-        {segments.map(s => (
-          <div key={s.label} style={{ flex: s.w, background: s.color, opacity: 0.45 }} />
+      <div style={{ display: 'flex', height: '10px', borderRadius: '6px', overflow: 'hidden', gap: '1px', background: 'rgba(8,17,38,0.8)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+        {segments.map((s, i) => (
+          <div key={s.label} style={{ flex: s.w, background: s.color, opacity: i === activeIdx ? 1 : 0.18, transition: 'opacity 300ms ease' }} />
         ))}
       </div>
       <div style={{
-        position: 'absolute', top: '-4px', left: `calc(${pos}% - 8px)`,
+        position: 'absolute', top: '-3px', left: `calc(${pos}% - 8px)`,
         width: '16px', height: '16px', borderRadius: '50%',
-        background: dotColor, border: '2px solid #060d1a',
-        boxShadow: `0 0 8px ${dotColor}80`, transition: 'left 300ms ease',
+        background: '#fff', border: `2px solid ${dotColor}`,
+        boxShadow: `0 0 0 3px ${dotColor}66, 0 0 14px ${dotColor}`, transition: 'left 300ms ease',
       }} />
       <div style={{ display: 'flex', marginTop: '6px' }}>
         {segments.map(s => (
-          <div key={s.label} style={{ flex: s.w, fontSize: '8px', textAlign: 'center' as const, color: '#334155', fontWeight: 500 }}>
+          <div key={s.label} style={{ flex: s.w, fontSize: '8px', textAlign: 'center' as const, color: '#475569', fontWeight: 500 }}>
             {s.label}
           </div>
         ))}
@@ -443,13 +465,14 @@ export default function ExplorerPage() {
     boxShadow: active ? '0 2px 12px rgba(37,99,235,0.35)' : 'none',
   })
 
-  /* ── KPI card — new dark card ── */
+  /* ── KPI card — dark card with accent ── */
   const kpiCard: React.CSSProperties = {
-    background: '#0d1a2e',
+    background: '#0d1425',
     border: '1px solid rgba(30,58,95,0.5)',
     borderRadius: '16px', padding: '20px',
     position: 'relative', overflow: 'hidden',
   }
+  const monoFont = "'JetBrains Mono', 'SF Mono', monospace"
 
   const leverCard: React.CSSProperties = {
     background: '#080f1e', border: '1px solid rgba(30,58,95,0.5)',
@@ -476,6 +499,7 @@ export default function ExplorerPage() {
   const tmiLabel = tmi <= 11 ? 'Tranche basse ✓' : tmi <= 30 ? 'Tranche intermédiaire' : tmi <= 41 ? 'Tranche haute ⚠' : 'Tranche max ⚠'
   const bestColor = sc(results.best.forme)
   const worstName = worst?.forme.replace(' / SARL (IS)', '').replace(' / SASU', '') ?? ''
+  const sliderFill = leftTab === 'foyer' ? '#8B5CF6' : leftTab === 'optim' ? '#F59E0B' : leftTab === 'leviers' ? '#10B981' : activeColor
 
   return (
     <>
@@ -665,7 +689,7 @@ export default function ExplorerPage() {
                     </select>
                   </div>
                   <SliderField label="CA annuel HT" value={params.ca} onChange={v => set('ca', v)}
-                    min={0} max={2000000} step={5000} fillColor={activeColor}
+                    min={0} max={2000000} step={5000} fillColor={sliderFill}
                     hint={microExcluded ? `⚠ Micro exclue (plafond ${fmt(results.microPlafond)})` : `✓ Micro possible (CA ≤ ${fmt(results.microPlafond)})`}
                     hintColor={microExcluded ? '#F59E0B' : '#10B981'}
                   />
@@ -881,18 +905,27 @@ export default function ExplorerPage() {
               {/* KPI 1 — Revenu net */}
               <div style={{
                 ...kpiCard,
-                borderTop: `3px solid ${activeColor}`,
-                boxShadow: `0 0 28px ${activeColor}12, 0 2px 12px rgba(0,0,0,0.3)`,
+                border: `1px solid ${activeColor}22`,
+                boxShadow: `0 0 32px ${activeColor}14, 0 2px 16px rgba(0,0,0,0.35)`,
               }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Revenu net annuel</div>
-                <div className={flashKpi ? 'kpi-flash' : ''} style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px' }}>
+                {/* top accent line */}
+                <div style={{ position: 'absolute', top: 0, left: '16px', right: '16px', height: '1px', background: `linear-gradient(90deg, transparent, ${activeColor}, transparent)`, opacity: 0.7 }} />
+                {/* corner dot */}
+                <div style={{ position: 'absolute', top: '-1px', right: '16px', width: '6px', height: '6px', borderRadius: '50%', background: activeColor, boxShadow: `0 0 10px ${activeColor}` }} />
+                {/* glow blob */}
+                <div style={{ position: 'absolute', top: '-48px', right: '-48px', width: '160px', height: '160px', borderRadius: '50%', background: `radial-gradient(circle, ${activeColor}55, transparent 70%)`, opacity: 0.28, pointerEvents: 'none' }} />
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.18em', marginBottom: '12px' }}>Revenu net annuel</div>
+                <div className={flashKpi ? 'kpi-flash' : ''} style={{
+                  fontSize: '44px', fontWeight: 900, color: activeColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px',
+                  textShadow: `0 0 28px ${activeColor}88`, fontVariantNumeric: 'tabular-nums' as const,
+                }}>
                   {fmt(leverNet)}
                 </div>
-                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '10px' }}>{fmt(Math.round(leverNet / 12))} €/mois</div>
+                <div style={{ fontSize: '12px', color: '#475569', marginBottom: '12px', fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' as const }}>{fmt(Math.round(leverNet / 12))} /mois</div>
                 {gainVsWorst > 500 && (
-                  <span style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', fontSize: '11px', fontWeight: 600, borderRadius: '999px', padding: '3px 10px', display: 'inline-block' }}>
-                    +{fmt(gainVsWorst)}/an vs moins avantageux
-                  </span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: '8px', padding: '4px 10px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#34d399', fontFamily: monoFont }}>+{fmt(gainVsWorst)}/an vs moins avantageux</span>
+                  </div>
                 )}
                 {leverImpact > 0 && (
                   <div style={{ fontSize: '11px', color: '#4ade80', marginTop: '6px', fontWeight: 600 }}>⚡ +{fmt(leverImpact)} leviers actifs</div>
@@ -902,33 +935,37 @@ export default function ExplorerPage() {
               {/* KPI 2 — TMI */}
               <div style={{
                 ...kpiCard,
-                borderTop: `3px solid ${tmiColor}`,
-                boxShadow: `0 0 28px ${tmiColor}10, 0 2px 12px rgba(0,0,0,0.3)`,
+                border: '1px solid rgba(16,185,129,0.20)',
+                boxShadow: `0 0 28px ${tmiColor}12, 0 2px 12px rgba(0,0,0,0.3)`,
               }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Tranche marginale</div>
-                <div style={{ fontSize: '36px', fontWeight: 900, color: tmiColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px' }}>
+                {/* top accent line */}
+                <div style={{ position: 'absolute', top: 0, left: '16px', right: '16px', height: '1px', background: `linear-gradient(90deg, transparent, ${tmiColor}, transparent)`, opacity: 0.7 }} />
+                <div style={{ position: 'absolute', top: '-1px', right: '16px', width: '6px', height: '6px', borderRadius: '50%', background: tmiColor, boxShadow: `0 0 10px ${tmiColor}` }} />
+                <div style={{ position: 'absolute', top: '-48px', right: '-48px', width: '160px', height: '160px', borderRadius: '50%', background: `radial-gradient(circle, ${tmiColor}55, transparent 70%)`, opacity: 0.22, pointerEvents: 'none' }} />
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.18em', marginBottom: '12px' }}>Tranche marginale</div>
+                <div style={{ fontSize: '44px', fontWeight: 900, color: tmiColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px', textShadow: `0 0 24px ${tmiColor}80`, fontVariantNumeric: 'tabular-nums' as const }}>
                   {tmi}%
                 </div>
-                <div style={{ fontSize: '12px', color: '#64748b' }}>{tmiLabel}</div>
+                <div style={{ fontSize: '12px', color: tmiColor, fontWeight: 600 }}>{tmiLabel}</div>
                 <TmiTranchesBar tmi={tmi} />
               </div>
 
               {/* KPI 3 — Prélèvements */}
               <div style={{
                 ...kpiCard,
-                borderTop: '3px solid #f43f5e',
-                boxShadow: '0 0 28px rgba(244,63,94,0.08), 0 2px 12px rgba(0,0,0,0.3)',
+                border: '1px solid rgba(239,68,68,0.22)',
+                boxShadow: '0 0 28px rgba(239,68,68,0.10), 0 2px 12px rgba(0,0,0,0.3)',
               }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Prélèvements totaux</div>
-                <div style={{ fontSize: '36px', fontWeight: 900, color: '#f87171', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px' }}>
+                <div style={{ position: 'absolute', top: 0, left: '16px', right: '16px', height: '1px', background: 'linear-gradient(90deg, transparent, #ef4444, transparent)', opacity: 0.7 }} />
+                <div style={{ position: 'absolute', top: '-1px', right: '16px', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 10px #ef4444' }} />
+                <div style={{ position: 'absolute', top: '-48px', right: '-48px', width: '160px', height: '160px', borderRadius: '50%', background: 'radial-gradient(circle, #ef444455, transparent 70%)', opacity: 0.24, pointerEvents: 'none' }} />
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.18em', marginBottom: '12px' }}>Prélèvements totaux</div>
+                <div style={{ fontSize: '40px', fontWeight: 900, color: '#ef4444', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '5px', textShadow: '0 0 24px rgba(239,68,68,0.70)', fontVariantNumeric: 'tabular-nums' as const }}>
                   {fmt(coutTotal)}
                 </div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>{coutPct}% du CA</div>
-                <div style={{ fontSize: '11px', color: '#475569', display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
-                  <span>Cotis. {fmt(activeResult.charges)}</span>
-                  <span style={{ color: '#1a2540' }}>·</span>
-                  <span>IR {fmt(activeResult.ir)}</span>
-                  {activeResult.is > 0 && <><span style={{ color: '#1a2540' }}>·</span><span>IS {fmt(activeResult.is)}</span></>}
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', fontFamily: monoFont }}>{coutPct}% du CA</div>
+                <div style={{ fontSize: '11px', color: '#475569', fontFamily: monoFont }}>
+                  Cotis. {fmt(activeResult.charges)} · IR {fmt(activeResult.ir)}{activeResult.is > 0 ? ` · IS ${fmt(activeResult.is)}` : ''}
                 </div>
               </div>
 
@@ -936,24 +973,26 @@ export default function ExplorerPage() {
               <div style={{
                 ...kpiCard,
                 background: cs4.bg,
-                borderColor: cs4.border,
-                borderTop: `3px solid ${activeColor}`,
-                boxShadow: `0 0 28px ${activeColor}10, 0 2px 12px rgba(0,0,0,0.3)`,
+                border: `1px solid ${activeColor}35`,
+                boxShadow: `0 0 28px ${activeColor}12, 0 2px 12px rgba(0,0,0,0.3)`,
               }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '10px' }}>Structure analysée</div>
-                <div style={{ fontSize: '20px', fontWeight: 900, color: activeColor, letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: '10px' }}>
+                <div style={{ position: 'absolute', top: 0, left: '16px', right: '16px', height: '1px', background: `linear-gradient(90deg, transparent, ${activeColor}, transparent)`, opacity: 0.7 }} />
+                <div style={{ position: 'absolute', top: '-1px', right: '16px', width: '6px', height: '6px', borderRadius: '50%', background: activeColor, boxShadow: `0 0 10px ${activeColor}` }} />
+                <div style={{ position: 'absolute', top: '-48px', right: '-48px', width: '160px', height: '160px', borderRadius: '50%', background: `radial-gradient(circle, ${activeColor}55, transparent 70%)`, opacity: 0.22, pointerEvents: 'none' }} />
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.18em', marginBottom: '12px' }}>Structure analysée</div>
+                <div style={{ fontSize: '28px', fontWeight: 900, color: activeColor, letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: '10px', textShadow: `0 0 20px ${activeColor}88` }}>
                   {activeResult.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' as const, marginBottom: '7px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, padding: '3px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    {activeResult.scoreTotal}/100
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' as const, marginBottom: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, padding: '3px 10px', borderRadius: '8px', background: activeColor + '22', color: activeColor, border: `1px solid ${activeColor}55`, fontFamily: monoFont }}>
+                    {activeResult.scoreTotal}<span style={{ opacity: 0.5 }}>/100</span>
                   </span>
                   {activeRank === 1
-                    ? <span style={{ fontSize: '11px', fontWeight: 600, color: '#fbbf24' }}>1er choix recommandé ★</span>
-                    : <span style={{ fontSize: '11px', color: '#475569' }}>{activeRank}ème choix</span>
+                    ? <span style={{ fontSize: '11px', fontWeight: 700, color: activeColor }}>★ 1er choix</span>
+                    : <span style={{ fontSize: '11px', color: '#475569' }}>{activeRank}e choix</span>
                   }
                 </div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>{STRUCT_TYPE[activeResult.forme] || ''}</div>
+                <div style={{ fontSize: '11px', color: '#64748b', fontFamily: monoFont }}>{STRUCT_TYPE[activeResult.forme] || ''}</div>
               </div>
             </div>
 
@@ -973,34 +1012,46 @@ export default function ExplorerPage() {
               {/* ── DÉCOMPOSITION ── */}
               {rightTab === 'decomp' && (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '12px' }}>
-                  <div style={{ background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', padding: '20px' }}>
+                  <div style={{ background: '#0d1425', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', padding: '20px' }}>
                     {wfRows.map((row, ri) => {
-                      const pct = (row.val / Math.max(params.ca, 1) * 100)
+                      const rowPct = (row.val / Math.max(params.ca, 1) * 100)
                       const isLast = ri === wfRows.length - 1
                       return (
-                        <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: ri < wfRows.length - 1 ? '14px' : 0 }}>
-                          {/* Colored dot */}
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: row.color, flexShrink: 0, boxShadow: `0 0 6px ${row.color}60` }} />
-                          <div style={{ width: '116px', flexShrink: 0, fontSize: '11px', color: '#64748b', fontWeight: 500 }}>{row.label}</div>
-                          {/* Mini proportional bar */}
-                          <div style={{ flex: 1, height: isLast ? '14px' : '10px', background: '#08101e', borderRadius: '999px', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: row.color, borderRadius: '999px', transition: 'width 300ms ease', minWidth: row.val > 0 ? '4px' : '0' }} />
+                        <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', alignItems: 'center', gap: '12px', marginBottom: ri < wfRows.length - 1 ? '14px' : 0 }}>
+                          {/* Dot + label */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: row.color, flexShrink: 0, boxShadow: `0 0 6px ${row.color}` }} />
+                            <div style={{ fontSize: isLast ? '13px' : '12.5px', color: isLast ? '#fff' : '#cbd5e1', fontWeight: isLast ? 700 : 500 }}>{row.label}</div>
                           </div>
-                          <div style={{ width: '74px', flexShrink: 0, textAlign: 'right' as const, fontSize: '12px', fontWeight: isLast ? 800 : 600, color: row.color }}>
-                            {fmt(row.val)}
+                          {/* Mini bar */}
+                          <div style={{ height: '10px', background: 'rgba(8,17,38,0.7)', borderRadius: '999px', overflow: 'hidden', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+                            <div style={{
+                              width: `${Math.min(100, rowPct)}%`, height: '100%',
+                              background: `linear-gradient(90deg, ${row.color}cc, ${row.color})`,
+                              borderRadius: '999px', boxShadow: `0 0 14px ${row.color}aa`,
+                              transition: 'width 300ms ease', minWidth: row.val > 0 ? '4px' : '0',
+                            }} />
                           </div>
-                          <div style={{ width: '30px', flexShrink: 0, textAlign: 'right' as const, fontSize: '10px', color: '#334155' }}>
-                            {pct.toFixed(0)}%
+                          {/* Value + % */}
+                          <div style={{ textAlign: 'right' as const }}>
+                            <div style={{ fontSize: '13px', fontWeight: isLast ? 800 : 700, color: row.color, fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' as const }}>
+                              {fmt(row.val)}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#475569', fontFamily: monoFont }}>{rowPct.toFixed(0)}%</div>
                           </div>
                         </div>
                       )
                     })}
                   </div>
 
-                  <div style={{ background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', padding: '16px' }}>
+                  <div style={{ background: '#0d1425', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(96,165,250,0.7)', textTransform: 'uppercase' as const, letterSpacing: '0.18em' }}>Répartition du CA</div>
+                      <span style={{ fontSize: '10.5px', color: '#475569', fontFamily: monoFont }}>100% = {fmt(params.ca)}</span>
+                    </div>
                     <WaterfallBar ca={params.ca} chargesE={params.charges} cotis={activeResult.charges}
-                      ir={activeResult.ir} is={activeResult.is || 0} net={activeResult.netAnnuel} h={20} />
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '10px', marginTop: '12px' }}>
+                      ir={activeResult.ir} is={activeResult.is || 0} net={activeResult.netAnnuel} h={36} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
                       {[
                         ...(params.charges > 0 ? [{ dot: '#64748b', label: 'Charges', val: params.charges }] : []),
                         { dot: '#f97316', label: 'Cotisations', val: activeResult.charges },
@@ -1008,10 +1059,10 @@ export default function ExplorerPage() {
                         ...(activeResult.is > 0 ? [{ dot: '#a855f7', label: 'IS', val: activeResult.is }] : []),
                         { dot: '#10b981', label: 'Net', val: activeResult.netAnnuel },
                       ].map(l => (
-                        <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: l.dot, flexShrink: 0 }} />
-                          <span style={{ fontSize: '10px', color: '#64748b' }}>{l.label}</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>{fmt(l.val)}</span>
+                        <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(8,17,38,0.5)', border: '1px solid rgba(99,131,196,0.18)', borderRadius: '8px', padding: '6px 8px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.dot, flexShrink: 0, boxShadow: `0 0 6px ${l.dot}` }} />
+                          <span style={{ fontSize: '10px', color: '#64748b', flex: 1 }}>{l.label}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', fontFamily: monoFont }}>{fmt(l.val)}</span>
                         </div>
                       ))}
                     </div>
