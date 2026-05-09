@@ -685,7 +685,6 @@ export function StepResultats() {
   const [isSaved, setIsSaved] = useState(false)
   const [savedSimId, setSavedSimId] = useState<string | null>(null)
   const [pendingPdf, setPendingPdf] = useState(false)
-  const [intention, setIntention] = useState<'urgent' | 'reflechis' | 'info' | null>(null)
 
   const handleSaved = (simId?: string) => {
     setIsSaved(true)
@@ -705,14 +704,16 @@ export function StepResultats() {
     }
   }
 
-  const handleIntention = (val: 'urgent' | 'reflechis' | 'info') => {
-    setIntention(val)
-    // Envoyer au backend en arrière-plan (non-bloquant)
-    fetch('/api/leads/intention', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ simulationId: savedSimId, intention: val }),
-    }).catch(() => {/* non-bloquant */})
+  const updateLeadIntention = async (intention: string) => {
+    try {
+      await fetch('/api/leads/intention', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simulationId: savedSimId, intention }),
+      })
+    } catch {
+      // Silencieux — ne pas bloquer l'UX
+    }
   }
 
   if (!results) return null
@@ -1400,202 +1401,61 @@ export function StepResultats() {
       </section>
 
       {/* ══════════════════════════════════════════════
-          8. CTA — 3 colonnes : Sauvegarder · PDF · RDV
+          8. SECTION FINALE CTA
       ══════════════════════════════════════════════ */}
-      <div className="rounded-3xl border border-slate-700/60 overflow-hidden relative"
-        style={{ background: 'radial-gradient(900px 320px at 100% 0%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(700px 280px at 0% 100%, rgba(139,92,246,0.14), transparent 60%), #0f172a' }}>
-        <div className="relative p-8 sm:p-10">
-          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-blue-300/90 font-semibold mb-6">
-            <span className="h-px w-6 bg-blue-400/60" />
-            Étape suivante
-            <span className="h-px w-6 bg-blue-400/60" />
+      <div className="rounded-2xl overflow-hidden mt-8"
+        style={{ background: 'linear-gradient(135deg, #0f2344 0%, #1a0f3d 100%)', border: '1px solid rgba(99,130,246,0.2)' }}>
+        <div className="p-8 flex flex-col md:flex-row gap-8 items-center justify-between">
+          <div className="flex-1">
+            <div className="text-xs uppercase tracking-widest text-blue-400 font-semibold mb-2">
+              BELHO XPER · CABINET D&apos;EXPERTISE COMPTABLE
+            </div>
+            <h2 className="text-2xl font-black text-white mb-2">Ces chiffres sont votre point de départ.</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Nos experts transforment cette simulation en stratégie concrète — structure, rémunération, optimisations fiscales. Premier rendez-vous offert, sans engagement.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-            {/* 1 — Sauvegarder */}
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
-              <div className="text-3xl">💾</div>
-              <div>
-                <h3 className="text-white font-semibold text-[15px] mb-1">Sauvegarder</h3>
-                <p className="text-slate-400 text-[12.5px] leading-relaxed">
-                  Retrouvez cette analyse depuis votre espace
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSaveModal(true)}
-                disabled={isSaved}
-                className="mt-auto w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-px disabled:opacity-60"
-                style={{ background: isSaved ? 'rgba(16,185,129,0.3)' : 'linear-gradient(135deg,#059669,#047857)', boxShadow: isSaved ? 'none' : '0 4px 14px rgba(5,150,105,0.35)' }}
-              >
-                {isSaved ? '✓ Enregistrée' : 'Enregistrer la simulation'}
-              </button>
-            </div>
-
-            {/* 2 — Télécharger PDF */}
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
-              <div className="text-3xl">📄</div>
-              <div>
-                <h3 className="text-white font-semibold text-[15px] mb-1">Rapport PDF</h3>
-                <p className="text-slate-400 text-[12.5px] leading-relaxed">
-                  Téléchargez votre analyse complète en PDF
-                </p>
-              </div>
-              <button
-                onClick={handlePDF}
-                className="mt-auto w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-px"
-                style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', boxShadow: '0 4px 14px rgba(29,78,216,0.35)' }}
-              >
-                {savedSimId ? 'Télécharger le rapport' : 'Enregistrer + PDF →'}
-              </button>
-            </div>
-
-            {/* 3 — Prendre RDV */}
-            <div
-              className="rounded-2xl border p-5 flex flex-col items-center text-center gap-3"
-              style={{ borderColor: 'rgba(59,130,246,0.35)', background: 'linear-gradient(135deg, rgba(29,78,216,0.15), rgba(17,24,39,0.8))' }}
-            >
-              <div className="text-3xl">📅</div>
-              <div>
-                <h3 className="text-white font-semibold text-[15px] mb-1">Affiner avec un expert</h3>
-                <p className="text-slate-400 text-[12.5px] leading-relaxed">
-                  Belho Xper valide votre stratégie réelle
-                </p>
-              </div>
-              <a
-                href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                className="mt-auto w-full py-2.5 rounded-xl font-bold text-sm text-center block transition-all hover:-translate-y-px"
-                style={{ background: '#fff', color: '#0f172a', boxShadow: '0 4px 16px rgba(255,255,255,0.15)', textDecoration: 'none' }}
-              >
-                Prendre RDV — gratuit
-              </a>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════
-          8b. QUALIFICATION + RDV
-      ══════════════════════════════════════════════ */}
-      <section className="rounded-3xl border border-blue-500/20 overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, rgba(29,78,216,0.18) 0%, rgba(109,40,217,0.12) 50%, rgba(15,23,42,0.95) 100%)' }}>
-        <div className="p-8 sm:p-10">
-
-          {/* Question de qualification */}
-          {!intention ? (
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">
-                Où en êtes-vous dans votre projet ?
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl mx-auto">
-                {([
-                  { value: 'urgent'   as const, label: '🔥 Je veux changer dans les 3 mois',  border: 'rgba(239,68,68,0.5)',   hover: 'rgba(239,68,68,0.08)'   },
-                  { value: 'reflechis'as const, label: '🤔 Je réfléchis, dans 6 mois peut-être', border: 'rgba(245,158,11,0.5)', hover: 'rgba(245,158,11,0.08)' },
-                  { value: 'info'     as const, label: '📚 Je me renseigne pour l\'instant', border: 'rgba(59,130,246,0.5)',   hover: 'rgba(59,130,246,0.08)'  },
-                ] as const).map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => handleIntention(opt.value)}
-                    className="rounded-xl p-4 text-white text-sm font-medium transition-all text-left cursor-pointer"
-                    style={{ border: `1px solid ${opt.border}`, background: 'rgba(15,23,42,0.6)' }}
-                    onMouseOver={e => { e.currentTarget.style.background = opt.hover }}
-                    onMouseOut={e => { e.currentTarget.style.background = 'rgba(15,23,42,0.6)' }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* Réponse contextuelle selon intention */
-            <div className="text-center mb-8">
-              {intention === 'urgent' && (
-                <>
-                  <div className="text-emerald-400 font-bold text-lg mb-2">✅ Parfait — vous êtes au bon endroit</div>
-                  <p className="text-slate-300 mb-2 text-[14px]">
-                    Nos experts peuvent vous accompagner dès cette semaine. Première consultation gratuite, sans engagement.
-                  </p>
-                  {perteParMois > 0 && (
-                    <p className="text-amber-400 text-sm font-semibold">
-                      ⏱ Chaque semaine supplémentaire = −{fmt(Math.round(perteParMois / 4))} de manqués
-                    </p>
-                  )}
-                </>
-              )}
-              {intention === 'reflechis' && (
-                <>
-                  <div className="text-blue-400 font-bold text-lg mb-2">💡 Un RDV exploratoire vous aidera à décider</div>
-                  <p className="text-slate-300 mb-2 text-[14px]">
-                    30 minutes avec un expert pour valider si les chiffres de cette simulation correspondent à votre situation réelle. Aucune obligation.
-                  </p>
-                </>
-              )}
-              {intention === 'info' && (
-                <>
-                  <div className="text-slate-300 font-bold text-lg mb-2">📄 On vous envoie votre rapport PDF complet</div>
-                  <p className="text-slate-400 mb-2 text-[14px]">
-                    Votre analyse détaillée avec les recommandations pour votre situation — à lire à votre rythme. Revenez nous voir quand vous êtes prêt.
-                  </p>
-                </>
-              )}
-              {/* Changer d'avis */}
-              <button
-                onClick={() => setIntention(null)}
-                className="text-slate-600 text-xs hover:text-slate-400 transition-colors mt-2"
-              >
-                ← Changer ma réponse
-              </button>
-            </div>
-          )}
-
-          {/* CTAs */}
-          <div className="flex flex-col md:flex-row gap-3 justify-center max-w-lg mx-auto">
-            {(intention !== 'info') && (
-              <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
-                className="flex-1 py-4 px-6 rounded-xl text-center font-black text-[16px] transition-all hover:-translate-y-0.5"
-                style={{ background: '#fff', color: '#0f172a', boxShadow: '0 8px 24px rgba(255,255,255,0.15)', textDecoration: 'none' }}>
-                📅 Prendre RDV — 30min offertes
-              </a>
-            )}
-            <button
-              onClick={handlePDF}
-              className="flex-1 py-4 px-6 rounded-xl font-semibold text-[14px] transition-all hover:-translate-y-0.5 border border-slate-600 hover:border-slate-500"
-              style={{ background: 'rgba(30,41,59,0.8)', color: '#f1f5f9' }}
-            >
+          <div className="flex flex-col gap-3 min-w-fit">
+            <a href="https://www.belhoxper.com/contact" target="_blank" rel="noopener noreferrer"
+              onClick={() => updateLeadIntention('urgent')}
+              className="bg-white text-slate-900 font-black px-7 py-4 rounded-xl text-center whitespace-nowrap hover:bg-blue-50 transition shadow-xl"
+              style={{ textDecoration: 'none' }}>
+              📅 Prendre RDV — 30min offertes
+            </a>
+            <button onClick={handlePDF}
+              className="bg-white/[0.08] border border-white/[0.15] text-white font-semibold px-7 py-3 rounded-xl text-center hover:bg-white/[0.12] transition text-sm">
               📄 Télécharger mon rapport PDF
             </button>
-          </div>
-
-          {/* Social proof */}
-          <div className="mt-8 pt-6 border-t border-slate-700/30 text-center">
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.12em] mb-4">
-              ILS ONT OPTIMISÉ LEUR STRUCTURE AVEC BELHO XPER
-            </p>
-            <div className="flex justify-center gap-6 flex-wrap">
-              {[
-                { initiales: 'T.M.', metier: 'Consultant', gain: '+14 200€/an' },
-                { initiales: 'A.L.', metier: 'Dev indépendante', gain: '+8 900€/an' },
-                { initiales: 'M.C.', metier: 'Architecte', gain: '+11 400€/an' },
-              ].map((t, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                    style={{ background: `${bestAccent}25`, color: bestAccent }}>
-                    {t.initiales.replace('.', '').slice(0, 2)}
-                  </div>
-                  <div>
-                    <div className="text-slate-400 text-[11px]">{t.metier}</div>
-                    <div className="text-emerald-400 text-[11px] font-semibold">{t.gain}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-slate-600 text-[11px] mt-4">
-              Lyon · Montluel · contact@belhoxper.fr
-            </p>
+            {!isSaved && (
+              <button onClick={() => setShowSaveModal(true)}
+                className="text-slate-500 hover:text-slate-300 text-xs text-center transition py-1">
+                💾 Enregistrer cette simulation
+              </button>
+            )}
           </div>
         </div>
-      </section>
+        <div className="border-t border-white/[0.05] px-8 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-6">
+            {[
+              { initiales: 'TM', metier: 'Consultant', gain: '+14 200€/an' },
+              { initiales: 'AL', metier: 'Dev indépendante', gain: '+8 900€/an' },
+              { initiales: 'MC', metier: 'Architecte', gain: '+11 400€/an' },
+            ].map((t, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{ background: 'rgba(59,130,246,0.3)', color: '#60a5fa' }}>
+                  {t.initiales}
+                </div>
+                <div>
+                  <div className="text-slate-500 text-xs">{t.metier}</div>
+                  <div className="text-emerald-400 text-xs font-semibold">{t.gain}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-slate-600 text-xs">Lyon · Montluel · contact@belhoxper.fr</div>
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════════════
           9. Bouton retour
