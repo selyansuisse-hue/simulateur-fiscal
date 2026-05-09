@@ -185,27 +185,40 @@ export default async function LeadDetailPage({
     .eq('id', params.leadId).eq('cabinet_id', cabinet.id).single()
   if (!lead) notFound()
 
-  // Charger les simulations liées
+  // ── Charger les simulations liées ──────────────────────────────────────
+  // Stratégie 1 : via lead_simulations (table de jointure)
   console.log('[lead-detail] leadId:', params.leadId)
   const { data: leadSimRows, error: lsErr } = await supabaseAdmin
     .from('lead_simulations')
-    .select('simulation_id, created_at')
+    .select('simulation_id')
     .eq('lead_id', params.leadId)
 
-  console.log('[lead-detail] leadSimRows:', leadSimRows?.length ?? 0, 'error:', lsErr?.message)
+  console.log('[lead-detail] lead_simulations rows:', leadSimRows?.length ?? 0, 'error:', lsErr?.message)
 
-  const simulationIds = (leadSimRows || []).map((ls: { simulation_id: string }) => ls.simulation_id)
   let simulations: Simulation[] = []
-  if (simulationIds.length > 0) {
+
+  if ((leadSimRows ?? []).length > 0) {
+    const simulationIds = leadSimRows!.map((ls: { simulation_id: string }) => ls.simulation_id)
     const { data: sims, error: simErr } = await supabaseAdmin
       .from('simulations')
       .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
       .in('id', simulationIds)
       .order('created_at', { ascending: false })
-    console.log('[lead-detail] simulations:', sims?.length ?? 0, 'error:', simErr?.message)
+    console.log('[lead-detail] sims via lead_simulations:', sims?.length ?? 0, 'error:', simErr?.message)
+    simulations = (sims || []) as Simulation[]
+  } else if (lead.user_id) {
+    // Stratégie 2 (fallback) : lead_simulations vide → chercher directement par user_id
+    // C'est le cas quand la simulation a été faite avant le rattachement au cabinet
+    console.log('[lead-detail] fallback: querying simulations by user_id:', lead.user_id)
+    const { data: sims, error: simErr } = await supabaseAdmin
+      .from('simulations')
+      .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
+      .eq('user_id', lead.user_id)
+      .order('created_at', { ascending: false })
+    console.log('[lead-detail] sims via user_id:', sims?.length ?? 0, 'error:', simErr?.message)
     simulations = (sims || []) as Simulation[]
   } else {
-    console.log('[lead-detail] no simulationIds found — lead_simulations empty or query failed')
+    console.log('[lead-detail] no lead_simulations rows AND no user_id — cannot load simulations')
   }
 
   const typedLead = lead as Lead
