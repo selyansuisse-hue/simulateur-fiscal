@@ -47,17 +47,30 @@ export function calcMicro(p: SimParams): StructureResult | null {
 // EI régime réel
 // Art.L.131-6 CSS : cotisations SSI calculées sur le revenu professionnel NET (après cotisations)
 // → résolution itérative : cotis = f(bNet), bNet = bBrut - cotis
+// Formule simplifiée par composante (sans prévoyance, CSG base 98%)
+const _p40  = PASS * 0.40   // seuil maladie réduit : 18 547 €
+const _p110 = PASS * 1.10   // seuil alloc. fam.    : 51 005 €
+function cotisEI(R: number): number {
+  const retraiteBase  = Math.min(R, PASS) * 0.1775
+  const retraiteCompl = Math.min(R, PASS) * 0.07
+  const invalidite    = R * 0.013
+  const maladie       = R > _p40 ? R * 0.065 : R * 0.0135
+  const allocFam      = R > _p110 ? R * 0.0215 : 0
+  const csgCrds       = R * 0.98 * 0.097
+  const formation     = PASS * 0.0025
+  return retraiteBase + retraiteCompl + invalidite + maladie + allocFam + csgCrds + formation
+}
+
 export function calcEIReel(p: SimParams): StructureResult {
-  const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const bBrut = Math.max(0, p.ca - p.charges - p.amort)
-  // Iteration : cotisations sur bNet (BUG4 FIX)
+  // Iteration : cotisations sur bNet (Art.L.131-6 CSS)
   let bNet = bBrut * 0.65   // estimation initiale ~65% du brut
-  let cotis = cotisTNS_sur_revenu(bNet, pc).total
+  let cotis = cotisEI(bNet)
   for (let i = 0; i < 40; i++) {
     const newBNet = Math.max(0, bBrut - cotis)
     if (Math.abs(newBNet - bNet) < 0.50) { bNet = newBNet; break }
     bNet = newBNet
-    cotis = cotisTNS_sur_revenu(bNet, pc).total
+    cotis = cotisEI(bNet)
   }
   bNet = Math.max(0, bBrut - cotis)
   const perDed = Math.min(p.perMontant || 0, bNet * 0.10 + Math.max(0, bNet - PASS) * 0.15)
@@ -157,7 +170,7 @@ export function calcEURL(p: SimParams): StructureResult {
 function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const capa = Math.max(0, p.ca - p.charges - p.amort)
-  const pat = brutSal * 0.42
+  const pat = brutSal * 0.45
   const sal = brutSal * 0.22
   const netSal = brutSal - sal
   const prev = brutSal * pc
@@ -186,7 +199,7 @@ function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
 export function calcSASU(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const capa = Math.max(0, p.ca - p.charges - p.amort)
-  const brutMax = capa / (1 + 0.42 + pc)
+  const brutMax = capa / (1 + 0.45 + pc)
   const brutMin = Math.min(PASS, brutMax)
   let bestNet = -Infinity, bestBrut = brutMin, bestRatio = 0
   for (let b = brutMin; b <= brutMax; b += 300) {
