@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { CabinetSidebar } from '@/components/cabinet/CabinetSidebar'
+import { CabinetShell } from '@/components/cabinet/CabinetShell'
 
 export default async function CabinetLayout({
   children,
@@ -36,12 +36,5 @@ export default async function CabinetLayout({
     redirect('/dashboard?error=unauthorized')
   }
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0f172a' }}>
-      <CabinetSidebar cabinet={cabinet} />
-      <main style={{ flex: 1, minWidth: 0 }}>
-        {children}
-      </main>
-    </div>
-  )
+  return <CabinetShell cabinet={cabinet}>{children}</CabinetShell>
 }

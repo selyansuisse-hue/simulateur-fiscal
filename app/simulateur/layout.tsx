@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { CabinetSidebar } from '@/components/cabinet/CabinetSidebar'
+import { CabinetShell } from '@/components/cabinet/CabinetShell'
 
 export default async function SimulateurLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -23,12 +23,5 @@ export default async function SimulateurLayout({ children }: { children: React.R
 
   if (!cabinet) return <>{children}</>
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#060d1a' }}>
-      <CabinetSidebar cabinet={cabinet} />
-      <main data-cabinet-main="" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-        {children}
-      </main>
-    </div>
-  )
+  return <CabinetShell cabinet={cabinet}>{children}</CabinetShell>
 }

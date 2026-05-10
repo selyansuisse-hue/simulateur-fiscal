@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { CabinetSidebar } from '@/components/cabinet/CabinetSidebar'
+import { CabinetShell } from '@/components/cabinet/CabinetShell'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -24,12 +24,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!cabinet) redirect('/')
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#060d1a' }}>
-      <CabinetSidebar cabinet={cabinet} />
-      <main style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-        {children}
-      </main>
-    </div>
-  )
+  return <CabinetShell cabinet={cabinet}>{children}</CabinetShell>
 }
