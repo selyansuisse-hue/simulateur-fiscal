@@ -68,14 +68,15 @@ const IcoLogout = () => (
 )
 const IcoChevron = ({ rotated }: { rotated: boolean }) => (
   <svg
-    width="10" height="10" viewBox="0 0 10 10"
+    width="14" height="14" viewBox="0 0 14 14"
+    fill="none"
     style={{
-      color: '#94a3b8',
+      color: '#60a5fa',
       transition: 'transform 300ms ease-in-out',
       transform: rotated ? 'rotate(180deg)' : 'rotate(0deg)',
     }}
   >
-    <path d="M6 2L4 5L6 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+    <path d="M9 3L5 7L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
 
@@ -202,27 +203,30 @@ export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
       {/* ── Toggle button ── */}
       <button
         onClick={toggle}
-        title={collapsed ? 'Étendre' : 'Réduire'}
+        aria-label={collapsed ? 'Ouvrir le menu' : 'Fermer le menu'}
+        title={collapsed ? 'Ouvrir le menu' : 'Fermer le menu'}
         style={{
-          position: 'absolute', right: '-12px', top: '50%',
+          position: 'absolute', right: '-16px', top: '50%',
           transform: 'translateY(-50%)',
-          width: '24px', height: '24px',
+          width: '32px', height: '32px',
           borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: '1px solid rgba(100,116,139,0.5)',
-          background: 'linear-gradient(135deg, #0d1628, #111c35)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          border: '1.5px solid rgba(99,130,246,0.5)',
+          background: 'linear-gradient(135deg, #1e3a5f, #2d1b69)',
+          boxShadow: '0 0 12px rgba(59,130,246,0.3), 0 2px 8px rgba(0,0,0,0.5)',
           cursor: 'pointer', zIndex: 50,
-          transition: 'border-color 150ms, transform 150ms',
+          transition: 'transform 200ms, box-shadow 200ms',
         }}
         onMouseOver={e => {
-          e.currentTarget.style.borderColor = 'rgba(148,163,184,0.7)'
           e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'
+          e.currentTarget.style.boxShadow = '0 0 18px rgba(59,130,246,0.5), 0 2px 8px rgba(0,0,0,0.5)'
         }}
         onMouseOut={e => {
-          e.currentTarget.style.borderColor = 'rgba(100,116,139,0.5)'
           e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+          e.currentTarget.style.boxShadow = '0 0 12px rgba(59,130,246,0.3), 0 2px 8px rgba(0,0,0,0.5)'
         }}
+        onMouseDown={e => { e.currentTarget.style.transform = 'translateY(-50%) scale(0.95)' }}
+        onMouseUp={e => { e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)' }}
       >
         <IcoChevron rotated={!collapsed} />
       </button>
@@ -323,36 +327,18 @@ export function CabinetSidebar({ cabinet }: { cabinet: Cabinet }) {
       </nav>
 
       {/* ── Footer ── */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 'auto' }}>
-
-        {/* Plan badge */}
-        {!collapsed && (
-          <div style={{
-            margin: '12px', padding: '10px 12px',
-            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '12px',
-          }}>
-            <div style={{ fontSize: '10px', color: '#334155', textTransform: 'uppercase', letterSpacing: '.16em', marginBottom: '2px' }}>
-              Plan actif
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
-                {cabinet.plan.charAt(0).toUpperCase() + cabinet.plan.slice(1).replace('_', ' ')}
-              </div>
-              <PlanBadge plan={cabinet.plan} />
-            </div>
-          </div>
-        )}
-
-        {/* Logout */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 'auto', paddingBottom: '8px' }}>
         <button
           onClick={handleSignOut}
           title={collapsed ? 'Déconnexion' : undefined}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center',
+            display: 'flex', alignItems: 'center',
             gap: collapsed ? 0 : '10px',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            padding: collapsed ? '14px 0' : '12px 18px',
+            padding: collapsed ? '12px 0' : '12px 18px',
+            width: collapsed ? '40px' : '100%',
+            margin: collapsed ? '0 auto' : '0',
+            borderRadius: '12px',
             color: '#475569', fontSize: '13.5px', fontWeight: 500,
             background: 'transparent', border: 'none', cursor: 'pointer',
             transition: 'all 150ms',

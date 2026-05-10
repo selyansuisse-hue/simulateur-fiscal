@@ -24,11 +24,11 @@ export function CabinetShell({ cabinet, children }: Props) {
 
   return (
     <SidebarContext.Provider value={{ collapsed, toggle }}>
-      <div style={{ display: 'flex', minHeight: '100vh', background: '#060d1a' }}>
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#060d1a' }}>
         <CabinetSidebar cabinet={cabinet} />
         <main
           data-cabinet-main=""
-          style={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}
+          style={{ flex: 1, minWidth: 0, height: '100vh', overflowY: 'auto', overflowX: 'hidden' }}
         >
           {children}
         </main>
