@@ -184,7 +184,11 @@ function genAnalyse(best: StructureResult, params: SimParams, tmi: number, gain:
   } else {
     const abatPct = Math.round((params.abat || 0.5) * 100)
     const pctPlafond = Math.round(params.ca / 77700 * 100)
-    pourquoi = `Avec un CA de ${fmt(params.ca)}, le régime micro offre l'abattement forfaitaire de ${abatPct}% sans comptabilité obligatoire. Vos charges réelles étant inférieures à cet abattement, ce régime maximise votre revenu net.${gainStr}`
+    const avantageAbat = params.ca * (params.abat || 0.5)
+    const chargesDepassentAbat = (params.charges || 0) > avantageAbat
+    pourquoi = chargesDepassentAbat
+      ? `Avec un CA de ${fmt(params.ca)}, l'abattement forfaitaire ${abatPct}% couvre ${fmt(avantageAbat)} de charges fiscales théoriques. Mais vos charges réelles (${fmt(params.charges)}) dépassent cet abattement — la Micro est désavantageuse fiscalement.${gainStr}`
+      : `Avec un CA de ${fmt(params.ca)}, le régime micro offre l'abattement forfaitaire de ${abatPct}% sans comptabilité obligatoire. Vos charges réelles sont couvertes par l'abattement, ce régime maximise votre revenu net.${gainStr}`
     attention = `Votre CA représente ${pctPlafond}% du plafond micro (77 700 €). ${pctPlafond >= 80 ? `Le dépassement deux années consécutives impose le régime réel — anticipez la transition.` : `Surveillez l'évolution de votre CA pour anticiper le changement de régime le cas échéant.`}`
   }
   return { pourquoi, attention }
@@ -645,6 +649,31 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
             <div className="text-sm font-mono tabular-nums text-emerald-300 shrink-0" style={{ whiteSpace: 'nowrap' }}>
               +{fmt(r.div)}
             </div>
+          </div>
+        )}
+        {r.chargesReelles != null && r.chargesReelles > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[12px] text-slate-400">Charges d&apos;exploitation</div>
+              <div className="text-[10px] text-slate-500 mt-0.5 font-mono">Décaissement réel — non déductibles en Micro</div>
+            </div>
+            <div className="text-sm font-mono tabular-nums text-rose-300 shrink-0" style={{ whiteSpace: 'nowrap' }}>
+              −{fmt(r.chargesReelles)}
+            </div>
+          </div>
+        )}
+        {r.chargesReelles != null && r.chargesReelles > 0 && (
+          <div
+            className="rounded-lg px-3 py-2 text-[11px] leading-snug"
+            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#fbbf24' }}
+          >
+            ⚠️ Charges de {fmt(r.chargesReelles)} incluses dans le calcul économique mais non déductibles en Micro
+            (abattement forfaitaire de {Math.round((params.abat || 0.5) * 100)}% les remplace fiscalement).
+            {r.alerteChargesNonDeductibles && (
+              <span className="block mt-1 font-semibold">
+                Vos charges réelles dépassent l&apos;avantage de l&apos;abattement — la Micro est défavorable.
+              </span>
+            )}
           </div>
         )}
         <div className="flex items-baseline justify-between gap-3 pt-2 border-t border-slate-800">

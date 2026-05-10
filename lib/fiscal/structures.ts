@@ -16,15 +16,21 @@ const TAUX_COTIS_MICRO: Record<string, number> = {
 }
 
 // Micro-entreprise
-// Base IR = CA × (1 - abat) uniquement (abattement fiscal, pas de décaissement)
-// Net = CA encaissé - cotisations_payées - IR_payé
+// Base IR = CA × (1 - abat) uniquement (abattement forfaitaire fiscal — ne déduit pas les charges réelles)
+// Net ÉCONOMIQUE = CA - charges_réelles - cotisations - IR
+// Les charges réelles ne sont PAS déductibles fiscalement (l'abattement les remplace),
+// mais ce sont de vrais décaissements qui réduisent le revenu disponible réel.
 export function calcMicro(p: SimParams): StructureResult | null {
   if (!p.abat) return null
   const ben = p.ca * (1 - p.abat)   // base IR uniquement (abattement forfaitaire fiscal)
   const tauxCotis = TAUX_COTIS_MICRO[p.secteur] ?? 0.211
   const cotis = p.ca * tauxCotis     // cotisations sur CA brut encaissé
   const ir = irMarginal(ben, p.autresRev, p.partsBase, p.nbEnfants)
-  const net = p.ca - cotis - ir      // CA encaissé - cotisations - IR (BUG1 FIX)
+  // Net disponible réel : on déduit les charges même si non déductibles fiscalement
+  const net = p.ca - p.charges - cotis - ir
+  // Alerte si les charges réelles dépassent ce que l'abattement "couvre"
+  const avantageAbattement = p.ca * p.abat
+  const alerteChargesNonDeductibles = p.charges > 0 && p.charges > avantageAbattement
   return {
     forme: 'Micro-entreprise',
     netAnnuel: net,
@@ -41,6 +47,8 @@ export function calcMicro(p: SimParams): StructureResult | null {
     prot: protTNS(Math.max(0, net)),
     methDiv: '—',
     tauxCotis,
+    chargesReelles: p.charges > 0 ? p.charges : undefined,
+    alerteChargesNonDeductibles,
   }
 }
 

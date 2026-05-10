@@ -78,6 +78,8 @@ export interface StructureResult {
   abat10?: number
   bNet?: number
   tauxCotis?: number
+  chargesReelles?: number          // Micro uniquement : charges réelles non déductibles fiscalement
+  alerteChargesNonDeductibles?: boolean  // true si charges > avantage abattement
 }
 
 export interface SwotResult {
