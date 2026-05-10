@@ -81,8 +81,12 @@ export function calcEIReel(p: SimParams): StructureResult {
     cotis = cotisEI(bNet)
   }
   bNet = Math.max(0, bBrut - cotis)
+  // Déduction forfaitaire 10% frais professionnels — plafond 14 171 € (2025)
+  // Applicable aux revenus BIC/BNC déclarés en régime réel (Art.83 CGI par analogie)
+  const fraisPro = Math.min(bNet * 0.10, 14171)
   const perDed = Math.min(p.perMontant || 0, bNet * 0.10 + Math.max(0, bNet - PASS) * 0.15)
-  const ir = irMarginal(Math.max(0, bNet - perDed), p.autresRev, p.partsBase, p.nbEnfants)
+  const baseIR = Math.max(0, bNet - fraisPro - perDed)
+  const ir = irMarginal(baseIR, p.autresRev, p.partsBase, p.nbEnfants)
   const net = bNet - ir - (p.perMontant || 0)
   const tauxCotis = bNet > 0 ? Math.round(cotis / bNet * 100) : 0
   return {
@@ -101,6 +105,7 @@ export function calcEIReel(p: SimParams): StructureResult {
     prot: protTNS(bNet),
     methDiv: '—',
     bNet,
+    baseIR,
     tauxCotis,
   }
 }
@@ -553,11 +558,18 @@ export function runSimulation(p: SimParams): {
   const scored = scoreMulti(arr, p.priorite)
   scored.sort((a, b) => b.scoreTotal - a.scoreTotal)
   const best = scored[0]
+  // TMI calculé sur la base imposable réelle de la structure recommandée
+  // Micro : base = ca × (1-abat) — pas remBrute × 0.90
+  // EI    : base = bNet - frais_pro (baseIR stocké dans le résultat)
+  // Autres : rémunération brute × 0.90 (abattement Art.62/83 CGI)
+  const tmiBase =
+    best.forme === 'Micro-entreprise'
+      ? (best.ben || 0)                          // ca × (1-abat) = base IR réelle
+      : best.forme === 'EI (réel normal)'
+        ? (best.baseIR ?? best.bNet ?? 0)        // bNet - frais pro 10%
+        : (best.remBrute || 0) * 0.90            // rémunération × 90% (abat Art.62/83)
   const tmi = Math.round(
-    tmiRate(
-      Math.max(0, (best.remBrute || 0) * (best.forme === 'EI (réel normal)' ? 1 : 0.90) + p.autresRev),
-      p.partsBase, p.nbEnfants
-    ) * 100
+    tmiRate(Math.max(0, tmiBase + p.autresRev), p.partsBase, p.nbEnfants) * 100
   )
   const gain = byNet[0].netAnnuel - byNet[byNet.length - 1].netAnnuel
 
