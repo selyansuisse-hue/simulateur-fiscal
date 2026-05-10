@@ -4,13 +4,13 @@ export interface Simulation {
   id: string
   name: string
   ca: number | null
-  best_forme: string | null
-  best_net_annuel: number | null
-  best_net_mois: number | null
   tmi: number | null
-  score: number | null
-  gain: number | null
   situation: string | null
+  parts: number | null
+  per_montant: number | null
+  best_net_mois: number | null
+  best_ir: number | null
+  gain: number | null
   created_at: string
   params: Record<string, unknown> | null
 }

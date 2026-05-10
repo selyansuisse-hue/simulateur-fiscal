@@ -61,10 +61,13 @@ function generateInsights(lead: Lead, simulations: Simulation[]): Insight[] {
 
   if ((lastSim.situation === 'existant' || lastSim.situation === 'changement') && formeActuelle && formeActuelle !== 'none') {
     const currentLabel = FORME_LABELS[formeActuelle] || formeActuelle
-    if (lastSim.best_forme && currentLabel !== lastSim.best_forme) {
+    const bestForme = (lastSim.params?.best_forme as string | undefined)
+      ?? (lastSim.params?.bestForme as string | undefined)
+      ?? null
+    if (bestForme && currentLabel !== bestForme) {
       insights.push({
         icon: '🔄',
-        message: `Actuellement en ${currentLabel} — passage en ${lastSim.best_forme} potentiellement intéressant${lastSim.gain ? ` (+${fmt(lastSim.gain)}/an estimé)` : ''}.`,
+        message: `Actuellement en ${currentLabel} — passage en ${bestForme} potentiellement intéressant${lastSim.gain ? ` (+${fmt(lastSim.gain)}/an estimé)` : ''}.`,
         priorite: 'haute',
         couleur: '#fbbf24', couleurBg: 'rgba(245,158,11,0.08)', couleurBorder: 'rgba(245,158,11,0.25)',
       })
@@ -174,7 +177,7 @@ export default async function LeadDetailPage({
     const simulationIds = leadSimRows!.map((ls: { simulation_id: string }) => ls.simulation_id)
     const { data: sims, error: simErr } = await supabaseAdmin
       .from('simulations')
-      .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
+      .select('id, name, ca, tmi, situation, parts, per_montant, best_net_mois, best_ir, gain, created_at, params')
       .in('id', simulationIds)
       .order('created_at', { ascending: false })
     console.log('[lead-detail] sims via lead_simulations:', sims?.length ?? 0, 'error:', simErr?.message)
@@ -183,12 +186,15 @@ export default async function LeadDetailPage({
     console.log('[lead-detail] fallback: querying simulations by user_id:', lead.user_id)
     const { data: sims, error: simErr } = await supabaseAdmin
       .from('simulations')
-      .select('id, name, ca, best_forme, best_net_annuel, best_net_mois, tmi, score, gain, situation, created_at, params')
+      .select('id, name, ca, tmi, situation, parts, per_montant, best_net_mois, best_ir, gain, created_at, params')
       .eq('user_id', lead.user_id)
       .order('created_at', { ascending: false })
     console.log('[lead-detail] sims via user_id:', sims?.length ?? 0, 'error:', simErr?.message)
     simulations = (sims || []) as Simulation[]
   }
+
+  console.log('[lead-detail] simulations loaded:', simulations.length)
+  console.log('[lead-detail] first sim:', simulations[0]?.name)
 
   const typedLead = lead as Lead
   const insights = generateInsights(typedLead, simulations)
@@ -402,9 +408,6 @@ export default async function LeadDetailPage({
               <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.01em', background: `linear-gradient(90deg,${structColor(typedLead.structure_recommandee)},#A78BFA)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 {typedLead.structure_recommandee}
               </span>
-              {lastSim?.score != null && (
-                <span className="ld-pill ld-pill-blue">Confiance {lastSim.score}%</span>
-              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {lastSim && (

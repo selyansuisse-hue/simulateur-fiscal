@@ -264,11 +264,13 @@ export function LeadDetailClient({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {simulations.map((sim, idx) => {
-                  const color = STRUCT_COLORS[sim.best_forme ?? ''] ?? '#64748B'
+                  const bestForme = (sim.params?.best_forme as string | undefined)
+                    ?? (sim.params?.bestForme as string | undefined)
+                    ?? null
                   const isFirst = idx === 0
-                  const pillStyle = sim.best_forme?.includes('EURL') ? 'ld-pill-blue' :
-                    sim.best_forme?.includes('SAS') ? 'ld-pill-violet' :
-                    sim.best_forme?.includes('EI') ? 'ld-pill-amber' : 'ld-pill-slate'
+                  const pillStyle = bestForme?.includes('EURL') ? 'ld-pill-blue' :
+                    bestForme?.includes('SAS') ? 'ld-pill-violet' :
+                    bestForme?.includes('EI') ? 'ld-pill-amber' : 'ld-pill-slate'
                   return (
                     <div key={sim.id} style={{
                       borderRadius: '14px', padding: '16px 18px',
@@ -279,7 +281,7 @@ export function LeadDetailClient({
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {isFirst && <span className="ld-pill ld-pill-blue" style={{ fontSize: '10px', padding: '2px 6px' }}>Dernière</span>}
-                          {sim.best_forme && <span className={`ld-pill ${pillStyle}`} style={{ fontSize: '10px' }}>{sim.best_forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}</span>}
+                          {bestForme && <span className={`ld-pill ${pillStyle}`} style={{ fontSize: '10px' }}>{bestForme.replace(' / SARL (IS)', '').replace(' / SASU', '')}</span>}
                           <span style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>{sim.name || 'Simulation sans titre'}</span>
                         </div>
                         <span style={{ fontSize: '11px', color: '#475569', flexShrink: 0, fontFamily: 'JetBrains Mono, monospace' }}>
@@ -287,12 +289,11 @@ export function LeadDetailClient({
                         </span>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '14px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
                         {[
-                          { label: 'CA', value: fmt(sim.ca), color: '#60a5fa' },
-                          { label: 'Net/an', value: fmt(sim.best_net_annuel), color: '#6ee7b7' },
+                          { label: 'CA simulé', value: fmt(sim.ca), color: '#60a5fa' },
                           { label: 'Net/mois', value: fmt(sim.best_net_mois), color: '#6ee7b7' },
-                          { label: 'Score', value: sim.score != null ? `${sim.score}/100` : '—', color: '#fbbf24' },
+                          { label: 'Gain vs pire', value: fmt(sim.gain), color: '#fbbf24' },
                         ].map(kpi => (
                           <div key={kpi.label} style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(148,163,184,0.08)' }}>
                             <div style={{ fontSize: '9px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>{kpi.label}</div>
