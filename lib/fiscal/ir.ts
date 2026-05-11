@@ -29,12 +29,12 @@ export function irBrut2025(rev: number, parts: number): number {
   return ir * parts
 }
 
-// IR après décote 2025 (Art.197 CGI)
-// Célibataire : d = 873 - 45.25% × IR brut (si IR brut ≤ 1 929 €)
-// Couple (marié/pacsé/veuf) : d = 1 444 - 45.25% × IR brut (si IR brut ≤ 3 191 €)
+// IR après décote 2025 (Art.197 CGI — LFI 2025)
+// Célibataire : d = 889 - 72.55% × IR brut (si IR brut < 1 873 €)
+// Couple (marié/pacsé/veuf) : d = 1 470 - 72.55% × IR brut (si IR brut < 3 097 €)
 export function irApresDecote(irBrut: number, couple: boolean = false): number {
-  const seuil = couple ? 1444 : 873
-  const d = Math.max(0, seuil - irBrut * 0.4525)
+  const seuil = couple ? 1470 : 889
+  const d = Math.max(0, seuil - irBrut * 0.7255)
   return Math.max(0, irBrut - d)
 }
 
