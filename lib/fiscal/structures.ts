@@ -22,12 +22,16 @@ const TAUX_COTIS_MICRO: Record<string, number> = {
 // mais ce sont de vrais décaissements qui réduisent le revenu disponible réel.
 export function calcMicro(p: SimParams): StructureResult | null {
   if (!p.abat) return null
-  const ben = p.ca * (1 - p.abat)   // base IR uniquement (abattement forfaitaire fiscal)
+  const ben = p.ca * (1 - p.abat)   // base IR forfaitaire (abattement fiscal)
   const tauxCotis = TAUX_COTIS_MICRO[p.secteur] ?? 0.211
   const cotis = p.ca * tauxCotis     // cotisations sur CA brut encaissé
-  const ir = irMarginal(ben, p.autresRev, p.partsBase, p.nbEnfants)
-  // Net disponible réel : on déduit les charges même si non déductibles fiscalement
-  const net = p.ca - p.charges - cotis - ir
+  // PER : plafond = 10% du bénéfice forfaitaire, plancher 4 399 €, plafond 35 194 € (2025)
+  const plafondPerMicro = Math.min(35194, Math.max(4399, ben * 0.10))
+  const perDed = Math.min(p.perMontant || 0, plafondPerMicro)
+  const baseIR = Math.max(0, ben - perDed)
+  const ir = irMarginal(baseIR, p.autresRev, p.partsBase, p.nbEnfants)
+  // Net disponible réel : on déduit charges, cotis, IR et versements PER (cash sorti)
+  const net = p.ca - p.charges - cotis - ir - perDed
   // Alerte si les charges réelles dépassent ce que l'abattement "couvre"
   const avantageAbattement = p.ca * p.abat
   const alerteChargesNonDeductibles = p.charges > 0 && p.charges > avantageAbattement
@@ -87,7 +91,7 @@ export function calcEIReel(p: SimParams): StructureResult {
   const perDed = Math.min(p.perMontant || 0, bNet * 0.10 + Math.max(0, bNet - PASS) * 0.15)
   const baseIR = Math.max(0, bNet - fraisPro - perDed)
   const ir = irMarginal(baseIR, p.autresRev, p.partsBase, p.nbEnfants)
-  const net = bNet - ir - (p.perMontant || 0)
+  const net = bNet - ir - perDed    // perDed = montant effectivement versé sur PER (plafonné)
   const tauxCotis = bNet > 0 ? Math.round(cotis / bNet * 100) : 0
   return {
     forme: 'EI (réel normal)',
@@ -143,7 +147,7 @@ export function calcEURL(p: SimParams): StructureResult {
     ? bestDiv(divBruts, baseIR, p.partsBase, p.nbEnfants, p.autresRev)
     : { tax: 0, meth: '—' }
   const netGerant = rem - irGerant
-  const net = netGerant + divBruts - tDiv
+  const net = netGerant + divBruts - tDiv - perDedEURL  // PER = cash versé sur compte retraite
   let strat: string
   if (!divBruts || divBruts < 300) {
     strat = `Rémunération ${fmt(rem)}/an — net après IR : ${fmt(netGerant)}`
@@ -198,14 +202,14 @@ function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
   const perDedSASU = Math.min(p.perMontant || 0, baseIR * 0.10)
   const irSal = irMarginal(Math.max(0, baseIR - perDedSASU), p.autresRev, p.partsBase, p.nbEnfants)
   const { tax: tDiv, meth } = bestDiv(div, baseIR, p.partsBase, p.nbEnfants, p.autresRev)
-  const net = netSal - irSal + div - tDiv
+  const net = netSal - irSal + div - tDiv - perDedSASU  // PER = cash versé sur compte retraite
   return {
     net, div, divNet: div > 0 ? div - tDiv : 0, is, netSal,
     irTotal: irSal + tDiv, irSalSeul: irSal, cotisTotal: pat + sal,
     cotisPatronales: pat, cotisSalariales: sal, resIS, meth, resNet,
     brutSal, netSalMois: netSal / 12,
     divNetMois: div > 0 ? (div - tDiv) / 12 : 0,
-    baseIR, abat10,
+    baseIR, abat10, perDedSASU,
   }
 }
 
