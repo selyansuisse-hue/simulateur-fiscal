@@ -1,6 +1,6 @@
 import { SimParams, StructureResult, SwotResult, Levier, PlanAction, ProjectionPoint, Priorite } from './types'
 import { irMarginal, tmiRate, bestDiv } from './ir'
-import { calcCotisTNS, cotisTNS_sur_revenu, calcIS, protTNS, protSalarie, PASS } from './cotisations'
+import { calcIS, protTNS, protSalarie, PASS } from './cotisations'
 
 function fmt(n: number): string {
   return Math.round(n).toLocaleString('fr-FR') + '\u00a0€'
@@ -115,29 +115,42 @@ export function calcEIReel(p: SimParams): StructureResult {
 }
 
 // EURL / SARL IS — Art.62 CGI + Art.154 bis CGI
-// Cotisations TNS calculées sur la rémunération versée
-// Bisection pour trouver rem max : rem + cotisSSI(rem) = capa
+// BUG 2 fix : même algorithme itératif que EI — cotisations sur rémunération NETTE
+//   Art.L.131-6 CSS : base cotis = revenu net (après cotisations)
+//   L'ancienne bisection calculait cotis sur la rémunération BRUTE → trop élevé
+// BUG 3 fix : réserves volontaires (stratActif='reserve') désormais appliquées
+//   La rémunération est calculée sur (capa − réserves), IS est calculé sur les réserves
 export function calcEURL(p: SimParams): StructureResult {
-  const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const capa = Math.max(0, p.ca - p.charges - p.amort)
-  let lo = 0, hi = capa, rem = capa * 0.6
-  for (let i = 0; i < 40; i++) {
-    const c = cotisTNS_sur_revenu(rem, pc)
-    const diff = (rem + c.total) - capa
-    if (Math.abs(diff) < 0.50) break
-    if (diff > 0) hi = rem; else lo = rem
-    rem = (lo + hi) / 2
+
+  // Réserves volontaires — résultat intentionnellement laissé en société (soumis à IS)
+  const reservesBrutes = p.stratActif === 'reserve'
+    ? Math.min(p.reserveVoulue || 0, capa)
+    : 0
+  const capaPourRem = Math.max(0, capa - reservesBrutes)
+
+  // Même itération que EI : rem = capaPourRem − cotisEI(rem)
+  // cotisEI est appelé sur rem (net), ce qui est correct Art.L.131-6 CSS
+  let rem = capaPourRem * 0.65
+  let cotis = cotisEI(rem)
+  for (let i = 0; i < 50; i++) {
+    const newRem = Math.max(0, capaPourRem - cotis)
+    if (Math.abs(newRem - rem) < 0.50) { rem = newRem; break }
+    rem = newRem
+    cotis = cotisEI(rem)
   }
   rem = Math.max(0, rem)
-  const cotisObj = cotisTNS_sur_revenu(rem, pc)
-  const cotis = cotisObj.total
-  const resIS = Math.max(0, capa - rem - cotis)
-  // Déficit antérieur : s'applique UNIQUEMENT sur la base IS (pas sur la capa de rémunération)
-  const resISforIS = Math.max(0, resIS - p.deficit)
+  cotis = Math.max(0, capaPourRem - rem)
+
+  // IS sur les réserves (déficit antérieur déduit)
+  const resISforIS = Math.max(0, reservesBrutes - p.deficit)
   const is = calcIS(resISforIS)
-  const resNet = resIS - is
+  const resNet = reservesBrutes - is
+
+  // Dividendes depuis les réserves, plafonnés à 10% du capital (au-delà → cotis SSI)
   const seuilCap = p.capital * 0.10
   const divBruts = (seuilCap > 300 && resNet > seuilCap) ? Math.min(resNet, seuilCap) : 0
+
   // BASE IR Art.62 : rémunération × 0.90 (abat 10%, plafonné 14 171 €)
   const abat10 = Math.min(rem * 0.10, 14171)
   const baseIR = rem - abat10
@@ -147,20 +160,24 @@ export function calcEURL(p: SimParams): StructureResult {
     ? bestDiv(divBruts, baseIR, p.partsBase, p.nbEnfants, p.autresRev)
     : { tax: 0, meth: '—' }
   const netGerant = rem - irGerant
-  const net = netGerant + divBruts - tDiv - perDedEURL  // PER = cash versé sur compte retraite
+  const net = netGerant + divBruts - tDiv - perDedEURL
+
   let strat: string
-  if (!divBruts || divBruts < 300) {
+  if (reservesBrutes > 0) {
+    strat = `Rémunération ${fmt(rem)}/an — réserves nettes ${fmt(resNet)} (IS ${fmt(is)})`
+  } else if (!divBruts || divBruts < 300) {
     strat = `Rémunération ${fmt(rem)}/an — net après IR : ${fmt(netGerant)}`
   } else {
     strat = `Rémunération ${fmt(rem)}/an + ${fmt(divBruts)} dividendes`
   }
+
   return {
     forme: 'EURL / SARL (IS)',
     netAnnuel: net,
     charges: cotis,
     ir: irGerant + tDiv,
     is,
-    ben: resIS,
+    ben: reservesBrutes,
     div: divBruts,
     divNet: divBruts > 0 ? divBruts - tDiv : 0,
     remBrute: rem,
