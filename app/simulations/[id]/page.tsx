@@ -118,78 +118,115 @@ export default async function SimulationDetailPage({ params }: { params: Promise
             <span style={{ color: '#64748b' }}>{s.name}</span>
           </div>
 
-          {/* ── HERO ─────────────────────────────────────────────── */}
+          {/* ── HERO — dense 2-column layout ───────────────────── */}
           <div style={{
-            background: 'linear-gradient(135deg, #0d1627 0%, #0d1f3c 100%)',
-            borderRadius: '20px', padding: '36px',
+            background: 'linear-gradient(135deg, #0a1628 0%, #0d1f3c 60%, #0f1535 100%)',
+            borderRadius: '16px', padding: '24px',
             marginBottom: '20px', position: 'relative', overflow: 'hidden',
-            border: '1px solid rgba(37,99,235,0.18)',
+            border: `1px solid ${bestBadge.color}33`,
           }}>
-            {/* Glow blob */}
+            {/* Glow */}
             <div style={{
-              position: 'absolute', width: '480px', height: '480px', borderRadius: '50%',
-              background: 'radial-gradient(circle,rgba(37,99,235,.18) 0%,transparent 65%)',
-              top: '-10rem', right: '-5rem', pointerEvents: 'none',
+              position: 'absolute', top: 0, right: 0,
+              width: '256px', height: '256px', borderRadius: '50%',
+              background: `radial-gradient(circle, ${bestBadge.color} 0%, transparent 70%)`,
+              transform: 'translate(30%, -30%)', opacity: 0.08, pointerEvents: 'none',
             }} />
             <div style={{ position: 'relative' }}>
-              {/* Eyebrow */}
-              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#60a5fa', marginBottom: '10px' }}>
-                Simulation · {date}
-              </div>
-              {/* Title */}
-              <h1 style={{ fontSize: '28px', fontWeight: 900, color: 'rgba(255,255,255,0.70)', margin: '0 0 16px', letterSpacing: '-0.02em' }}>
-                {s.name}
-              </h1>
-              {/* Net principal */}
-              <div style={{
-                fontSize: '64px', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1,
-                color: '#6ee7b7', textShadow: '0 0 30px rgba(16,185,129,0.4)',
-                fontFamily: 'ui-monospace,monospace',
-              }}>
-                {fmt(netAnnuel)}
-              </div>
-              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.40)', marginTop: '6px', marginBottom: '20px' }}>
-                {fmt(Math.round(netAnnuel / 12))}/mois · {s.best_forme}
-              </div>
-              {/* Badges */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-                <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '999px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#93c5fd' }}>
-                  TMI {s.tmi}%
-                </span>
-                <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.4)' }}>
-                  CA {fmt(s.ca)}
-                </span>
-                <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '999px', background: bestBadge.bg, border: `1px solid ${bestBadge.border}`, color: bestBadge.color }}>
-                  {s.best_forme}
-                </span>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: '999px', background: `${bestBadge.color}26`, border: `1px solid ${bestBadge.color}55`, color: bestBadge.color }}>
+                    ★ Structure recommandée
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#475569' }}>{date}</span>
+                </div>
                 {s.gain > 500 && (
-                  <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', color: '#6ee7b7' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, padding: '4px 12px', borderRadius: '999px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7', fontVariantNumeric: 'tabular-nums' }}>
                     +{fmt(s.gain)}/an vs moins favorable
                   </span>
                 )}
               </div>
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <a
-                  href={`/api/simulations/${s.id}/pdf`}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '6px',
-                    padding: '10px 20px', borderRadius: '10px', textDecoration: 'none',
-                    background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff',
-                    fontSize: '13px', fontWeight: 700,
-                    boxShadow: '0 4px 16px rgba(37,99,235,0.4)',
-                  }}
-                >
-                  📄 Rapport PDF
-                </a>
-                <Link href="/simulateur" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  padding: '10px 18px', borderRadius: '10px', textDecoration: 'none',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.55)', fontSize: '13px', fontWeight: 600,
-                }}>
-                  🔄 Modifier les paramètres
-                </Link>
+
+              {/* 2-column grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '32px' }}>
+
+                {/* Gauche — structure + montant + actions */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: bestBadge.color, flexShrink: 0 }} />
+                    <span style={{ color: '#fff', fontWeight: 700, fontSize: '20px', letterSpacing: '-0.01em' }}>{s.best_forme}</span>
+                  </div>
+                  <p style={{ color: '#64748b', fontSize: '12px', margin: '0 0 16px 18px' }}>{s.name}</p>
+
+                  <div style={{ fontSize: '48px', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#6ee7b7' }}>
+                    {fmt(netAnnuel)}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', marginBottom: '20px' }}>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>{fmt(Math.round(netAnnuel / 12))}</span>
+                    {' '}net/mois · après IR, cotisations &amp; IS
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <a href={`/api/simulations/${s.id}/pdf`} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      padding: '9px 18px', borderRadius: '10px', textDecoration: 'none',
+                      background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff',
+                      fontSize: '13px', fontWeight: 700, boxShadow: '0 4px 16px rgba(37,99,235,0.4)',
+                    }}>
+                      📄 Rapport PDF
+                    </a>
+                    <Link href="/simulateur" style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      padding: '9px 16px', borderRadius: '10px', textDecoration: 'none',
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                      color: 'rgba(255,255,255,0.5)', fontSize: '13px', fontWeight: 600,
+                    }}>
+                      ← Modifier
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Droite — tableau chiffres clés */}
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ color: '#64748b', fontSize: '13px' }}>CA simulé</span>
+                      <span style={{ color: '#fff', fontWeight: 600, fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>{fmt(s.ca)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ color: '#64748b', fontSize: '13px' }}>Tranche marginale d&apos;imposition</span>
+                      <span style={{ color: '#93c5fd', fontWeight: 600, fontSize: '13px' }}>TMI {s.tmi}%</span>
+                    </div>
+                    {best && best.charges != null && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>Cotisations sociales</span>
+                        <span style={{ color: '#f87171', fontWeight: 600, fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>−{fmt(best.charges)}</span>
+                      </div>
+                    )}
+                    {best && best.ir != null && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>Impôt sur le revenu</span>
+                        <span style={{ color: '#fbbf24', fontWeight: 600, fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>−{fmt(best.ir)}</span>
+                      </div>
+                    )}
+                    {best && best.is > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>IS société</span>
+                        <span style={{ color: '#a78bfa', fontWeight: 600, fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>−{fmt(best.is)}</span>
+                      </div>
+                    )}
+                  </div>
+                  {s.gain > 500 && (
+                    <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 600 }}>Gain vs pire structure</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ color: '#6ee7b7', fontWeight: 700, fontSize: '14px', fontVariantNumeric: 'tabular-nums' }}>+{fmt(s.gain)}/an</div>
+                        <div style={{ color: '#475569', fontSize: '11px', fontVariantNumeric: 'tabular-nums' }}>+{fmt(Math.round(s.gain / 12))}/mois</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
