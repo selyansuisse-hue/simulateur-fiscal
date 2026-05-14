@@ -13,7 +13,7 @@ import { SaveSimulationModal } from '@/components/simulateur/SaveSimulationModal
 function structureAccent(forme: string): string {
   if (forme.includes('SAS')) return '#8b5cf6'
   if (forme.includes('EURL') || forme.includes('SARL')) return '#3b82f6'
-  if (forme.includes('Micro')) return '#94a3b8'
+  if (forme.includes('Micro')) return '#10b981'
   return '#f59e0b'
 }
 
@@ -714,6 +714,7 @@ export function StepResultats() {
   const [isSaved, setIsSaved] = useState(false)
   const [savedSimId, setSavedSimId] = useState<string | null>(null)
   const [pendingPdf, setPendingPdf] = useState(false)
+  const [nomSimulation, setNomSimulation] = useState('')
 
   const handleSaved = (simId?: string) => {
     setIsSaved(true)
@@ -747,6 +748,13 @@ export function StepResultats() {
 
   if (!results) return null
   const { scored, best, tmi, gain } = results
+
+  // Nom auto-généré pour la simulation (ex: "EURL · 60 000€ CA · 14 mai")
+  const nomDefaut = useMemo(() => {
+    const bestShort = best.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')
+    const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+    return `${bestShort} · ${fmt(params.ca)} CA · ${date}`
+  }, [best.forme, params.ca])
 
   const { pourquoi, attention } = genAnalyse(best, params, tmi, gain, scored)
   const benBrut = Math.max(0, params.ca - params.charges - params.amort)
@@ -1370,6 +1378,52 @@ export function StepResultats() {
       </section>
 
       {/* ══════════════════════════════════════════════
+          6c. BANNIÈRE ENREGISTREMENT
+      ══════════════════════════════════════════════ */}
+      {!isSaved ? (
+        <div className="rounded-2xl p-6"
+          style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #0f1a2e 100%)', border: '1px solid rgba(59,130,246,0.25)' }}>
+          <div className="flex items-start justify-between gap-6 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-blue-400 text-lg">💾</span>
+                <span className="text-white font-bold text-lg">Sauvegardez vos résultats</span>
+              </div>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Retrouvez cette simulation dans &quot;Mes simulations&quot;. Comparez plusieurs scénarios et partagez votre analyse avec votre expert-comptable.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <input
+                value={nomSimulation || nomDefaut}
+                onChange={e => setNomSimulation(e.target.value)}
+                placeholder={nomDefaut}
+                className="bg-[#0a1628] border border-slate-600/50 text-white text-sm rounded-xl px-4 py-2.5 focus:border-blue-500/60 outline-none w-56 hidden sm:block"
+              />
+              <button
+                onClick={() => setShowSaveModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm whitespace-nowrap"
+              >
+                💾 Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl px-6 py-4 flex items-center gap-3"
+          style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+          <span className="text-emerald-400 text-xl">✓</span>
+          <div>
+            <div className="text-emerald-400 font-semibold text-sm">Simulation enregistrée</div>
+            <div className="text-slate-400 text-xs">
+              Retrouvez-la dans{' '}
+              <a href="/simulations" className="text-blue-400 hover:underline">Mes simulations →</a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
           6b. CE QU'UN EXPERT FAIT EN PLUS
       ══════════════════════════════════════════════ */}
       <section className="rounded-3xl border border-slate-700/50 bg-slate-950 p-8">
@@ -1455,12 +1509,6 @@ export function StepResultats() {
               className="bg-white/[0.08] border border-white/[0.15] text-white font-semibold px-7 py-3 rounded-xl text-center hover:bg-white/[0.12] transition text-sm">
               📄 Télécharger mon rapport PDF
             </button>
-            {!isSaved && (
-              <button onClick={() => setShowSaveModal(true)}
-                className="text-slate-500 hover:text-slate-300 text-xs text-center transition py-1">
-                💾 Enregistrer cette simulation
-              </button>
-            )}
           </div>
         </div>
         <div className="border-t border-white/[0.05] px-8 py-4 flex items-center justify-between flex-wrap gap-4">
@@ -1504,7 +1552,7 @@ export function StepResultats() {
       `}</style>
 
       {showSaveModal && (
-        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={handleSaved} results={results} params={params} tmi={tmi} />
+        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={handleSaved} results={results} params={params} tmi={tmi} initialName={nomSimulation || nomDefaut} />
       )}
     </div>
   )

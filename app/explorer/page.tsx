@@ -15,19 +15,21 @@ interface ExplorerParams {
   nbEnfants: number; autresRev: number
   strategie: 'max' | 'reserve'; reserveVoulue: number
   perMontant: number; secteur: Secteur
+  objectif: 'maximiser' | 'equilibre' | 'protection'
 }
 
 const DEFAULT: ExplorerParams = {
   ca: 80000, charges: 10000, amort: 2000, capital: 10000,
   situationFam: 'marie', nbEnfants: 0, autresRev: 0,
   strategie: 'max', reserveVoulue: 0, perMontant: 0, secteur: 'services_bic',
+  objectif: 'maximiser',
 }
 
 const STRUCT_COLORS: Record<string, string> = {
   'EURL / SARL (IS)': '#3B82F6',
   'SAS / SASU': '#8B5CF6',
   'EI (réel normal)': '#F59E0B',
-  'Micro-entreprise': '#94A3B8',
+  'Micro-entreprise': '#10B981',
 }
 const STRUCT_REM: Record<string, string> = {
   'SAS / SASU': 'Assimilé salarié — salaire via fiche de paie. Charges patronales + salariales ~75% du brut. Pas de contrat Madelin possible. Dividendes soumis au PFU 30%.',
@@ -67,7 +69,8 @@ function buildSimParams(p: ExplorerParams): SimParams {
     remNetAnn: Math.max(0, p.ca - p.charges - p.amort) * 0.6,
     partsBase, nbEnfants: p.nbEnfants,
     parts: calcPartsTotal(partsBase, p.nbEnfants),
-    autresRev: p.autresRev, prevoy: 'min', priorite: 'equilibre',
+    autresRev: p.autresRev, prevoy: 'min',
+    priorite: p.objectif === 'maximiser' ? 'net' : p.objectif === 'protection' ? 'protection' : 'equilibre',
     situation: 'creation', secteur: p.secteur, formeActuelle: 'none',
     reserves: 0, remActuelle: 0, stratActif: p.strategie,
     reserveVoulue: p.reserveVoulue, stratRaison: 'invest',
@@ -492,7 +495,7 @@ export default function ExplorerPage() {
     'EURL / SARL (IS)': { bg: 'rgba(59,130,246,0.10)', border: 'rgba(59,130,246,0.30)' },
     'SAS / SASU': { bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.30)' },
     'EI (réel normal)': { bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' },
-    'Micro-entreprise': { bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.25)' },
+    'Micro-entreprise': { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.25)' },
   }
   const cs4 = structBg[activeResult.forme] || { bg: '#0d1a2e', border: 'rgba(30,58,95,0.5)' }
   const tmiColor = tmi <= 11 ? '#10b981' : tmi <= 30 ? '#f59e0b' : tmi <= 41 ? '#f97316' : '#ef4444'
@@ -729,6 +732,36 @@ export default function ExplorerPage() {
                         IR direct
                       </div>
                     )}
+                  </div>
+
+                  {/* ── OBJECTIF DE RÉMUNÉRATION ── */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: activeColor, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '3px', height: '14px', background: activeColor, borderRadius: '2px', flexShrink: 0 }} />
+                      Objectif de rémunération
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {([
+                        { id: 'maximiser', icon: '💰', label: 'Maximiser le net', desc: 'Priorité revenu disponible' },
+                        { id: 'equilibre',  icon: '⚖️', label: 'Équilibre', desc: 'Revenu + réserves société' },
+                        { id: 'protection', icon: '🛡',  label: 'Protection', desc: 'Couverture sociale max' },
+                      ] as const).map(opt => {
+                        const active = params.objectif === opt.id
+                        return (
+                          <button key={opt.id} onClick={() => set('objectif', opt.id)} style={{
+                            padding: '12px 10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'left' as const,
+                            border: `1.5px solid ${active ? activeColor + '80' : 'rgba(30,58,95,0.5)'}`,
+                            background: active ? activeColor + '14' : 'rgba(8,16,30,0.7)',
+                            transition: 'all 150ms',
+                            boxShadow: active ? `0 0 12px ${activeColor}22` : 'none',
+                          }}>
+                            <div style={{ fontSize: '18px', marginBottom: '6px' }}>{opt.icon}</div>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: active ? activeColor : '#e2e8f0', marginBottom: '3px', lineHeight: 1.3 }}>{opt.label}</div>
+                            <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4 }}>{opt.desc}</div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </>
               )}

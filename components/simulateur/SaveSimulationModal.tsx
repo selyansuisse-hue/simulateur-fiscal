@@ -13,10 +13,12 @@ interface Props {
   results: { scored: StructureResult[]; best: StructureResult; tmi: number; gain: number }
   params: SimParams
   tmi: number
+  initialName?: string
 }
 
-export function SaveSimulationModal({ onClose, onSaved, results, params, tmi }: Props) {
+export function SaveSimulationModal({ onClose, onSaved, results, params, tmi, initialName }: Props) {
   const [name, setName] = useState(
+    initialName ||
     `${params.situation === 'creation' ? 'Création' : params.situation === 'existant' ? 'Existant' : 'Changement'} ${Math.round(params.ca / 1000)}k€ — ${results.best.forme}`
   )
   const [loading, setLoading] = useState(false)
