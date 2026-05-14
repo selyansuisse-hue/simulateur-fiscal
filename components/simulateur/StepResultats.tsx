@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useSimulateur } from '@/hooks/useSimulateur'
 import { fmt } from '@/lib/utils'
 import { tmiRate, calcPartsTotal } from '@/lib/fiscal/ir'
@@ -286,7 +286,7 @@ function LevierCard({ icon, titre, detail, gainDefault, explication, inputLabel,
 /* ─────────────────────────────────────────────────────────
    getStructureDesc — description dynamique pour le hero
 ───────────────────────────────────────────────────────── */
-function getStructureDesc(forme: string): { regime: string; bullets: string[]; protBadge: string } {
+function getStructureDesc(forme: string, r?: StructureResult): { regime: string; bullets: string[]; protBadge: string } {
   if (forme === 'SAS / SASU') return {
     regime: 'Président assimilé-salarié + dividendes',
     bullets: [
@@ -296,14 +296,17 @@ function getStructureDesc(forme: string): { regime: string; bullets: string[]; p
     ],
     protBadge: 'Régime général — meilleure couverture',
   }
-  if (forme === 'EURL / SARL (IS)') return {
-    regime: 'Gérant TNS + dividendes IS',
-    bullets: [
-      '✓ Cotisations TNS (~35% sur rémunération)',
-      '✓ IS 15% jusqu\'à 42 500 € de bénéfice',
-      '✓ Dividendes > 10% capital soumis TNS',
-    ],
-    protBadge: 'Régime SSI — Niveau moyen',
+  if (forme === 'EURL / SARL (IS)') {
+    const taux = r && r.remBrute > 0 ? Math.round(r.charges / r.remBrute * 100) : 42
+    return {
+      regime: 'Gérant TNS + dividendes IS',
+      bullets: [
+        `✓ Cotisations TNS (~${taux}% sur rémunération)`,
+        '✓ IS 15% jusqu\'à 42 500 € de bénéfice',
+        '✓ Dividendes > 10% capital soumis TNS',
+      ],
+      protBadge: 'Régime SSI — Niveau moyen',
+    }
   }
   if (forme === 'EI (réel normal)') return {
     regime: 'Entrepreneur individuel au réel',
@@ -736,7 +739,6 @@ export function StepResultats() {
   const [isSaved, setIsSaved] = useState(false)
   const [savedSimId, setSavedSimId] = useState<string | null>(null)
   const [pendingPdf, setPendingPdf] = useState(false)
-  const [nomSimulation, setNomSimulation] = useState('')
 
   const handleSaved = (simId?: string) => {
     setIsSaved(true)
@@ -798,7 +800,7 @@ export function StepResultats() {
   const count = scored.length
   const cardsGrid =
     count >= 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
-    count === 3 ? 'grid-cols-1 md:grid-cols-3 max-w-4xl mx-auto' :
+    count === 3 ? 'grid-cols-1 md:grid-cols-3 max-w-5xl mx-auto' :
     'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
@@ -865,7 +867,7 @@ export function StepResultats() {
 
             {/* Type de rémunération + bullets dynamiques */}
             {(() => {
-              const desc = getStructureDesc(best.forme)
+              const desc = getStructureDesc(best.forme, best)
               return (
                 <div className="mt-2 mb-5">
                   <p className="text-[13px] text-slate-400 mb-3">{desc.regime}</p>
@@ -1010,6 +1012,18 @@ export function StepResultats() {
           ))}
         </div>
 
+        {/* Note Micro exclue */}
+        {!scored.some(r => r.forme.includes('Micro')) && (
+          <div className="mt-5 rounded-xl border border-slate-700/40 bg-slate-900/40 px-5 py-3 flex items-center gap-3 text-sm text-slate-400">
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">ℹ</span>
+            <span>
+              <strong className="text-slate-300">Micro-entreprise non analysée</strong> — votre CA de {fmt(params.ca)} dépasse
+              le plafond {params.secteur === 'commerce' ? 'commerce (203 100 €)' : 'services (83 600 €)'} 2026.
+              Les 3 structures ci-dessus sont les seules accessibles.
+            </span>
+          </div>
+        )}
+
         {/* Insights analytiques */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
           {buildAnalysis(scored, params, tmi, gain).map(item => (
@@ -1031,87 +1045,6 @@ export function StepResultats() {
           ))}
         </div>
       </section>
-
-      {/* ══════════════════════════════════════════════
-          2b. COÛT DE L'INACTION
-      ══════════════════════════════════════════════ */}
-      {showInaction && perteParAn > 500 ? (
-        <section className="rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(127,29,29,0.25) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(239,68,68,0.3)' }}>
-          <div className="p-8">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-red-400 mb-3">
-                <span className="h-px w-5 bg-red-500/60" />⚠ Coût de l&apos;inaction<span className="h-px w-5 bg-red-500/60" />
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">
-                Chaque mois sans optimisation<span className="text-red-400"> vous coûte</span>
-              </h2>
-              <p className="text-slate-400 text-[13px]">
-                Comparé à votre structure actuelle ({formeActuelleLabel || 'structure existante'})
-              </p>
-            </div>
-
-            {/* Compteur principal */}
-            <div className="text-center my-8">
-              <div
-                className="text-[5rem] sm:text-[6rem] font-black text-red-400 leading-none tabular-nums"
-                style={{ textShadow: '0 0 30px rgba(239,68,68,0.5)' }}
-              >
-                -{fmt(perteParMois)}
-              </div>
-              <div className="text-slate-400 text-base mt-2">par mois laissé sur la table</div>
-            </div>
-
-            {/* Timeline pertes */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              {[
-                { label: 'Dans 3 mois', val: perteParMois * 3, highlight: false },
-                { label: 'Dans 1 an', val: perteParAn, highlight: true },
-                { label: 'Dans 5 ans', val: perteParAn * 5, highlight: false },
-              ].map(item => (
-                <div key={item.label} className="rounded-xl p-4 text-center"
-                  style={{ background: 'rgba(15,23,42,0.7)', border: item.highlight ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(51,65,85,0.5)' }}>
-                  <div className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold mb-2">{item.label}</div>
-                  <div className={`font-black tabular-nums ${item.highlight ? 'text-2xl text-red-400' : 'text-xl text-red-400/80'}`}>
-                    -{fmt(item.val)}
-                  </div>
-                  {item.highlight && params.ca > 0 && (
-                    <div className="text-red-500/70 text-[10px] mt-1">
-                      soit {Math.round(item.val / (params.ca / 12))} mois de CA nets perdus
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <p className="text-slate-400 text-center text-[13px] leading-relaxed">
-              Ces pertes sont évitables. Un changement de structure peut se faire en 3 à 6 semaines avec le bon accompagnement.
-            </p>
-          </div>
-        </section>
-      ) : showInaction && perteParAn <= 500 ? (
-        /* Structure actuelle déjà optimale */
-        <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.04] p-6 text-center">
-          <div className="text-2xl mb-3">🎯</div>
-          <div className="font-bold text-emerald-300 text-[15px] mb-1">Votre structure actuelle est déjà optimale</div>
-          <p className="text-slate-400 text-[13px]">
-            Les gains d&apos;un changement seraient marginaux. Un expert peut valider ce constat et identifier d&apos;autres leviers fiscaux.
-          </p>
-        </section>
-      ) : (
-        /* Création */
-        <section className="rounded-2xl border border-blue-500/25 bg-blue-500/[0.04] p-6">
-          <div className="flex items-start gap-4">
-            <div className="text-3xl flex-shrink-0">🚀</div>
-            <div>
-              <div className="font-bold text-blue-300 text-[15px] mb-1">Vous partez sur de bonnes bases</div>
-              <p className="text-slate-400 text-[13px] leading-relaxed">
-                Vous choisissez la bonne structure dès le départ — c&apos;est exactement le bon moment pour se faire accompagner.
-                Un expert sécurise votre création et met en place les leviers fiscaux dès J+1.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ══════════════════════════════════════════════
           3. SCORE MULTICRITÈRE
@@ -1235,6 +1168,48 @@ export function StepResultats() {
           ))}
         </div>
       </section>
+
+      {/* ══════════════════════════════════════════════
+          3b. COÛT DE L'INACTION
+      ══════════════════════════════════════════════ */}
+      {showInaction && perteParAn > 500 ? (
+        <section className="rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(127,29,29,0.25) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <div className="p-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-red-400 mb-3">
+                <span className="h-px w-5 bg-red-500/60" />⚠ Coût de l&apos;inaction<span className="h-px w-5 bg-red-500/60" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">
+                Chaque mois sans optimisation<span className="text-red-400"> vous coûte</span>
+              </h2>
+              <p className="text-slate-400 text-[13px]">
+                Comparé à votre structure actuelle ({formeActuelleLabel || 'structure existante'})
+              </p>
+            </div>
+            <div className="text-center my-8">
+              <div
+                className="text-[5rem] sm:text-[6rem] font-black text-red-400 leading-none tabular-nums"
+                style={{ textShadow: '0 0 30px rgba(239,68,68,0.5)' }}
+              >
+                -{fmt(perteParMois)}
+              </div>
+              <div className="text-slate-400 text-base mt-2">par mois laissé sur la table</div>
+              <div className="text-slate-500 text-sm mt-1 tabular-nums">{fmt(perteParAn)}/an · {fmt(perteParAn * 5)} sur 5 ans</div>
+            </div>
+            <p className="text-slate-400 text-center text-[13px] leading-relaxed">
+              Ces pertes sont évitables. Un changement de structure peut se faire en 3 à 6 semaines avec le bon accompagnement.
+            </p>
+          </div>
+        </section>
+      ) : showInaction && perteParAn <= 500 ? (
+        <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.04] p-6 text-center">
+          <div className="text-2xl mb-3">🎯</div>
+          <div className="font-bold text-emerald-300 text-[15px] mb-1">Votre structure actuelle est déjà optimale</div>
+          <p className="text-slate-400 text-[13px]">
+            Les gains d&apos;un changement seraient marginaux. Un expert peut valider ce constat et identifier d&apos;autres leviers fiscaux.
+          </p>
+        </section>
+      ) : null}
 
       {/* ══════════════════════════════════════════════
           4. PROTECTION SOCIALE
@@ -1400,52 +1375,6 @@ export function StepResultats() {
       </section>
 
       {/* ══════════════════════════════════════════════
-          6c. BANNIÈRE ENREGISTREMENT
-      ══════════════════════════════════════════════ */}
-      {!isSaved ? (
-        <div className="rounded-2xl p-6"
-          style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #0f1a2e 100%)', border: '1px solid rgba(59,130,246,0.25)' }}>
-          <div className="flex items-start justify-between gap-6 flex-wrap">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-blue-400 text-lg">💾</span>
-                <span className="text-white font-bold text-lg">Sauvegardez vos résultats</span>
-              </div>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                Retrouvez cette simulation dans &quot;Mes simulations&quot;. Comparez plusieurs scénarios et partagez votre analyse avec votre expert-comptable.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <input
-                value={nomSimulation || nomDefaut}
-                onChange={e => setNomSimulation(e.target.value)}
-                placeholder={nomDefaut}
-                className="bg-[#0a1628] border border-slate-600/50 text-white text-sm rounded-xl px-4 py-2.5 focus:border-blue-500/60 outline-none w-56 hidden sm:block"
-              />
-              <button
-                onClick={() => setShowSaveModal(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm whitespace-nowrap"
-              >
-                💾 Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl px-6 py-4 flex items-center gap-3"
-          style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
-          <span className="text-emerald-400 text-xl">✓</span>
-          <div>
-            <div className="text-emerald-400 font-semibold text-sm">Simulation enregistrée</div>
-            <div className="text-slate-400 text-xs">
-              Retrouvez-la dans{' '}
-              <a href="/simulations" className="text-blue-400 hover:underline">Mes simulations →</a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════
           6b. CE QU'UN EXPERT FAIT EN PLUS
       ══════════════════════════════════════════════ */}
       <section className="rounded-3xl border border-slate-700/50 bg-slate-950 p-8">
@@ -1531,6 +1460,19 @@ export function StepResultats() {
               className="bg-white/[0.08] border border-white/[0.15] text-white font-semibold px-7 py-3 rounded-xl text-center hover:bg-white/[0.12] transition text-sm">
               📄 Télécharger mon rapport PDF
             </button>
+            {!isSaved ? (
+              <button
+                onClick={() => setShowSaveModal(true)}
+                className="text-slate-400 hover:text-slate-200 text-sm font-medium text-center transition-colors"
+              >
+                💾 Enregistrer cette simulation
+              </button>
+            ) : (
+              <span className="text-emerald-400 text-xs text-center">
+                ✓ Enregistrée ·{' '}
+                <a href="/simulations" className="underline hover:text-emerald-300">Mes simulations →</a>
+              </span>
+            )}
           </div>
         </div>
         <div className="border-t border-white/[0.05] px-8 py-4 flex items-center justify-between flex-wrap gap-4">
@@ -1574,7 +1516,7 @@ export function StepResultats() {
       `}</style>
 
       {showSaveModal && (
-        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={handleSaved} results={results} params={params} tmi={tmi} initialName={nomSimulation || nomDefaut} />
+        <SaveSimulationModal onClose={() => setShowSaveModal(false)} onSaved={handleSaved} results={results} params={params} tmi={tmi} initialName={nomDefaut} />
       )}
     </div>
   )

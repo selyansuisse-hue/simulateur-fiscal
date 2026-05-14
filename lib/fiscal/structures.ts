@@ -302,13 +302,14 @@ export function scoreMulti(res: StructureResult[], priorite: Priorite): Structur
     'EURL / SARL (IS)': { s: 2, f: 4 },
     'SAS / SASU':       { s: 2, f: 5 },
   }
-  // Protection score 1/3/5 → normalisé 0-1 (divRatio > 60% pénalise la protection réelle)
-  const protRaw = (r: StructureResult) => {
-    const q = r.prot?.qual
-    if (q === 'bon') return r.ratioDivPct > 60 ? 3 : 5
-    if (q === 'moyen') return 3
-    return 1
+  // Protection : scores fixes par structure (sur 12 pts max), indépendants du niveau de rémunération
+  const PROT_FIXED: Record<string, number> = {
+    'Micro-entreprise': 2,
+    'EI (réel normal)': 6,
+    'EURL / SARL (IS)': 7,
+    'SAS / SASU':       10,
   }
+  const protRaw = (r: StructureResult) => PROT_FIXED[r.forme] ?? 5
 
   const nets = res.map(r => r.netAnnuel)
   const mn = Math.min(...nets), mx = Math.max(...nets)
@@ -319,7 +320,7 @@ export function scoreMulti(res: StructureResult[], priorite: Priorite): Structur
     // Normalisation 0→1 pour chaque critère
     const netNorm   = mx === mn ? 1 : (r.netAnnuel - mn) / (mx - mn)
     const flexNorm  = (b.f - 1) / 4   // SC flex : 1-5 → 0-1
-    const protNorm  = (prot - 1) / 4  // prot : 1/3/5 → 0/0.5/1
+    const protNorm  = prot / 12        // Sur 12 points max → 0-1
     const adminNorm = (b.s - 1) / 4   // SC simp : 1-5 → 0-1
 
     const netScore   = Math.round(netNorm   * wN)
