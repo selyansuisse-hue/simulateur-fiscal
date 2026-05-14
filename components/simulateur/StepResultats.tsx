@@ -804,6 +804,7 @@ export function StepResultats() {
     'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto'
 
   const hasTNS = scored.some(r => r.forme === 'EI (réel normal)' || r.forme === 'EURL / SARL (IS)')
+  const tauxEffBest = params.ca > 0 ? Math.round((best.ir + best.charges) / params.ca * 100) : 0
   const bestAccent = structureAccent(best.forme)
 
   // ── Coût de l'inaction ──
@@ -827,148 +828,173 @@ export function StepResultats() {
     <div className="animate-stepIn pb-8 space-y-6">
 
       {/* ══════════════════════════════════════════════
-          1. HERO — dense 2-column layout
+          1. HERO — recommend-bg style
       ══════════════════════════════════════════════ */}
-      {(() => {
-        const typeStructure =
-          best.forme.includes('SAS') ? 'Président assimilé-salarié · dividendes sans cotisations sociales' :
-          best.forme.includes('EURL') ? 'Gérant majoritaire · IS 15% jusqu\'à 42 500 €' :
-          best.forme.includes('Micro') ? 'Auto-entrepreneur · abattement forfaitaire' :
-          'Entrepreneur individuel · déduction charges réelles'
-        const cotisLabel =
-          best.forme.includes('SAS') ? 'Charges patronales + salariales' :
-          best.forme.includes('Micro') ? 'Cotisations forfaitaires sur CA' :
-          'Cotisations TNS (SSI) sur revenu net'
-        const coutTotal = best.charges + best.ir + (best.is || 0)
-        const coutPct = params.ca > 0 ? Math.round(coutTotal / params.ca * 100) : 0
-        return (
-          <div
-            className="rounded-2xl p-6 relative overflow-hidden"
-            style={{
-              background: 'linear-gradient(135deg, #0a1628 0%, #0d1f3c 60%, #0f1535 100%)',
-              border: `1px solid ${bestAccent}33`,
-            }}
-          >
-            {/* Glow décoratif */}
-            <div
-              className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none"
-              style={{
-                background: `radial-gradient(circle, ${bestAccent} 0%, transparent 70%)`,
-                transform: 'translate(30%, -30%)', opacity: 0.08,
-              }}
-            />
-            <div style={{ position: 'relative' }}>
-              {/* Header — badge + gain */}
-              <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
-                <div className="flex items-center gap-2">
+      <div
+        className="rounded-3xl border border-slate-700/60 relative overflow-hidden"
+        style={{
+          background: `
+            radial-gradient(700px 280px at 80% 0%, rgba(59,130,246,0.18), transparent 70%),
+            radial-gradient(600px 240px at 0% 100%, rgba(34,197,94,0.10), transparent 70%),
+            linear-gradient(180deg, #0f172a, #0b1426)
+          `,
+        }}
+      >
+        {/* Color top accent strip */}
+        <div
+          className="absolute top-0 left-0 right-0 h-1"
+          style={{ background: `linear-gradient(90deg, transparent, ${bestAccent}, transparent)` }}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8 p-8 sm:p-10 items-start">
+
+          {/* Left: amount + gain */}
+          <div>
+            <div className="flex items-center gap-2 mb-5">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em]"
+                style={{ background: `${bestAccent}26`, color: bestAccent, border: `1px solid ${bestAccent}55` }}
+              >
+                ★ Structure recommandée
+              </span>
+              <span className="text-slate-500 text-xs">·</span>
+              <span className="text-slate-400 text-xs">Rang #1 sur {count}</span>
+            </div>
+
+            <div className="flex items-baseline gap-3 mb-2">
+              <span className="text-2xl font-bold text-white tracking-tight">{best.forme}</span>
+            </div>
+
+            {/* Type de rémunération + bullets dynamiques */}
+            {(() => {
+              const desc = getStructureDesc(best.forme, best)
+              return (
+                <div className="mt-2 mb-5">
+                  <p className="text-[13px] text-slate-400 mb-3">{desc.regime}</p>
+                  <div className="flex flex-col gap-1.5 mb-3">
+                    {desc.bullets.map((b, i) => (
+                      <div key={i} className="text-[12px] text-slate-400 flex items-center gap-2">
+                        <span style={{ color: bestAccent }}>{b.slice(0, 1)}</span>
+                        <span>{b.slice(2)}</span>
+                      </div>
+                    ))}
+                  </div>
                   <span
-                    className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide"
-                    style={{ background: `${bestAccent}26`, color: bestAccent, border: `1px solid ${bestAccent}55` }}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: `${bestAccent}15`, border: `1px solid ${bestAccent}40`, color: bestAccent }}
                   >
-                    ★ Structure recommandée
+                    🛡 {desc.protBadge}
                   </span>
-                  <span className="text-slate-500 text-xs">Rang #1 sur {count}</span>
                 </div>
-                {gain > 500 && (
-                  <span className="text-emerald-400 text-xs font-semibold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 tabular-nums">
-                    +{fmt(gain)}/an vs moins favorable
-                  </span>
-                )}
+              )
+            })()}
+
+            <div className="mt-2 mb-3">
+              <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-1.5 font-semibold">
+                Revenu net après tout
               </div>
+              <div
+                className="text-6xl sm:text-7xl font-black text-white tabular-nums tracking-tighter leading-none"
+                style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+              >
+                {fmt(best.netAnnuel)}
+              </div>
+              <div className="mt-2 text-sm text-slate-400 font-mono">
+                {fmt(Math.round(best.netAnnuel / 12))}/mois · après IR, cotisations &amp; IS
+              </div>
+            </div>
 
-              {/* Corps — 2 colonnes */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            {gain > 500 && (
+              <div className="mt-6 inline-flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 pl-3 pr-4 py-2.5">
+                <div className="flex flex-col">
+                  <span className="text-emerald-300 font-bold text-lg leading-none tabular-nums" style={{ whiteSpace: 'nowrap' }}>
+                    +{fmt(gain)}/an
+                  </span>
+                  <span className="text-emerald-400/70 text-[11px] uppercase tracking-wider mt-0.5">
+                    vs structure la moins avantageuse
+                  </span>
+                </div>
+                <span className="hidden sm:flex items-center text-emerald-400/60 text-xs font-mono ml-2 pl-3 border-l border-emerald-500/20">
+                  +{fmt(Math.round(gain / 12))}/mois
+                </span>
+              </div>
+            )}
 
-                {/* Colonne gauche — structure + montant + actions */}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: bestAccent }} />
-                    <span className="text-white font-bold text-xl tracking-tight">{best.forme}</span>
+            {/* CA decomposition pills */}
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: 'Revenu net', val: best.netAnnuel, color: bestAccent },
+                { label: 'Charges soc.', val: best.charges, color: '#f87171' },
+                { label: 'IR estimé', val: best.ir, color: '#fb923c' },
+                { label: 'IS estimé', val: best.is || 0, color: '#818cf8' },
+              ].map(item => (
+                <div key={item.label} className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: item.color }} />
+                    <div className="text-[10px] text-slate-500">{item.label}</div>
                   </div>
-                  <p className="text-slate-500 text-sm mb-5 ml-[18px]">{typeStructure}</p>
-
-                  <div className="mb-1">
-                    <span
-                      className="font-black tabular-nums"
-                      style={{ fontSize: '3rem', lineHeight: 1.1, letterSpacing: '-0.03em', color: '#6ee7b7' }}
-                    >
-                      {fmt(best.netAnnuel)}
-                    </span>
+                  <div className="text-sm font-bold text-slate-200" style={{ whiteSpace: 'nowrap' }}>
+                    {fmt(Math.round(item.val))}
                   </div>
-                  <div className="text-slate-400 text-sm mb-6">
-                    <span className="text-white font-semibold tabular-nums">{fmt(Math.round(best.netAnnuel / 12))}</span>
-                    {' '}net/mois · après IR, cotisations &amp; IS
-                  </div>
-
-                  <div className="flex gap-2.5 flex-wrap">
-                    <button
-                      onClick={handlePDF}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition"
-                    >
-                      📄 Rapport PDF
-                    </button>
-                    <button
-                      onClick={prevStep}
-                      className="flex items-center gap-2 text-slate-400 hover:text-slate-200 font-medium px-4 py-2.5 rounded-xl text-sm transition border border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
-                    >
-                      ← Modifier
-                    </button>
-                    {!isSaved ? (
-                      <button
-                        onClick={() => setShowSaveModal(true)}
-                        className="flex items-center gap-2 text-slate-400 hover:text-slate-200 font-medium px-4 py-2.5 rounded-xl text-sm transition border border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
-                      >
-                        💾 Enregistrer
-                      </button>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium px-3 py-2.5">
-                        ✓ Enregistrée
-                      </span>
-                    )}
+                  <div className="mt-1.5 h-1 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(100, params.ca > 0 ? item.val / params.ca * 100 : 0)}%`,
+                        background: item.color,
+                        opacity: 0.8,
+                      }}
+                    />
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                {/* Colonne droite — tableau chiffres clés */}
-                <div className="flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-center py-2.5 border-b border-white/[0.06]">
-                      <span className="text-slate-400 text-sm">CA simulé</span>
-                      <span className="text-white font-semibold text-sm tabular-nums">{fmt(params.ca)}</span>
-                    </div>
-                    <div className="flex justify-between items-start py-2.5 border-b border-white/[0.06] gap-4">
-                      <div>
-                        <div className="text-slate-400 text-sm">Cotisations sociales</div>
-                        <div className="text-slate-600 text-xs mt-0.5">{cotisLabel}</div>
-                      </div>
-                      <span className="text-rose-400 font-semibold text-sm tabular-nums shrink-0">−{fmt(best.charges)}</span>
-                    </div>
-                    <div className="flex justify-between items-start py-2.5 border-b border-white/[0.06] gap-4">
-                      <div>
-                        <div className="text-slate-400 text-sm">Impôt sur le revenu</div>
-                        <div className="text-slate-600 text-xs mt-0.5">TMI {tmi}% · {params.parts} part{params.parts > 1 ? 's' : ''}</div>
-                      </div>
-                      <span className="text-amber-400 font-semibold text-sm tabular-nums shrink-0">−{fmt(best.ir)}</span>
-                    </div>
-                    {best.is > 0 && (
-                      <div className="flex justify-between items-center py-2.5 border-b border-white/[0.06]">
-                        <span className="text-slate-400 text-sm">IS société</span>
-                        <span className="text-violet-400 font-semibold text-sm tabular-nums">−{fmt(best.is)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3 bg-white/[0.03] rounded-xl px-4 py-3 flex justify-between items-center">
-                    <span className="text-slate-300 text-sm font-semibold">Coût fiscal total</span>
-                    <div className="text-right">
-                      <div className="text-white font-bold text-sm tabular-nums">−{fmt(coutTotal)}</div>
-                      <div className="text-slate-500 text-xs">{coutPct}% du CA</div>
-                    </div>
-                  </div>
+          {/* Right: score ring + bars + KPI */}
+          <div className="flex flex-col gap-5">
+            <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-5 backdrop-blur">
+              <div className="flex items-start gap-5">
+                <CircularScore score={best.scoreTotal} color={bestAccent} size={112} strokeWidth={10} />
+                <div className="flex-1 min-w-0 space-y-2.5">
+                  {best.scoreBreakdown ? (
+                    <>
+                      <ScoreDimBar label="NET"   score={best.scoreBreakdown.netScore}   max={best.scoreBreakdown.netMax}   color={bestAccent} />
+                      <ScoreDimBar label="FLEX"  score={best.scoreBreakdown.flexScore}  max={best.scoreBreakdown.flexMax}  color={bestAccent} />
+                      <ScoreDimBar label="PROT"  score={best.scoreBreakdown.protScore}  max={best.scoreBreakdown.protMax}  color={bestAccent} />
+                      <ScoreDimBar label="ADMIN" score={best.scoreBreakdown.adminScore} max={best.scoreBreakdown.adminMax} color={bestAccent} />
+                    </>
+                  ) : (
+                    <div className="text-sm text-slate-400">Score {best.scoreTotal}/100</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-3">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">TMI</div>
+                <div
+                  className="text-lg font-bold mt-1 tabular-nums"
+                  style={{ color: tmi <= 11 ? '#34d399' : tmi <= 30 ? '#fbbf24' : '#f87171' }}
+                >
+                  {tmi}%
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-3">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Taux eff.</div>
+                <div className="text-lg font-bold text-white mt-1 tabular-nums">{tauxEffBest}%</div>
+              </div>
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-3">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Net/mois</div>
+                <div className="text-sm font-bold text-white mt-1 tabular-nums" style={{ whiteSpace: 'nowrap' }}>
+                  {fmt(Math.round(best.netAnnuel / 12))}
                 </div>
               </div>
             </div>
           </div>
-        )
-      })()}
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════════════
           2. COMPARAISON 4 STRUCTURES
