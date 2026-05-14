@@ -565,6 +565,28 @@ function StructureCard({ r, rank, params, gain, bestNetAnnuel }: {
             −{fmt(diff)}/an vs recommandée
           </div>
         )}
+        {r.forme.includes('Micro') && isReco && params.charges > 0 && (() => {
+          const abat = params.abat || 0.5
+          const avantageAbat = params.ca * abat
+          const avantageNet = Math.max(0, avantageAbat - params.charges)
+          const seuilCharges = Math.round(params.ca * abat * 0.65 / 1000) * 1000
+          return (
+            <div className="mt-3 rounded-xl px-4 py-3 text-xs text-slate-300 leading-relaxed"
+              style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.18)' }}>
+              <span className="font-semibold text-white">
+                💡 Pourquoi la Micro gagne malgré vos charges ?
+              </span>
+              <br />
+              L&apos;abattement forfaitaire ({Math.round(abat * 100)}% = {fmt(avantageAbat)}) est supérieur
+              à vos charges réelles ({fmt(params.charges)}).{' '}
+              Avantage fiscal net : <span className="text-emerald-400 font-semibold">{fmt(avantageNet)}</span>.
+              <br />
+              ⚠️ Si vos charges atteignaient{' '}
+              <strong className="text-amber-400">~{fmt(seuilCharges)}</strong>,
+              l&apos;EURL deviendrait plus avantageuse.
+            </div>
+          )
+        })()}
       </div>
 
       {/* Proportional CA bar — [Charges][Cotis.][IR][IS][Net] */}
