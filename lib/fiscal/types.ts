@@ -110,9 +110,10 @@ export interface ProjectionPoint {
   projs: { forme: string; net: number }[]
 }
 
+// Plafonds micro 2026 (LFI 2025 — revalorisation +7,1% vs 2025)
 export const MICRO_PLAFONDS: Record<Secteur, { plafond: number; abat: number; label: string }> = {
-  services_bic: { plafond: 77700, abat: 0.50, label: 'Services BIC — abattement 50%' },
-  liberal_bnc: { plafond: 77700, abat: 0.34, label: 'BNC libéral — abattement 34%' },
-  commerce: { plafond: 188700, abat: 0.71, label: 'Commerce/vente — abattement 71%' },
-  btp: { plafond: 77700, abat: 0.50, label: 'BTP/artisanat — abattement 50%' },
+  services_bic: { plafond: 83600,  abat: 0.50, label: 'Services BIC — abattement 50%' },
+  liberal_bnc:  { plafond: 83600,  abat: 0.34, label: 'BNC libéral — abattement 34%' },
+  commerce:     { plafond: 203100, abat: 0.71, label: 'Commerce/vente — abattement 71%' },
+  btp:          { plafond: 83600,  abat: 0.50, label: 'BTP/artisanat — abattement 50%' },
 }

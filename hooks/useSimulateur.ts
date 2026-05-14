@@ -21,13 +21,21 @@ interface SimulateurActions {
   reset: () => void
 }
 
+// abat calculé à partir du CA et secteur par défaut — jamais écrit en dur
+const _defaultCa: number = 120000
+const _defaultSecteur: Secteur = 'services_bic'
+const _defaultAbat: number = (() => {
+  const cfg = MICRO_PLAFONDS[_defaultSecteur]
+  return _defaultCa <= cfg.plafond ? cfg.abat : 0
+})()
+
 const defaultParams: SimParams = {
-  ca: 120000,
+  ca: _defaultCa,
   charges: 20000,
   amort: 5000,
   deficit: 0,
   capital: 10000,
-  abat: 0.50,
+  abat: _defaultAbat, // 0 — car 120 000 > plafond services_bic 83 600
   remNetAnn: 48000,
   partsBase: 1,
   nbEnfants: 0,
@@ -81,6 +89,11 @@ export const useSimulateur = create<SimulateurState & SimulateurActions>((set, g
   setParams: (partial) => set(state => {
     const next = { ...state.params, ...partial }
     next.parts = calcPartsTotal(next.partsBase, next.nbEnfants)
+    // Recompute abat if ca or secteur changed
+    if ('ca' in partial || 'secteur' in partial) {
+      const cfg = MICRO_PLAFONDS[next.secteur]
+      next.abat = next.ca <= cfg.plafond ? cfg.abat : 0
+    }
     return { params: next }
   }),
 
