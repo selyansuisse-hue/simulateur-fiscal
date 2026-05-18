@@ -234,16 +234,17 @@ export function calcSASU(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const capa = Math.max(0, p.ca - p.charges - p.amort)
   const brutMax = capa / (1 + 0.45 + pc)
-  const brutMin = Math.min(PASS, brutMax)
-  let bestNet = -Infinity, bestBrut = brutMin, bestRatio = 0
-  for (let b = brutMin; b <= brutMax; b += 300) {
+  // brutMin = 0 : on teste aussi 0 salaire + 100% dividendes (PFU 30%, sans cotisations sociales)
+  // L'ancienne contrainte brutMin = PASS empêchait ce scénario pourtant optimal en SAS/SASU
+  let bestNet = -Infinity, bestBrut = 0, bestRatio = 0
+  for (let b = 0; b <= brutMax; b += 300) {
     for (let r = 0; r <= 100; r += 10) {
       const { net } = calcSASU_net(p, b, r)
       if (net > bestNet) { bestNet = net; bestBrut = b; bestRatio = r }
     }
   }
-  // Affinage
-  for (let b = Math.max(brutMin, bestBrut - 300); b <= Math.min(brutMax, bestBrut + 300); b += 30) {
+  // Affinage ±300 autour du meilleur point, pas de 30€
+  for (let b = Math.max(0, bestBrut - 300); b <= Math.min(brutMax, bestBrut + 300); b += 30) {
     for (let r = Math.max(0, bestRatio - 10); r <= Math.min(100, bestRatio + 10); r += 2) {
       const { net } = calcSASU_net(p, b, r)
       if (net > bestNet) { bestNet = net; bestBrut = b; bestRatio = r }
@@ -252,10 +253,12 @@ export function calcSASU(p: SimParams): StructureResult {
   const { net, div, is, netSal, irTotal, cotisTotal, resIS, meth, resNet } = calcSASU_net(p, bestBrut, bestRatio)
   const { divNet, cotisPatronales, cotisSalariales, irSalSeul, divNetMois, netSalMois, baseIR } = calcSASU_net(p, bestBrut, bestRatio)
   let strat: string
-  if (bestRatio === 0 || !div || div < 100) {
+  if (bestBrut === 0 || bestBrut < 100) {
+    strat = `100% dividendes — ${fmt(Math.round(div * 0.70))} nets (PFU 30%, pas de cotisations)`
+  } else if (bestRatio === 0 || !div || div < 100) {
     strat = `Salaire — ${fmt(netSal)} nets/an (brut ${fmt(bestBrut)})`
   } else {
-    strat = `Salaire ${fmt(netSal)} nets/an + ${fmt(div)} dividendes (${meth})`
+    strat = `Salaire ${fmt(netSal)} nets + ${fmt(Math.round(div * 0.70))} div nets (${meth})`
   }
   return {
     forme: 'SAS / SASU',
@@ -269,7 +272,7 @@ export function calcSASU(p: SimParams): StructureResult {
     remBrute: bestBrut,
     remNet: netSal,
     remMois: bestBrut / 12,
-    netMois: (netSal - irSalSeul) / 12,
+    netMois: net / 12,   // net total (salaire + dividendes nets) — corrige affichage /mois
     divNetAn: div > 0 ? div - (irTotal - irSalSeul) : 0,
     divNetMois: div > 0 ? (div - (irTotal - irSalSeul)) / 12 : 0,
     cotisPatronales,
