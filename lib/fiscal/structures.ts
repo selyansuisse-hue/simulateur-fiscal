@@ -233,33 +233,63 @@ function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
 export function calcSASU(p: SimParams): StructureResult {
   const pc = p.prevoy === 'moyen' ? 0.05 : p.prevoy === 'max' ? 0.10 : 0.02
   const capa = Math.max(0, p.ca - p.charges - p.amort)
+  // brutMax = salaire brut max absorbant 100% du résultat (aucun bénéfice IS résiduel)
   const brutMax = capa / (1 + 0.45 + pc)
-  // brutMin = 0 : on teste aussi 0 salaire + 100% dividendes (PFU 30%, sans cotisations sociales)
-  // L'ancienne contrainte brutMin = PASS empêchait ce scénario pourtant optimal en SAS/SASU
-  let bestNet = -Infinity, bestBrut = 0, bestRatio = 0
-  for (let b = 0; b <= brutMax; b += 300) {
-    for (let r = 0; r <= 100; r += 10) {
-      const { net } = calcSASU_net(p, b, r)
-      if (net > bestNet) { bestNet = net; bestBrut = b; bestRatio = r }
-    }
-  }
-  // Affinage ±300 autour du meilleur point, pas de 30€
-  for (let b = Math.max(0, bestBrut - 300); b <= Math.min(brutMax, bestBrut + 300); b += 30) {
-    for (let r = Math.max(0, bestRatio - 10); r <= Math.min(100, bestRatio + 10); r += 2) {
-      const { net } = calcSASU_net(p, b, r)
-      if (net > bestNet) { bestNet = net; bestBrut = b; bestRatio = r }
-    }
-  }
-  const { net, div, is, netSal, irTotal, cotisTotal, resIS, meth, resNet } = calcSASU_net(p, bestBrut, bestRatio)
-  const { divNet, cotisPatronales, cotisSalariales, irSalSeul, divNetMois, netSalMois, baseIR } = calcSASU_net(p, bestBrut, bestRatio)
-  let strat: string
-  if (bestBrut === 0 || bestBrut < 100) {
-    strat = `100% dividendes — ${fmt(Math.round(div * 0.70))} nets (PFU 30%, pas de cotisations)`
-  } else if (bestRatio === 0 || !div || div < 100) {
-    strat = `Salaire — ${fmt(netSal)} nets/an (brut ${fmt(bestBrut)})`
+
+  let bestBrut: number
+  let bestRatio: number
+
+  if (p.priorite === 'protection') {
+    // Tout en salaire — cotisations maximales, aucun dividende
+    // → meilleure couverture retraite/maladie assimilé salarié
+    bestBrut = brutMax
+    bestRatio = 0
+
+  } else if (p.priorite === 'equilibre') {
+    // 1 PASS brut = protection complète (trimestres validés, IJ max, retraite de base saturée)
+    // Surplus → IS 15% + dividendes PFU 30% (plus efficace que cotisations au-delà du PASS)
+    bestBrut = Math.min(PASS, brutMax)
+    bestRatio = 100
+
   } else {
-    strat = `Salaire ${fmt(netSal)} nets + ${fmt(Math.round(div * 0.70))} div nets (${meth})`
+    // net, croissance, simplicite → optimiser le revenu disponible
+    // brutMin = 0 : teste aussi le scénario 0 salaire + 100% dividendes
+    // (PFU 30% sans cotisations > salaire soumis à ~64% de charges)
+    let bestNet = -Infinity
+    bestBrut = 0
+    bestRatio = 0
+    for (let b = 0; b <= brutMax; b += 300) {
+      for (let r = 0; r <= 100; r += 10) {
+        const { net } = calcSASU_net(p, b, r)
+        if (net > bestNet) { bestNet = net; bestBrut = b; bestRatio = r }
+      }
+    }
+    // Affinage ±300 autour du meilleur point, pas de 30€
+    for (let b = Math.max(0, bestBrut - 300); b <= Math.min(brutMax, bestBrut + 300); b += 30) {
+      for (let r = Math.max(0, bestRatio - 10); r <= Math.min(100, bestRatio + 10); r += 2) {
+        const { net } = calcSASU_net(p, b, r)
+        if (net > bestNet) { bestNet = net; bestBrut = b; bestRatio = r }
+      }
+    }
   }
+
+  const { net, div, is, netSal, irTotal, cotisTotal, resIS, meth, resNet } = calcSASU_net(p, bestBrut, bestRatio)
+  const { divNet, cotisPatronales, cotisSalariales, irSalSeul, baseIR } = calcSASU_net(p, bestBrut, bestRatio)
+  const netDivReel = div > 0 ? div - (irTotal - irSalSeul) : 0
+
+  let strat: string
+  if (p.priorite === 'protection') {
+    strat = `100% salaire — ${fmt(netSal)} nets/an · protection maximale`
+  } else if (bestBrut < 100) {
+    strat = `100% dividendes — ${fmt(netDivReel)} nets (${meth}, 0 cotisations sociales)`
+  } else if (!div || div < 100) {
+    strat = `Salaire — ${fmt(netSal)} nets/an (brut ${fmt(bestBrut)})`
+  } else if (p.priorite === 'equilibre') {
+    strat = `🛡 1 PASS salaire + dividendes — ${fmt(netSal)} sal. + ${fmt(netDivReel)} div nets`
+  } else {
+    strat = `Salaire ${fmt(netSal)} nets + ${fmt(netDivReel)} div nets (${meth})`
+  }
+
   return {
     forme: 'SAS / SASU',
     netAnnuel: net,
@@ -268,13 +298,13 @@ export function calcSASU(p: SimParams): StructureResult {
     is,
     ben: resIS,
     div,
-    divNet: div > 0 ? div - (irTotal - irSalSeul) : 0,
+    divNet: netDivReel,
     remBrute: bestBrut,
     remNet: netSal,
     remMois: bestBrut / 12,
-    netMois: net / 12,   // net total (salaire + dividendes nets) — corrige affichage /mois
-    divNetAn: div > 0 ? div - (irTotal - irSalSeul) : 0,
-    divNetMois: div > 0 ? (div - (irTotal - irSalSeul)) / 12 : 0,
+    netMois: net / 12,
+    divNetAn: netDivReel,
+    divNetMois: netDivReel / 12,
     cotisPatronales,
     cotisSalariales,
     irSalSeul,
