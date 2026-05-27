@@ -115,11 +115,80 @@ export function calcEIReel(p: SimParams): StructureResult {
 }
 
 // EURL / SARL IS — Art.62 CGI + Art.154 bis CGI
-// BUG 2 fix : même algorithme itératif que EI — cotisations sur rémunération NETTE
-//   Art.L.131-6 CSS : base cotis = revenu net (après cotisations)
-//   L'ancienne bisection calculait cotis sur la rémunération BRUTE → trop élevé
-// BUG 3 fix : réserves volontaires (stratActif='reserve') désormais appliquées
-//   La rémunération est calculée sur (capa − réserves), IS est calculé sur les réserves
+// Arbitrage optimisé : rémunération TNS vs dividendes (PFU + TNS)
+// Tranche 1 div : ≤ 10% capital → PFU 30%, 0 cotisations TNS
+// Tranche 2 div : > 10% capital → cotisations SSI circulaires + IR 12.8% (PS inclus dans cotisEI)
+// Stratégie : protection → 100% rem ; equilibre → 1 PASS net ; autres → optimisation
+function eurlScenario(
+  p: SimParams,
+  capaPourRem: number,
+  remNet: number,
+  deficit: number
+): {
+  net: number; remNet: number; cotis: number; is: number; resNet: number
+  beneficeIS: number; divPFU: number; divTNSGross: number; netDivPFU: number
+  netDivTNS: number; cotisDivTNS: number; netTNS: number; irGerant: number
+  irTNS: number; tDivPFU: number; abat10: number; baseIR: number; perDed: number
+  seuilCap: number; methPFU: string; netRem: number
+} | null {
+  const cotis = cotisEI(remNet)
+  const beneficeIS = capaPourRem - remNet - cotis
+  if (beneficeIS < -50) return null
+
+  const beneficeISClamped = Math.max(0, beneficeIS)
+  const resISforIS = Math.max(0, beneficeISClamped - deficit)
+  const is = calcIS(resISforIS)
+  const resNet = beneficeISClamped - is
+
+  const seuilCap = (p.capital || 0) * 0.10
+  const divPFU = seuilCap > 300 ? Math.min(resNet, seuilCap) : 0
+  const divTNSGross = Math.max(0, resNet - divPFU)
+
+  // IR rémunération (Art.62 CGI — abattement 10%, plafonné 14 171 €)
+  const abat10 = Math.min(remNet * 0.10, 14171)
+  const baseIR = remNet - abat10
+  const perDed = Math.min(
+    p.perMontant || 0,
+    baseIR * 0.10 + Math.max(0, baseIR - PASS) * 0.15
+  )
+  const irGerant = irMarginal(
+    Math.max(0, baseIR - perDed),
+    p.autresRev, p.partsBase, p.nbEnfants
+  )
+  const netRem = remNet - irGerant - perDed
+
+  // Tranche 1 : dividendes PFU (≤ 10% capital) — aucune cotisation TNS
+  const { tax: tDivPFU, meth: methPFU } = divPFU > 0
+    ? bestDiv(divPFU, Math.max(0, baseIR - perDed), p.partsBase, p.nbEnfants, p.autresRev)
+    : { tax: 0, meth: '—' }
+  const netDivPFU = divPFU - tDivPFU
+
+  // Tranche 2 : dividendes TNS (> 10% capital) — cotisations SSI + IR 12.8%
+  // Circulaire : netTNS + cotisEI(netTNS) = divTNSGross
+  let netTNS = 0
+  if (divTNSGross > 0) {
+    netTNS = divTNSGross * 0.58  // estimation initiale
+    for (let i = 0; i < 50; i++) {
+      const guess = Math.max(0, divTNSGross - cotisEI(netTNS))
+      if (Math.abs(guess - netTNS) < 0.50) { netTNS = guess; break }
+      netTNS = guess
+    }
+    netTNS = Math.max(0, netTNS)
+  }
+  const cotisDivTNS = Math.max(0, divTNSGross - netTNS)
+  const irTNS = netTNS * 0.128  // PFU 12.8% (PS déjà inclus dans cotisEI via CSG/CRDS)
+  const netDivTNS = netTNS - irTNS
+
+  return {
+    net: netRem + netDivPFU + netDivTNS,
+    remNet, cotis, is, resNet,
+    beneficeIS: beneficeISClamped,
+    divPFU, divTNSGross, netDivPFU, netDivTNS,
+    cotisDivTNS, netTNS, irGerant, irTNS, tDivPFU,
+    abat10, baseIR, perDed, seuilCap, methPFU, netRem,
+  }
+}
+
 export function calcEURL(p: SimParams): StructureResult {
   const capa = Math.max(0, p.ca - p.charges - p.amort)
 
@@ -129,72 +198,101 @@ export function calcEURL(p: SimParams): StructureResult {
     : 0
   const capaPourRem = Math.max(0, capa - reservesBrutes)
 
-  // Même itération que EI : rem = capaPourRem − cotisEI(rem)
-  // cotisEI est appelé sur rem (net), ce qui est correct Art.L.131-6 CSS
-  let rem = capaPourRem * 0.65
-  let cotis = cotisEI(rem)
+  // Déficit : s'impute sur réserves en priorité, le solde reste disponible pour IS dividendes
+  const deficitReserves = Math.min(p.deficit, reservesBrutes)
+  const deficitRem = Math.max(0, p.deficit - deficitReserves)
+
+  // IS sur les réserves volontaires
+  const isReserves = calcIS(Math.max(0, reservesBrutes - deficitReserves))
+  const resNetReserves = reservesBrutes - isReserves
+
+  // remMax : rémunération nette maximale (0 bénéfice IS) — circulaire
+  let remMax = capaPourRem * 0.65
   for (let i = 0; i < 50; i++) {
-    const newRem = Math.max(0, capaPourRem - cotis)
-    if (Math.abs(newRem - rem) < 0.50) { rem = newRem; break }
-    rem = newRem
-    cotis = cotisEI(rem)
+    const guess = Math.max(0, capaPourRem - cotisEI(remMax))
+    if (Math.abs(guess - remMax) < 0.50) { remMax = guess; break }
+    remMax = guess
   }
-  rem = Math.max(0, rem)
-  cotis = Math.max(0, capaPourRem - rem)
+  remMax = Math.max(0, remMax)
 
-  // IS sur les réserves (déficit antérieur déduit)
-  const resISforIS = Math.max(0, reservesBrutes - p.deficit)
-  const is = calcIS(resISforIS)
-  const resNet = reservesBrutes - is
+  let bestRemNet: number
 
-  // Dividendes depuis les réserves, plafonnés à 10% du capital (au-delà → cotis SSI)
-  const seuilCap = p.capital * 0.10
-  const divBruts = (seuilCap > 300 && resNet > seuilCap) ? Math.min(resNet, seuilCap) : 0
+  if (p.priorite === 'protection') {
+    // 100% rémunération — protection sociale maximale, aucun dividende
+    bestRemNet = remMax
 
-  // BASE IR Art.62 : rémunération × 0.90 (abat 10%, plafonné 14 171 €)
-  const abat10 = Math.min(rem * 0.10, 14171)
-  const baseIR = rem - abat10
-  const perDedEURL = Math.min(p.perMontant || 0, baseIR * 0.10 + Math.max(0, baseIR - PASS) * 0.15)
-  const irGerant = irMarginal(Math.max(0, baseIR - perDedEURL), p.autresRev, p.partsBase, p.nbEnfants)
-  const { tax: tDiv, meth } = divBruts > 0
-    ? bestDiv(divBruts, baseIR, p.partsBase, p.nbEnfants, p.autresRev)
-    : { tax: 0, meth: '—' }
-  const netGerant = rem - irGerant
-  const net = netGerant + divBruts - tDiv - perDedEURL
+  } else if (p.priorite === 'equilibre') {
+    // Cible : 1 PASS net de cotisations (protection complète : trimestres, IJ, retraite base)
+    // Surplus → IS 15% + dividendes PFU si capital suffisant
+    bestRemNet = PASS + cotisEI(PASS) <= capaPourRem ? PASS : remMax
+
+  } else {
+    // net / croissance / simplicite → optimiser le revenu net disponible total
+    let bestNet = -Infinity
+    bestRemNet = 0
+    const step1 = Math.max(1000, Math.round(remMax / 40))
+    for (let r = 0; r <= remMax; r += step1) {
+      const sc = eurlScenario(p, capaPourRem, r, deficitRem)
+      if (sc && sc.net > bestNet) { bestNet = sc.net; bestRemNet = r }
+    }
+    // Affinage ±2×step autour du meilleur point, pas 10× plus fin
+    const refine = step1 * 2
+    const step2 = Math.max(200, Math.round(step1 / 10))
+    for (
+      let r = Math.max(0, bestRemNet - refine);
+      r <= Math.min(remMax, bestRemNet + refine);
+      r += step2
+    ) {
+      const sc = eurlScenario(p, capaPourRem, r, deficitRem)
+      if (sc && sc.net > bestNet) { bestNet = sc.net; bestRemNet = r }
+    }
+  }
+
+  // Résultat final pour le remNet optimal
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const sc = eurlScenario(p, capaPourRem, bestRemNet, deficitRem)!
+
+  const totalDiv = sc.divPFU + sc.divTNSGross
+  const totalDivNet = sc.netDivPFU + sc.netDivTNS
+  const totalIR = sc.irGerant + sc.tDivPFU + sc.irTNS
 
   let strat: string
-  if (reservesBrutes > 0) {
-    strat = `Rémunération ${fmt(rem)}/an — réserves nettes ${fmt(resNet)} (IS ${fmt(is)})`
-  } else if (!divBruts || divBruts < 300) {
-    strat = `Rémunération ${fmt(rem)}/an — net après IR : ${fmt(netGerant)}`
+  if (p.priorite === 'protection') {
+    strat = `100% rémunération — ${fmt(sc.remNet)}/an · protection maximale TNS`
+  } else if (reservesBrutes > 0 && totalDiv < 100) {
+    strat = `Rémunération ${fmt(sc.remNet)}/an — réserves nettes ${fmt(resNetReserves)} (IS ${fmt(isReserves)})`
+  } else if (sc.divTNSGross > 100) {
+    strat = `Rémunération ${fmt(sc.remNet)} + ${fmt(sc.divPFU)} div PFU + ${fmt(sc.divTNSGross)} div TNS`
+  } else if (sc.divPFU > 100) {
+    strat = `Rémunération ${fmt(sc.remNet)} + ${fmt(sc.divPFU)} div (${sc.methPFU})`
   } else {
-    strat = `Rémunération ${fmt(rem)}/an + ${fmt(divBruts)} dividendes`
+    strat = `Rémunération ${fmt(sc.remNet)}/an — net après IR : ${fmt(sc.netRem)}`
   }
 
   return {
     forme: 'EURL / SARL (IS)',
-    netAnnuel: net,
-    charges: cotis,
-    ir: irGerant + tDiv,
-    is,
-    ben: reservesBrutes,
-    div: divBruts,
-    divNet: divBruts > 0 ? divBruts - tDiv : 0,
-    remBrute: rem,
-    remNet: netGerant,
-    remMois: rem / 12,
-    netMois: netGerant / 12,
+    netAnnuel: sc.net,
+    charges: sc.cotis + sc.cotisDivTNS,
+    ir: totalIR,
+    is: sc.is + isReserves,
+    ben: sc.beneficeIS + reservesBrutes,
+    div: totalDiv,
+    divNet: totalDivNet,
+    remBrute: sc.remNet,
+    remNet: sc.netRem,
+    remMois: sc.remNet / 12,
+    netMois: sc.net / 12,
     ratioDivPct: 0,
     strat,
     scoreTotal: 0,
-    prot: protTNS(rem),
-    methDiv: meth,
-    seuilCap,
-    resEnReserve: Math.max(0, resNet - divBruts),
-    cotisSurDiv: 0,
-    irSalSeul: irGerant,
-    baseIR,
-    abat10,
+    prot: protTNS(sc.remNet),
+    methDiv: sc.divPFU > 0 ? sc.methPFU : (sc.divTNSGross > 0 ? 'TNS' : '—'),
+    seuilCap: sc.seuilCap,
+    resEnReserve: resNetReserves,
+    cotisSurDiv: sc.cotisDivTNS,
+    irSalSeul: sc.irGerant,
+    baseIR: sc.baseIR,
+    abat10: sc.abat10,
   }
 }
 
