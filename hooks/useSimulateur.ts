@@ -42,7 +42,7 @@ const defaultParams: SimParams = {
   parts: 1,
   autresRev: 0,
   prevoy: 'min',
-  priorite: 'equilibre',
+  priorite: 'net',
   situation: 'creation',
   secteur: 'services_bic',
   formeActuelle: 'none',

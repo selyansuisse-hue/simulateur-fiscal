@@ -56,7 +56,10 @@ export function StepRemuneration() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <button
-            onClick={() => setParam('stratActif', 'max')}
+            onClick={() => {
+              setParam('stratActif', 'max')
+              setParam('priorite', 'net')
+            }}
             className={`flex flex-col gap-2 p-5 rounded-2xl border-2 text-left transition-all duration-150
               ${params.stratActif === 'max'
                 ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_0_3px_rgba(59,130,246,.15)]'
@@ -67,7 +70,10 @@ export function StepRemuneration() {
             <div className="text-[12.5px] text-slate-400 leading-relaxed">Optimise la combinaison rémunération / dividendes pour maximiser votre revenu disponible</div>
           </button>
           <button
-            onClick={() => setParam('stratActif', 'reserve')}
+            onClick={() => {
+              setParam('stratActif', 'reserve')
+              setParam('priorite', 'equilibre')
+            }}
             className={`flex flex-col gap-2 p-5 rounded-2xl border-2 text-left transition-all duration-150
               ${params.stratActif === 'reserve'
                 ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_0_3px_rgba(59,130,246,.15)]'
