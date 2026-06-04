@@ -30,16 +30,16 @@ export function irBrut2025(rev: number, parts: number): number {
 }
 
 // IR après décote 2025 (Art.197 CGI — LFI 2025)
-// Célibataire : d = 889 - 72.55% × IR brut (si IR brut < 1 873 €)
-// Couple (marié/pacsé/veuf) : d = 1 470 - 72.55% × IR brut (si IR brut < 3 097 €)
+// Célibataire : d = 889 - 72.55% × IR brut
+// Couple (marié/pacsé/veuf) : d = 1 473 - 72.55% × IR brut
 export function irApresDecote(irBrut: number, couple: boolean = false): number {
-  const seuil = couple ? 1470 : 889
+  const seuil = couple ? 1473 : 889
   const d = Math.max(0, seuil - irBrut * 0.7255)
   return Math.max(0, irBrut - d)
 }
 
 // IR FINAL avec plafonnement QF (Art.197 CGI)
-// Plafond 2025 : 1 807 € par demi-part supplémentaire
+// Plafond 2025 : 1 791 € par demi-part supplémentaire
 export function irFinal(revImposable: number, partsBase: number, nbEnfants: number): number {
   if (revImposable <= 0) return 0
   const couple = partsBase >= 2   // décote couple pour marié/pacsé/veuf
@@ -48,7 +48,7 @@ export function irFinal(revImposable: number, partsBase: number, nbEnfants: numb
   if (nbEnfants === 0) return irAvec
   const irSans = irApresDecote(irBrut2025(revImposable, partsBase), couple)
   const demiPartsSup = (partsTotal - partsBase) * 2
-  const plafond = demiPartsSup * 1807
+  const plafond = demiPartsSup * 1791
   const reductionBrute = irSans - irAvec
   const reductionEffective = Math.min(reductionBrute, plafond)
   return Math.max(0, irSans - reductionEffective)

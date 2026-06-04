@@ -59,18 +59,39 @@ export function calcMicro(p: SimParams): StructureResult | null {
 // EI régime réel
 // Art.L.131-6 CSS : cotisations SSI calculées sur le revenu professionnel NET (après cotisations)
 // → résolution itérative : cotis = f(bNet), bNet = bBrut - cotis
-// Formule simplifiée par composante (sans prévoyance, CSG base 98%)
-const _p40  = PASS * 0.40   // seuil maladie réduit : 18 547 €
-const _p110 = PASS * 1.10   // seuil alloc. fam.    : 51 005 €
+// Formule par composante — même règles que cotisTNS_sur_revenu (pc=0, sans prévoyance)
+const _p40    = PASS * 0.40   // 18 547 € — seuil maladie bas
+const _p60    = PASS * 0.60   // 27 821 € — seuil maladie haut
+const _p110   = PASS * 1.10   // 51 005 € — seuil AF bas
+const _p140   = PASS * 1.40   // 64 915 € — seuil AF haut
+const _pRCI1  = 38493         // seuil T1/T2 retraite complémentaire
+const _p4PASS = PASS * 4
+const _p5PASS = PASS * 5
+
 function cotisEI(R: number): number {
   const retraiteBase  = Math.min(R, PASS) * 0.1775
-  const retraiteCompl = Math.min(R, PASS) * 0.07
+  const retraiteCompl = Math.min(R, _pRCI1) * 0.07
+    + Math.max(0, Math.min(R, _p4PASS) - _pRCI1) * 0.08
   const invalidite    = R * 0.013
-  const maladie       = R > _p40 ? R * 0.065 : R * 0.0135
-  const allocFam      = R > _p110 ? R * 0.0215 : 0
-  const csgCrds       = R * 0.98 * 0.097
-  const formation     = PASS * 0.0025
-  return retraiteBase + retraiteCompl + invalidite + maladie + allocFam + csgCrds + formation
+  let maladie: number
+  if (R <= _p40) {
+    maladie = R * 0.0135
+  } else if (R <= _p60) {
+    const taux = 0.0135 + (0.065 - 0.0135) * ((R - _p40) / (_p60 - _p40))
+    maladie = R * taux
+  } else {
+    maladie = R * 0.065
+  }
+  const ij = Math.min(R, _p5PASS) * 0.005
+  let allocFam = 0
+  if (R > _p140) {
+    allocFam = R * 0.0215
+  } else if (R > _p110) {
+    allocFam = R * 0.0215 * ((R - _p110) / (_p140 - _p110))
+  }
+  const csgCrds  = R * 0.98 * 0.097
+  const formation = PASS * 0.0025
+  return retraiteBase + retraiteCompl + invalidite + maladie + ij + allocFam + csgCrds + formation
 }
 
 export function calcEIReel(p: SimParams): StructureResult {
@@ -88,7 +109,8 @@ export function calcEIReel(p: SimParams): StructureResult {
   // EI réel : charges déduites au réel (CA − charges − amort − cotis)
   // Pas d'abattement forfaitaire 10% — réservé aux salariés (Art.83 CGI)
   // Art.13 CGI : bénéfice imposable = recettes − dépenses professionnelles réelles
-  const perDed = Math.min(p.perMontant || 0, bNet * 0.10 + Math.max(0, bNet - PASS) * 0.15)
+  const plafondPER = Math.min(35194, Math.max(4399, bNet * 0.10))
+  const perDed = Math.min(p.perMontant || 0, plafondPER)
   const baseIR = Math.max(0, bNet - perDed)
   const ir = irMarginal(baseIR, p.autresRev, p.partsBase, p.nbEnfants)
   const net = bNet - ir - perDed    // perDed = montant effectivement versé sur PER (plafonné)
@@ -145,13 +167,11 @@ function eurlScenario(
   // Surplus > 10% capital → réserves en société (non distribués, non soumis aux cotisations SSI)
   const reserves = Math.max(0, resNet - divPFU)
 
-  // IR rémunération (Art.62 CGI — abattement 10%, plafonné 14 171 €)
-  const abat10 = Math.min(remNet * 0.10, 14171)
+  // IR rémunération (Art.62 CGI — abattement 10%, min 448€, max 14 555€)
+  const abat10 = remNet > 0 ? Math.max(448, Math.min(remNet * 0.10, 14555)) : 0
   const baseIR = remNet - abat10
-  const perDed = Math.min(
-    p.perMontant || 0,
-    baseIR * 0.10 + Math.max(0, baseIR - PASS) * 0.15
-  )
+  const plafondPER = Math.min(35194, Math.max(4399, remNet * 0.10))
+  const perDed = Math.min(p.perMontant || 0, plafondPER)
   const irGerant = irMarginal(
     Math.max(0, baseIR - perDed),
     p.autresRev, p.partsBase, p.nbEnfants
@@ -289,9 +309,10 @@ function calcSASU_net(p: SimParams, brutSal: number, ratioDivPct: number) {
   const is = calcIS(resISforIS)
   const resNet = resIS - is
   const div = resNet * (ratioDivPct / 100)
-  const abat10 = Math.min(netSal * 0.10, 14171)
+  const abat10 = netSal > 0 ? Math.max(448, Math.min(netSal * 0.10, 14555)) : 0
   const baseIR = netSal - abat10
-  const perDedSASU = Math.min(p.perMontant || 0, baseIR * 0.10)
+  const plafondPER = Math.min(35194, Math.max(4399, netSal * 0.10))
+  const perDedSASU = Math.min(p.perMontant || 0, plafondPER)
   const irSal = irMarginal(Math.max(0, baseIR - perDedSASU), p.autresRev, p.partsBase, p.nbEnfants)
   const { tax: tDiv, meth } = bestDiv(div, baseIR, p.partsBase, p.nbEnfants, p.autresRev)
   const net = netSal - irSal + div - tDiv - perDedSASU  // PER = cash versé sur compte retraite
