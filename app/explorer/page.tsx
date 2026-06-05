@@ -325,9 +325,25 @@ export default function ExplorerPage() {
   const seuil60k = ben > 60000
   const perPlafond = Math.max(Math.round(Math.min(35194, ben * 0.10)), 500)
 
+  const modeReserves = params.strategie === 'reserve'
+
+  // En mode réserves : EI en dernier (elle ne peut pas conserver de réserves)
+  const displayScored = useMemo(() => {
+    if (!modeReserves) return results.scored
+    const others = results.scored.filter(r => r.forme !== 'EI (réel normal)')
+    const ei = results.scored.find(r => r.forme === 'EI (réel normal)')
+    return ei ? [...others, ei] : others
+  }, [results.scored, modeReserves])
+
+  const displayBest = useMemo(() =>
+    modeReserves && results.best.forme === 'EI (réel normal)'
+      ? results.scored.find(r => r.forme !== 'EI (réel normal)') || results.best
+      : results.best,
+    [results, modeReserves])
+
   const activeResult: StructureResult = useMemo(() =>
-    results.scored.find(r => r.forme === selectedForme) || results.best,
-    [selectedForme, results])
+    results.scored.find(r => r.forme === selectedForme) || displayBest,
+    [selectedForme, results, displayBest])
 
   const tmi = Math.round(tmiRate(
     (activeResult.baseIR ?? activeResult.bNet ?? activeResult.ben ?? 0) + params.autresRev,
@@ -363,7 +379,7 @@ export default function ExplorerPage() {
   /* ── Analyse comparative bullets ── */
   const analyseCompBullets = useMemo(() => {
     const b: string[] = []
-    const bestR = results.best
+    const bestR = displayBest
     const sasR = results.scored.find(r => r.forme === 'SAS / SASU')
     const eurlR = results.scored.find(r => r.forme === 'EURL / SARL (IS)')
 
@@ -522,7 +538,7 @@ export default function ExplorerPage() {
   const cs4 = structBg[activeResult.forme] || { bg: '#0d1a2e', border: 'rgba(30,58,95,0.5)' }
   const tmiColor = tmi <= 11 ? '#10b981' : tmi <= 30 ? '#f59e0b' : tmi <= 41 ? '#f97316' : '#ef4444'
   const tmiLabel = tmi <= 11 ? 'Tranche basse ✓' : tmi <= 30 ? 'Tranche intermédiaire' : tmi <= 41 ? 'Tranche haute ⚠' : 'Tranche max ⚠'
-  const bestColor = sc(results.best.forme)
+  const bestColor = sc(displayBest.forme)
   const worstName = worst?.forme.replace(' / SARL (IS)', '').replace(' / SASU', '') ?? ''
   const sliderFill = leftTab === 'foyer' ? '#8B5CF6' : leftTab === 'optim' ? '#F59E0B' : leftTab === 'leviers' ? '#10B981' : activeColor
 
@@ -645,7 +661,7 @@ export default function ExplorerPage() {
         <div style={{ background: '#060d1a', borderBottom: '1px solid rgba(30,58,95,0.35)', padding: '10px 20px', overflowX: 'auto' as const }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 'max-content' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', flexShrink: 0, marginRight: '6px' }}>Analyser :</span>
-            {results.scored.map((r, i) => {
+            {displayScored.map((r, i) => {
               const rsc = sc(r.forme)
               const isActive = selectedForme === null ? i === 0 : selectedForme === r.forme
               const isExcl = r.forme === 'Micro-entreprise' && microExcluded
@@ -1152,17 +1168,17 @@ export default function ExplorerPage() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' as const }}>
                       <div style={{ flex: 1, minWidth: '180px' }}>
                         <div style={{ fontSize: '22px', fontWeight: 900, color: bestColor, marginBottom: '4px', letterSpacing: '-0.02em' }}>
-                          {results.best.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
+                          {displayBest.forme.replace(' / SARL (IS)', '').replace(' / SASU', '')}
                         </div>
                         <div style={{ fontSize: '38px', fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '4px' }}>
-                          {fmt(results.best.netAnnuel)}
+                          {fmt(displayBest.netAnnuel)}
                         </div>
                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
-                          {fmt(Math.round(results.best.netAnnuel / 12))} €/mois net
+                          {fmt(Math.round(displayBest.netAnnuel / 12))} €/mois net
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: '10px' }}>
                           <span style={{ fontSize: '14px', fontWeight: 800, padding: '4px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}>
-                            {results.best.scoreTotal}/100
+                            {displayBest.scoreTotal}/100
                           </span>
                           {gainVsWorst > 500 && (
                             <span style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(74,222,128,0.2)', color: '#4ade80', borderRadius: '999px', padding: '3px 10px', border: '1px solid rgba(74,222,128,0.3)' }}>
@@ -1171,7 +1187,7 @@ export default function ExplorerPage() {
                           )}
                         </div>
                         <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
-                          {STRUCT_SHORT[results.best.forme] || STRUCT_TYPE[results.best.forme]}
+                          {STRUCT_SHORT[displayBest.forme] || STRUCT_TYPE[displayBest.forme]}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px', flexShrink: 0 }}>
@@ -1203,10 +1219,11 @@ export default function ExplorerPage() {
                     </div>
                     <div style={{ overflowX: 'auto' as const }}>
                       <div style={{ display: 'flex', gap: '0', minWidth: 'max-content', background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.45)', borderRadius: '14px', overflow: 'hidden' }}>
-                        {results.scored.map((r, i) => {
+                        {displayScored.map((r, i) => {
                           const rsc = sc(r.forme)
                           const isActive = r.forme === activeResult.forme
                           const isExcl = r.forme === 'Micro-entreprise' && microExcluded
+                          const isEIIncompatible = modeReserves && r.forme === 'EI (réel normal)'
                           const diff = r.netAnnuel - activeResult.netAnnuel
                           const rCout = r.charges + r.ir + (r.is || 0)
                           const rCoutPct = params.ca > 0 ? (rCout / params.ca * 100) : 0
@@ -1228,7 +1245,7 @@ export default function ExplorerPage() {
                                 </span>
                                 {i === 0 && <span style={{ fontSize: '9px', color: '#fbbf24' }}>★</span>}
                               </div>
-                              <div style={{ display: 'flex', gap: '5px', marginBottom: '12px', flexWrap: 'wrap' as const }}>
+                              <div style={{ display: 'flex', gap: '5px', marginBottom: isEIIncompatible ? '6px' : '12px', flexWrap: 'wrap' as const }}>
                                 <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '999px', background: r.scoreTotal >= 60 ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.12)', color: r.scoreTotal >= 60 ? '#34d399' : '#fbbf24' }}>
                                   {r.scoreTotal}/100
                                 </span>
@@ -1236,6 +1253,11 @@ export default function ExplorerPage() {
                                   {STRUCT_TYPE[r.forme] || ''}
                                 </span>
                               </div>
+                              {isEIIncompatible && (
+                                <div style={{ fontSize: '9px', fontWeight: 600, color: '#fbbf24', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '6px', padding: '4px 7px', marginBottom: '8px', lineHeight: 1.5 }}>
+                                  ⚠️ Ne peut pas conserver de réserves — tout imposé à l'IR
+                                </div>
+                              )}
 
                               {isExcl ? (
                                 <div style={{ fontSize: '11px', color: '#f87171', marginBottom: '12px' }}>Hors plafond<br />{fmt(results.microPlafond)}</div>
@@ -1318,6 +1340,13 @@ export default function ExplorerPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Note EI incompatible réserves */}
+                  {modeReserves && (
+                    <div style={{ fontSize: '11px', color: '#94a3b8', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: '10px', padding: '12px 14px', lineHeight: 1.7 }}>
+                      <span style={{ color: '#fbbf24', fontWeight: 700 }}>⚠ EI affichée à titre indicatif.</span> Elle ne permet pas de conserver des réserves en société — tout le résultat est imposé à l'IR, y compris la part non distribuée. Pour un objectif réserves, privilégier <strong style={{ color: '#e2e8f0' }}>EURL</strong> ou <strong style={{ color: '#e2e8f0' }}>SAS</strong> qui laissent le capital en société taxé à l'IS uniquement (15–25%).
+                    </div>
+                  )}
 
                   {/* Analyse comparative */}
                   <div style={{ background: '#0d1a2e', border: '1px solid rgba(30,58,95,0.4)', borderRadius: '14px', padding: '18px' }}>
