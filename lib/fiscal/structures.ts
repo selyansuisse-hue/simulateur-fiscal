@@ -139,8 +139,43 @@ export function calcEIReel(p: SimParams): StructureResult {
 // EURL / SARL IS — Art.62 CGI + Art.154 bis CGI
 // Arbitrage optimisé : rémunération TNS vs dividendes PFU (≤ 10% capital uniquement)
 // Dividendes ≤ 10% capital → PFU 30% (ou barème), 0 cotisations TNS
-// Dividendes > 10% capital → restent en réserves en société (non distribués)
+// Dividendes > 10% capital → distribués en TNS si rentable, sinon réserves
 // Stratégie : protection → 100% rem ; equilibre → 1 PASS net ; autres → optimisation
+
+// Comparer dividendes TNS vs rémunération pour 1€ de bénéfice IS résiduel
+// Net/€ rémunération (abat 10% Art.62) : (1/1.423) × (1 − 0.90 × tmi)
+// Net/€ dividendes TNS (IS payé, cotis ~42%, IR 12.8%) : ((1−tauxIS)/1.423) × (1−0.128)
+// TMI 30% IS 15% → divTNS 0.521 > remun 0.513 → DISTRIBUER ✅
+// TMI 11% IS 15% → remun 0.633 > divTNS 0.521 → réserves
+// TMI 41% IS 25% → divTNS 0.461 > remun 0.444 → DISTRIBUER ✅
+function comparerDividendeTNSvsRemun(tmi: number, tauxIS: number): boolean {
+  const netRemun = (1 / 1.423) * (1 - 0.90 * tmi)
+  const netDivTNS = ((1 - tauxIS) / 1.423) * (1 - 0.128)
+  return netDivTNS > netRemun
+}
+
+// Calcul circulaire dividendes TNS : cotisEI sur le net (Art.L.131-6 CSS)
+// IR 12.8% sur le net (PS inclus dans cotisEI — pas de double prélèvement)
+function calculDividendesTNS(montantBrut: number): {
+  cotisations: number; netAvantIR: number; ir: number; net: number
+} {
+  let netDiv = montantBrut * 0.70
+  for (let i = 0; i < 50; i++) {
+    const nvNet = Math.max(0, montantBrut - cotisEI(netDiv))
+    if (Math.abs(nvNet - netDiv) < 0.50) { netDiv = nvNet; break }
+    netDiv = nvNet
+  }
+  netDiv = Math.max(0, montantBrut - cotisEI(netDiv))
+  const cotisations = Math.max(0, montantBrut - netDiv)
+  const ir = netDiv * 0.128
+  return {
+    cotisations: Math.round(cotisations),
+    netAvantIR: Math.round(netDiv),
+    ir: Math.round(ir),
+    net: Math.round(netDiv - ir),
+  }
+}
+
 function eurlScenario(
   p: SimParams,
   capaPourRem: number,
@@ -151,6 +186,7 @@ function eurlScenario(
   beneficeIS: number; divPFU: number; reserves: number; netDivPFU: number
   tDivPFU: number; irGerant: number; abat10: number; baseIR: number
   perDed: number; seuilCap: number; methPFU: string; netRem: number
+  divTNS: number; cotisDivTNS: number; irDivTNS: number; netDivTNS: number
 } | null {
   const cotis = cotisEI(remNet)
   const beneficeIS = capaPourRem - remNet - cotis
@@ -164,8 +200,7 @@ function eurlScenario(
   const seuilCap = (p.capital || 0) * 0.10
   // Tranche PFU uniquement (≤ 10% capital) — 0 cotisations TNS
   const divPFU = seuilCap > 300 ? Math.min(resNet, seuilCap) : 0
-  // Surplus > 10% capital → réserves en société (non distribués, non soumis aux cotisations SSI)
-  const reserves = Math.max(0, resNet - divPFU)
+  const excedentCap = Math.max(0, resNet - divPFU)
 
   // IR rémunération (Art.62 CGI — abattement 10%, min 448€, max 14 555€)
   const abat10 = remNet > 0 ? Math.max(448, Math.min(remNet * 0.10, 14555)) : 0
@@ -184,11 +219,27 @@ function eurlScenario(
     : { tax: 0, meth: '—' }
   const netDivPFU = divPFU - tDivPFU
 
+  // Dividendes TNS (excédent > 10% capital) — distribuer si plus rentable que garder en réserves
+  const tauxISEff = beneficeISClamped > 42500 ? 0.25 : 0.15
+  const tmiGerant = tmiRate(Math.max(0, baseIR - perDed + p.autresRev), p.partsBase, p.nbEnfants)
+  let divTNS = 0, cotisDivTNS = 0, irDivTNS = 0, netDivTNS = 0, reserves: number
+  if (excedentCap > 100 && comparerDividendeTNSvsRemun(tmiGerant, tauxISEff)) {
+    const res = calculDividendesTNS(excedentCap)
+    divTNS = excedentCap
+    cotisDivTNS = res.cotisations
+    irDivTNS = res.ir
+    netDivTNS = res.net
+    reserves = 0
+  } else {
+    reserves = excedentCap
+  }
+
   return {
-    net: netRem + netDivPFU,
+    net: netRem + netDivPFU + netDivTNS,
     remNet, cotis, is, resNet, beneficeIS: beneficeISClamped,
     divPFU, reserves, netDivPFU, tDivPFU,
     irGerant, abat10, baseIR, perDed, seuilCap, methPFU, netRem,
+    divTNS, cotisDivTNS, irDivTNS, netDivTNS,
   }
 }
 
@@ -257,11 +308,13 @@ export function calcEURL(p: SimParams): StructureResult {
   let strat: string
   if (p.priorite === 'protection') {
     strat = `100% rémunération — ${fmt(sc.remNet)}/an · protection maximale TNS`
-  } else if (reservesBrutes > 0 && sc.divPFU < 100) {
+  } else if (reservesBrutes > 0 && sc.divPFU < 100 && sc.divTNS < 100) {
     strat = `Rémunération ${fmt(sc.remNet)}/an — réserves nettes ${fmt(resNetReserves)} (IS ${fmt(isReserves)})`
-  } else if (sc.divPFU > 100) {
-    strat = `Rémunération ${fmt(sc.remNet)} + ${fmt(sc.divPFU)} div (${sc.methPFU})`
-      + (sc.reserves > 100 ? ` — ${fmt(sc.reserves)} en réserves IS` : '')
+  } else if (sc.divPFU > 100 || sc.divTNS > 100) {
+    strat = `Rémunération ${fmt(sc.remNet)}`
+    if (sc.divPFU > 100) strat += ` + ${fmt(sc.divPFU)} div PFU (${sc.methPFU})`
+    if (sc.divTNS > 100) strat += ` + ${fmt(sc.divTNS)} div TNS → net ${fmt(sc.netDivTNS)}`
+    if (sc.reserves > 100) strat += ` — ${fmt(sc.reserves)} en réserves IS`
   } else {
     strat = `Rémunération ${fmt(sc.remNet)}/an — net après IR : ${fmt(sc.netRem)}`
   }
@@ -269,12 +322,12 @@ export function calcEURL(p: SimParams): StructureResult {
   return {
     forme: 'EURL / SARL (IS)',
     netAnnuel: sc.net,
-    charges: sc.cotis,
-    ir: sc.irGerant + sc.tDivPFU,
+    charges: sc.cotis + sc.cotisDivTNS,
+    ir: sc.irGerant + sc.tDivPFU + sc.irDivTNS,
     is: sc.is + isReserves,
     ben: sc.beneficeIS + reservesBrutes,
-    div: sc.divPFU,
-    divNet: sc.netDivPFU,
+    div: sc.divPFU + sc.divTNS,
+    divNet: sc.netDivPFU + sc.netDivTNS,
     remBrute: sc.remNet,
     remNet: sc.netRem,
     remMois: sc.remNet / 12,
@@ -286,7 +339,7 @@ export function calcEURL(p: SimParams): StructureResult {
     methDiv: sc.methPFU,
     seuilCap: sc.seuilCap,
     resEnReserve: resNetReserves + sc.reserves,
-    cotisSurDiv: 0,
+    cotisSurDiv: sc.cotisDivTNS,
     irSalSeul: sc.irGerant,
     baseIR: sc.baseIR,
     abat10: sc.abat10,
