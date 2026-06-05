@@ -69,7 +69,7 @@ const _p4PASS = PASS * 4
 const _p5PASS = PASS * 5
 
 function cotisEI(R: number): number {
-  const retraiteBase  = Math.min(R, PASS) * 0.1775
+  const retraiteBase  = Math.min(R, PASS) * 0.1775 + Math.max(0, R - PASS) * 0.006
   const retraiteCompl = Math.min(R, _pRCI1) * 0.07
     + Math.max(0, Math.min(R, _p4PASS) - _pRCI1) * 0.08
   const invalidite    = R * 0.013
