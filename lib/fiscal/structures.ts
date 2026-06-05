@@ -206,8 +206,12 @@ function eurlScenario(
   const excedentCap = Math.max(0, resNet - divPFU)
 
   // IR rémunération (Art.62 CGI — abattement 10%, min 448€, max 14 555€)
-  const abat10 = remNet > 0 ? Math.max(448, Math.min(remNet * 0.10, 14555)) : 0
-  const baseIR = remNet - abat10
+  // Art.154 quinquies CGI : CSG non-déductible (2,4%) + CRDS (0,5%) = 2,9% sur 98%
+  // réintégrées dans la base IR du gérant même si déduites en IS par la société
+  const csgNonDed = remNet * 0.98 * 0.029
+  const grossArt62 = remNet + csgNonDed
+  const abat10 = grossArt62 > 0 ? Math.max(448, Math.min(grossArt62 * 0.10, 14555)) : 0
+  const baseIR = grossArt62 - abat10
   const plafondPER = Math.min(35194, Math.max(4399, remNet * 0.10))
   const perDed = Math.min(p.perMontant || 0, plafondPER)
   const irGerant = irMarginal(
