@@ -109,9 +109,12 @@ export function calcEIReel(p: SimParams): StructureResult {
   // EI réel : charges déduites au réel (CA − charges − amort − cotis)
   // Pas d'abattement forfaitaire 10% — réservé aux salariés (Art.83 CGI)
   // Art.13 CGI : bénéfice imposable = recettes − dépenses professionnelles réelles
+  // Art.154 quinquies CGI : CSG non-déductible (2,4%) + CRDS (0,5%) = 2,9% sur 98%
+  // réintégrées dans la base IR (bNet les a déduites comptablement, pas fiscalement)
+  const csgNonDed = bNet * 0.98 * 0.029
   const plafondPER = Math.min(35194, Math.max(4399, bNet * 0.10))
   const perDed = Math.min(p.perMontant || 0, plafondPER)
-  const baseIR = Math.max(0, bNet - perDed)
+  const baseIR = Math.max(0, bNet + csgNonDed - perDed)
   const ir = irMarginal(baseIR, p.autresRev, p.partsBase, p.nbEnfants)
   const net = bNet - ir - perDed    // perDed = montant effectivement versé sur PER (plafonné)
   const tauxCotis = bNet > 0 ? Math.round(cotis / bNet * 100) : 0
