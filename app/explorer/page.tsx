@@ -84,6 +84,10 @@ function SliderField({ label, value, onChange, min, max, step, hint, hintColor, 
   label: string; value: number; onChange: (v: number) => void
   min: number; max: number; step: number; hint?: string; hintColor?: string; fillColor?: string
 }) {
+  const [editing, setEditing] = useState(false)
+  const [inputVal, setInputVal] = useState(String(value))
+  useEffect(() => { if (!editing) setInputVal(String(value)) }, [value, editing])
+
   const safeMax = Math.max(max, min + 1)
   const sv = Math.min(value, safeMax)
   const pct = safeMax > min ? ((sv - min) / (safeMax - min) * 100) : 0
@@ -93,14 +97,32 @@ function SliderField({ label, value, onChange, min, max, step, hint, hintColor, 
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <label style={{ fontSize: '12px', fontWeight: 500, color: '#cbd5e1' }}>{label}</label>
-        <div style={{
-          background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(99,131,196,0.25)', borderRadius: '8px',
-          padding: '4px 12px', fontSize: '13px', fontWeight: 700, color: '#e2e8f0',
-          minWidth: '110px', textAlign: 'right' as const,
-          fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' as const, letterSpacing: '-0.02em',
-        }}>
-          {fmt(value)}
-        </div>
+        <input
+          type="number"
+          value={inputVal}
+          onFocus={() => { setEditing(true); setInputVal(String(value)) }}
+          onChange={e => {
+            setInputVal(e.target.value)
+            const v = parseFloat(e.target.value)
+            if (!isNaN(v) && v >= min && v <= safeMax) onChange(v)
+          }}
+          onBlur={() => {
+            const v = Math.min(safeMax, Math.max(min, parseFloat(inputVal) || min))
+            setInputVal(String(v))
+            onChange(v)
+            setEditing(false)
+          }}
+          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          style={{
+            background: editing ? 'rgba(15,23,42,0.95)' : 'rgba(15,23,42,0.85)',
+            border: editing ? '1px solid rgba(99,131,196,0.55)' : '1px solid rgba(99,131,196,0.25)',
+            borderRadius: '8px', padding: '4px 12px', fontSize: '13px', fontWeight: 700,
+            color: '#e2e8f0', width: '110px', textAlign: 'right' as const,
+            fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' as const,
+            letterSpacing: '-0.02em', outline: 'none', cursor: 'text', flexShrink: 0,
+            MozAppearance: 'textfield' as React.CSSProperties['MozAppearance'],
+          }}
+        />
       </div>
       {hint && (
         <div style={{
@@ -369,7 +391,7 @@ export default function ExplorerPage() {
     return b.slice(0, 3)
   }, [results, tmi, microExcluded, gainVsWorst])
 
-  const coutTotal = activeResult.charges + activeResult.ir + (activeResult.is || 0)
+  const coutTotal = activeResult.charges + Math.max(0, activeResult.ir - leverImpact) + (activeResult.is || 0)
   const coutPct = params.ca > 0 ? (coutTotal / params.ca * 100).toFixed(0) : '0'
 
   /* ── Save handler ── */
@@ -486,10 +508,10 @@ export default function ExplorerPage() {
     { label: 'CA total', val: params.ca, color: '#3b82f6' },
     ...(params.charges > 0 ? [{ label: 'Charges exploit.', val: params.charges, color: '#64748b' }] : []),
     { label: 'Cotisations soc.', val: activeResult.charges, color: '#f97316' },
-    { label: 'Impôt sur le revenu', val: activeResult.ir, color: '#eab308' },
+    { label: 'Impôt sur le revenu', val: Math.max(0, activeResult.ir - leverImpact), color: '#eab308' },
     ...(activeResult.is > 0 ? [{ label: 'IS société', val: activeResult.is, color: '#a855f7' }] : []),
-    { label: 'Revenu net', val: activeResult.netAnnuel, color: '#10b981' },
-  ], [params.ca, params.charges, activeResult])
+    { label: 'Revenu net', val: leverNet, color: '#10b981' },
+  ], [params.ca, params.charges, activeResult, leverImpact, leverNet])
 
   const structBg: Record<string, { bg: string; border: string }> = {
     'EURL / SARL (IS)': { bg: 'rgba(59,130,246,0.10)', border: 'rgba(59,130,246,0.30)' },
@@ -998,7 +1020,7 @@ export default function ExplorerPage() {
                 </div>
                 <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', fontFamily: monoFont }}>{coutPct}% du CA</div>
                 <div style={{ fontSize: '11px', color: '#475569', fontFamily: monoFont }}>
-                  Cotis. {fmt(activeResult.charges)} · IR {fmt(activeResult.ir)}{activeResult.is > 0 ? ` · IS ${fmt(activeResult.is)}` : ''}
+                  Cotis. {fmt(activeResult.charges)} · IR {fmt(Math.max(0, activeResult.ir - leverImpact))}{activeResult.is > 0 ? ` · IS ${fmt(activeResult.is)}` : ''}
                 </div>
               </div>
 
@@ -1083,14 +1105,14 @@ export default function ExplorerPage() {
                       <span style={{ fontSize: '10.5px', color: '#475569', fontFamily: monoFont }}>100% = {fmt(params.ca)}</span>
                     </div>
                     <WaterfallBar ca={params.ca} chargesE={params.charges} cotis={activeResult.charges}
-                      ir={activeResult.ir} is={activeResult.is || 0} net={activeResult.netAnnuel} h={36} />
+                      ir={Math.max(0, activeResult.ir - leverImpact)} is={activeResult.is || 0} net={leverNet} h={36} />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
                       {[
                         ...(params.charges > 0 ? [{ dot: '#64748b', label: 'Charges', val: params.charges }] : []),
                         { dot: '#f97316', label: 'Cotisations', val: activeResult.charges },
-                        { dot: '#eab308', label: 'IR', val: activeResult.ir },
+                        { dot: '#eab308', label: 'IR', val: Math.max(0, activeResult.ir - leverImpact) },
                         ...(activeResult.is > 0 ? [{ dot: '#a855f7', label: 'IS', val: activeResult.is }] : []),
-                        { dot: '#10b981', label: 'Net', val: activeResult.netAnnuel },
+                        { dot: '#10b981', label: 'Net', val: leverNet },
                       ].map(l => (
                         <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(8,17,38,0.5)', border: '1px solid rgba(99,131,196,0.18)', borderRadius: '8px', padding: '6px 8px' }}>
                           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.dot, flexShrink: 0, boxShadow: `0 0 6px ${l.dot}` }} />
